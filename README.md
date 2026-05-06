@@ -1,59 +1,131 @@
-<p align="center"><a href="https://laravel.com" target="_blank"><img src="https://raw.githubusercontent.com/laravel/art/master/logo-lockup/5%20SVG/2%20CMYK/1%20Full%20Color/laravel-logolockup-cmyk-red.svg" width="400" alt="Laravel Logo"></a></p>
+# Erden - Sistema de Gestión POS
 
-<p align="center">
-<a href="https://github.com/laravel/framework/actions"><img src="https://github.com/laravel/framework/workflows/tests/badge.svg" alt="Build Status"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/dt/laravel/framework" alt="Total Downloads"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/v/laravel/framework" alt="Latest Stable Version"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/l/laravel/framework" alt="License"></a>
-</p>
+Sistema de punto de venta (POS) con arquitectura multi-empresa, construido con Laravel y Vue.js.
 
-## About Laravel
+## 🚀 Características Principales
 
-Laravel is a web application framework with expressive, elegant syntax. We believe development must be an enjoyable and creative experience to be truly fulfilling. Laravel takes the pain out of development by easing common tasks used in many web projects, such as:
+- **Login multi-empresa** con detección automática de usuario global
+- **Módulos POS**: Caja, Categorías, Productos, Órdenes, Usuarios, Estadísticas, Log
+- **Estadísticas** con gráficos interactivos (Line, Doughnut) y exportación a Excel
+- **Sistema de Logs** por módulo con filtros y seguimiento de cambios
+- **Configuración de impresoras** por usuario con habilitación selectiva
+- **Integración con MercadoPago** para pagos vía QR
+- **WebSocket en tiempo real** para actualización de órdenes
 
-- [Simple, fast routing engine](https://laravel.com/docs/routing).
-- [Powerful dependency injection container](https://laravel.com/docs/container).
-- Multiple back-ends for [session](https://laravel.com/docs/session) and [cache](https://laravel.com/docs/cache) storage.
-- Expressive, intuitive [database ORM](https://laravel.com/docs/eloquent).
-- Database agnostic [schema migrations](https://laravel.com/docs/migrations).
-- [Robust background job processing](https://laravel.com/docs/queues).
-- [Real-time event broadcasting](https://laravel.com/docs/broadcasting).
+## 📋 Módulos del Sistema
 
-Laravel is accessible, powerful, and provides tools required for large, robust applications.
+### Admin (Global)
+- **Admin Módulos**: Asignación de módulos a empresas
+- **Admin Compañías**: Gestión de empresas y bases de datos hijas
+- **Usuarios**: Gestión de usuarios globales
+- **Roles**: Configuración de roles y permisos
 
-## Learning Laravel
+### POS (Punto de Venta)
+- **Dashboard**: Panel principal con resumen de ventas
+- **Caja**: Punto de venta con gestión de órdenes
+- **Categorías**: Gestión de categorías de productos
+- **Productos**: Gestión de productos con habilitación/deshabilitación
+- **Órdenes**: Lista de órdenes con filtros y WebSocket
+- **Usuarios POS**: Gestión de usuarios por empresa
+- **Configuración**: Configuración del sistema POS
+- **QR**: Generación de códigos QR para pagos
+- **Estadísticas**: Gráficos de ventas, productos y tickets promedio
+- **Log**: Registro de actividad del sistema
 
-Laravel has the most extensive and thorough [documentation](https://laravel.com/docs) and video tutorial library of all modern web application frameworks, making it a breeze to get started with the framework. You can also check out [Laravel Learn](https://laravel.com/learn), where you will be guided through building a modern Laravel application.
+## 🔧 Instalación
 
-If you don't feel like reading, [Laracasts](https://laracasts.com) can help. Laracasts contains thousands of video tutorials on a range of topics including Laravel, modern PHP, unit testing, and JavaScript. Boost your skills by digging into our comprehensive video library.
+### Requisitos
+- PHP 8.1+
+- Composer
+- Node.js 16+
+- MySQL/MariaDB
 
-## Laravel Sponsors
+### Pasos
 
-We would like to extend our thanks to the following sponsors for funding Laravel development. If you are interested in becoming a sponsor, please visit the [Laravel Partners program](https://partners.laravel.com).
+1. **Clonar el repositorio**
+   ```bash
+   git clone https://github.com/denis-schafer/Erden.git
+   cd Erden
+   ```
 
-### Premium Partners
+2. **Instalar dependencias de PHP**
+   ```bash
+   composer install
+   ```
 
-- **[Vehikl](https://vehikl.com)**
-- **[Tighten Co.](https://tighten.co)**
-- **[Kirschbaum Development Group](https://kirschbaumdevelopment.com)**
-- **[64 Robots](https://64robots.com)**
-- **[Curotec](https://www.curotec.com/services/technologies/laravel)**
-- **[DevSquad](https://devsquad.com/hire-laravel-developers)**
-- **[Redberry](https://redberry.international/laravel-development)**
-- **[Active Logic](https://activelogic.com)**
+3. **Instalar dependencias de Node**
+   ```bash
+   npm install
+   ```
 
-## Contributing
+4. **Configurar entorno**
+   ```bash
+   cp .env.example .env
+   # Editar .env con tus configuraciones de base de datos
+   ```
 
-Thank you for considering contributing to the Laravel framework! The contribution guide can be found in the [Laravel documentation](https://laravel.com/docs/contributions).
+5. **Generar clave de aplicación**
+   ```bash
+   php artisan key:generate
+   ```
 
-## Code of Conduct
+6. **Ejecutar migraciones y seeders**
+   ```bash
+   php artisan migration_all
+   ```
 
-In order to ensure that the Laravel community is welcoming to all, please review and abide by the [Code of Conduct](https://laravel.com/docs/contributions#code-of-conduct).
+7. **Compilar assets**
+   ```bash
+   npm run build
+   ```
 
-## Security Vulnerabilities
+8. **Iniciar servidor**
+   ```bash
+   php artisan serve
+   ```
 
-If you discover a security vulnerability within Laravel, please send an e-mail to Taylor Otwell via [taylor@laravel.com](mailto:taylor@laravel.com). All security vulnerabilities will be promptly addressed.
+9. **Iniciar WebSocket (opcional, para actualizaciones en tiempo real)**
+   ```bash
+   php artisan reverb:start
+   ```
 
-## License
+## 👤 Usuario por Defecto
 
-The Laravel framework is open-sourced software licensed under the [MIT license](https://opensource.org/licenses/MIT).
+Después de ejecutar `migration_all`, se crea un usuario administrador global:
+- **Usuario**: admin
+- **Contraseña**: password
+- **Rol**: admin-global
+
+## 🏢 Estructura Multi-Empresa
+
+1. Crear empresa desde el módulo "Admin Compañías"
+2. Asignar módulos a la empresa desde "Admin Módulos"
+3. Crear usuarios locales para la empresa
+4. El login detecta automáticamente si el usuario es global o local
+
+## 📊 Tecnologías Utilizadas
+
+- **Backend**: Laravel 11.x
+- **Frontend**: Vue.js 3, Bootstrap 5, Vite
+- **Gráficos**: Chart.js (vue-chartjs)
+- **Exportación**: SheetJS (xlsx)
+- **Tiempo real**: Laravel Reverb / Pusher
+- **Pagos**: MercadoPago SDK
+
+## 📄 Licencia
+
+Este proyecto está bajo la licencia MIT. Ver el archivo [LICENSE](LICENSE) para más detalles.
+
+## 🤝 Contribuciones
+
+Las contribuciones son bienvenidas. Por favor:
+1. Haz fork del proyecto
+2. Crea una rama para tu feature (`git checkout -b feature/nueva-feature`)
+3. Haz commit de tus cambios (`git commit -m 'Agrega nueva feature'`)
+4. Haz push a la rama (`git push origin feature/nueva-feature`)
+5. Abre un Pull Request
+
+## 📞 Contacto
+
+- **GitHub**: [@denis-schafer](https://github.com/denis-schafer)
+- **Email**: denis.schafer@gmail.com

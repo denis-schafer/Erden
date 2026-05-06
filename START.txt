@@ -1,0 +1,24 @@
+En el APACHE definir
+
+<VirtualHost *:80> 
+    DocumentRoot "C:/laragon/www/erden/public"
+    ServerName erden.test
+    ServerAlias *.erden.test
+    <Directory "C:/laragon/www/erden/public">
+        AllowOverride All
+        Require all granted
+    </Directory>
+</VirtualHost>
+
+Lanzar el tunel:
+cloudflared tunnel --url http://localhost:80
+
+La url obtenida setearla en config de la empresa hija agregando /mp/callback:
+https://luggage-big-regards-mineral.trycloudflare.com/mp/callback
+
+Setear en MP la redirect_url de la app con la url obtenida + el /mp/callback https://luggage-big-regards-mineral.trycloudflare.com/mp/callback
+
+Ingresar con el usuario admin para obtener el token desde el dispositivo en donde tenga la cuenta de Mercadopago el cliente mediante la url del tunel: https://luggage-big-regards-mineral.trycloudflare.com 
+
+Lanzar los websockets:
+php artisan reverb:start

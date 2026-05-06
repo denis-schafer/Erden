@@ -1,0 +1,109 @@
+@import 'bootstrap/scss/bootstrap';
+@import 'bootstrap-icons/font/bootstrap-icons.css';
+
+:root {
+    --sidebar-width: 250px;
+    --topbar-height: 56px;
+}
+
+// CIRCULAR BUTTON
+.btn-circle {
+    width: 40px !important;
+    height: 40px !important;
+    border-radius: 50% !important;
+    padding: 0 !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    font-size: 1.25rem !important;
+}
+
+// TABLE STYLES
+.table-wrapper {
+    width: 100%;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+}
+
+.table-wrapper .table {
+    min-width: 400px;
+    width: 100%;
+    margin-bottom: 0;
+}
+
+// TOPBAR - base styles (mobile first)
+.topbar {
+    position: fixed !important;
+    top: 0 !important;
+    left: 0 !important;
+    right: 0 !important;
+    height: var(--topbar-height) !important;
+    background: white !important;
+    z-index: 1000 !important;
+    width: 100% !important;
+}
+
+// SIDEBAR - hidden on mobile
+.sidebar {
+    position: fixed !important;
+    top: 0 !important;
+    left: 0 !important;
+    width: var(--sidebar-width) !important;
+    height: 100vh !important;
+    background: #212529 !important;
+    z-index: 1001 !important;
+    transform: translateX(-100%) !important;
+    transition: transform 0.3s !important;
+}
+
+.sidebar.show {
+    transform: translateX(0) !important;
+}
+
+// OVERLAY
+.sidebar-overlay {
+    display: none !important;
+    position: fixed !important;
+    inset: 0 !important;
+    background: rgba(0,0,0,0.5) !important;
+    z-index: 1000 !important;
+}
+
+.sidebar-overlay.show {
+    display: block !important;
+}
+
+// DESKTOP >= 992px
+@media (min-width: 992px) {
+    .sidebar {
+        transform: translateX(0) !important;
+    }
+    
+    .topbar {
+        left: var(--sidebar-width) !important;
+        width: calc(100% - var(--sidebar-width)) !important;
+    }
+}
+
+// MOBILE < 992px
+@media (max-width: 991px) {
+    .hamburger-btn {
+        display: block !important;
+    }
+    
+    .topbar-user-info {
+        display: none !important;
+    }
+    
+    .topbar-user-info-mobile {
+        display: flex !important;
+    }
+}
+
+.hamburger-btn {
+    display: none;
+    background: none;
+    border: none;
+    font-size: 1.5rem;
+    color: #212529;
+}

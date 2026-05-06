@@ -4,14 +4,41 @@
     "type": "module",
     "scripts": {
         "build": "vite build",
-        "dev": "vite"
+        "dev": "vite",
+        "wp": "vite build"
     },
     "devDependencies": {
         "@tailwindcss/vite": "^4.0.0",
-        "axios": "^1.11.0",
+        "axios": "^1.14.0",
         "concurrently": "^9.0.1",
         "laravel-vite-plugin": "^2.0.0",
         "tailwindcss": "^4.0.0",
         "vite": "^7.0.7"
+    },
+    "dependencies": {
+        "@meforma/vue-toaster": "^1.3.0",
+        "@popperjs/core": "^2.11.8",
+        "@vitejs/plugin-vue": "^6.0.5",
+        "bootstrap": "^5.3.8",
+        "bootstrap-icons": "^1.11.3",
+        "chart.js": "^4.4.0",
+        "datatables.net": "^2.3.7",
+        "datatables.net-buttons": "^3.2.6",
+        "datatables.net-dt": "^2.3.7",
+        "datatables.net-responsive": "^3.0.8",
+        "datatables.net-select": "^3.1.3",
+        "jquery": "^4.0.0",
+        "laravel-echo": "^1.16.1",
+        "pinia": "^3.0.4",
+        "primevue": "^4.5.4",
+        "pusher-js": "^8.5.0",
+        "sass": "^1.99.0",
+        "sass-loader": "^16.0.7",
+        "socket.io-client": "^4.8.1",
+        "vue": "^3.5.32",
+        "vue-chartjs": "^5.3.0",
+        "vue-router": "^4.6.4",
+        "vue3-toastify": "^0.2.9",
+        "xlsx": "^0.18.5"
     }
 }

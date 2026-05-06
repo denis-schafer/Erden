@@ -1,0 +1,182 @@
+=== Historial de Versiones ===
+
+[QR POS funcional]
+Fecha: 2026-05-01
+Estado: Completado
+
+Cambios realizados:
+- Vista de éxito de pago en PosQR.vue se muestra correctamente y cierra automáticamente después de 3 segundos
+- Solucionados problemas de conexión WebSocket en red local (IP 192.168.2.129)
+- Generación de QR vía IP local funciona sin errores de MercadoPago
+- Template de PosQR.vue reestructurado: paymentSuccess se verifica PRIMERO en cadena condicional
+- Bootstrap.js usa window.location.hostname para wsHost (soporte multi-dispositivo)
+- MercadoPagoController.php usa configs.redirect_uri para notification_url
+- WebSocket conecta a 192.168.2.129:8080 y recibe eventos .OrderPaid correctamente
+
+Archivos modificados:
+- resources/js/components/modules/pos/PosQR.vue
+- resources/js/bootstrap.js
+- app/Http/Controllers/Pos/MercadoPagoController.php
+- app/Events/OrderPaid.php
+- config/broadcasting.php
+- .env (REVERB_HOST=localhost, REVERB_SCHEME=http)
+
+---
+
+[POS funcional]
+Fecha: 2026-05-06
+Estado: Completado
+
+Cambios realizados:
+- PosUsers.vue: Eliminada restricción de impresora para habilitar/deshabilitar usuarios
+- PosUsers.vue: Botón "Nuevo" ahora resetea el formulario correctamente (openCreateModal)
+- PosUsers.vue: Checkboxes de impresora y QR ya no inician tildados al crear usuario
+- PosUsers.vue: enable_print se guarda como '0' si no hay impresora configurada
+- Pos\Seeders\RoleSeeder.php: Elimina cualquier rol que no sea "admin" o "cashier"
+- MigrationAll.php: Eliminada ejecución de Child\ModuleSeeder y Child\RoleSeeder en runSeeders()
+- MigrationAll.php: runPosSeeders() solo ejecuta ModuleSeeder si no hay módulos POS aún
+- PosUsers.vue: El toggle de usuario (enable/disable) ya no verifica configuración de impresora
+- Build exitoso (821.73 kB app.js)
+
+Archivos modificados:
+- resources/js/components/modules/pos/PosUsers.vue
+- app/Packages/Pos/Seeders/RoleSeeder.php
+- app/Console/Commands/MigrationAll.php
+
+---
+
+[Login invertido y Estadísticas por rol]
+Fecha: 2026-05-06
+Estado: Completado
+
+Cambios realizados:
+- Login.vue: Lógica invertida - por defecto muestra 3 campos (usuario, contraseña, empresa)
+- Login.vue: Si usuario es global → oculta campo empresa automáticamente
+- Login.vue: Etiqueta cambiada de "Código de empresa" a "Empresa"
+- Login.vue: Placeholder en blanco (antes "Ej: 1, 2, 3...")
+- Login.vue: Texto informativo: "Ingrese el nombre o código de la empresa"
+- PosStatistics.vue: Selector de usuarios solo visible para admin (isAdmin computed)
+- PosStatistics.vue: Cashier (role_id != 1) no ve selector, solo sus estadísticas
+- PosStatistics.vue: Auto-selección del usuario actual si no es admin
+- PosStatistics.vue: loadUsers() no carga usuarios si no es admin
+- Build exitoso (821.85 kB app.js)
+
+Archivos modificados:
+- resources/js/components/modules/Login.vue
+- resources/js/components/modules/pos/PosStatistics.vue
+
+---
+
+[Corrección checkboxes y Migraciones POS automáticas]
+Fecha: 2026-05-06
+Estado: Completado
+
+Cambios realizados:
+- PosUserController.php: Corregido enable_print y mercadopago_qr_enabled (usar in_array() en lugar de $request->has())
+- PosUsers.vue: Simplificado envío de enable_print y mercadopago_qr_enabled
+- CompanyModuleController.php: Agregado método verifyPosTablesStructure() para verificar columnas faltantes
+- CompanyModuleController.php: installPosPackage() ahora llama verifyPosTablesStructure() después de migraciones
+- Al asignar módulo POS → Se agregan columnas mp_payment_id y mp_transaction_amount automáticamente
+- Build exitoso (821.71 kB app.js)
+
+Archivos modificados:
+- app/Http/Controllers/Pos/PosUserController.php
+- resources/js/components/modules/pos/PosUsers.vue
+- app/Http/Controllers/CompanyModuleController.php
+
+---
+
+
+Cambios realizados:
+- PosQR.vue: Dispatches 'pos-order-updated' event when payment succeeds
+- PosQR.vue: Fixed null reference error in WebSocket handler (checks closedOrderId before processing)
+- PosOrders.vue: Added direct WebSocket listener for .OrderPaid on channel user.{id}
+- PosOrders.vue: When payment received → calls loadData() to refresh orders automatically
+- PosCaja.vue: Added direct WebSocket listener for .OrderPaid on channel user.{id}
+- PosCaja.vue: When payment received and Orders modal is open → calls loadOrders() automatically
+- Build exitoso, ambos módulos actualizan estado de orden automáticamente vía WebSocket
+
+Archivos modificados:
+- resources/js/components/modules/pos/PosQR.vue
+- resources/js/components/modules/pos/PosOrders.vue
+- resources/js/components/modules/pos/PosCaja.vue
+
+------
+[POS Success]
+Fecha: 2026-05-01
+Estado: Completado
+
+Cambios realizados:
+- PosOrders.vue: QR button disabled when order.paid || order.status_id === 3
+- PosCaja.vue: QR button in Orders modal disabled when order.paid || order.status_id === 3
+- PosCaja.vue: Fixed double toast error - removed undefined emit(
+  'order-created') call
+- Now only shows " Pedido generado correctamente\ toast on success
+- Build exitoso
+
+Archivos modificados:
+- resources/js/components/modules/pos/PosOrders.vue
+- resources/js/components/modules/pos/PosCaja.vue
+
+---
+
+[Estadisticas funcionales]
+Fecha: 2026-05-05
+Estado: Completado
+
+Cambios realizados:
+- PosStatistics.vue: Tabla Top Productos muestra total de cantidades (ej: 6) en footer
+- PosStatistics.vue: Agregado gráfico de torta (Doughnut) para distribución de productos
+- PosStatistics.vue: Importado componente Doughnut de vue-chartjs y registrado ArcElement
+- PosStatisticsController.php: Excel hoja Pedidos ahora incluye columna "ID Pago (MP)" (mp_payment_id)
+- PosStatistics.vue: Gráfico de ventas agrupa por intervalos de 10 minutos (implementado previamente)
+- PosStatistics.vue: Tabla footer muestra "Total | cantidad | monto" correctamente
+- Build exitoso (817.74 kB app.js con xlsx incluido)
+
+Archivos modificados:
+- resources/js/components/modules/pos/PosStatistics.vue
+- app/Http/Controllers/Pos/PosStatisticsController.php
+
+---
+
+[Módulo Log POS]
+Fecha: 2026-05-05
+Estado: Completado
+
+Cambios realizados:
+- Creado PosLogService.php: Servicio para escribir/leer logs en storage/logs/{db}/
+- Logs guardados en archivos de texto: {modulo}-log.txt (ej: productos-log.txt)
+- PosProductController.php: Agregado log al habilitar/deshabilitar productos
+- Creado PosLogController.php: API para obtener logs con filtros
+- Agregado rutas /pos/log y /pos/log/entries en web.php (requiere permiso pos-log_read)
+- Creado module "Log" en ModuleSeeder.php y PosSeeder.php
+- Creado componente PosLog.vue: Visualizador de logs con filtros (módulo, acción, fechas)
+- Registrado PosLog en TabsContainer.vue
+- Permiso pos-log_read: Solo admin (cajeros NO tienen acceso)
+- Build exitoso (821.88 kB app.js)
+
+Archivos creados:
+- app/Services/PosLogService.php
+- app/Http/Controllers/Pos/PosLogController.php
+- resources/js/components/modules/pos/PosLog.vue
+
+Archivos modificados:
+- app/Http/Controllers/Pos/PosProductController.php
+- app/Http/Controllers/Pos/PosUserController.php (agregado log user enable/disable)
+- routes/web.php
+- app/Packages/Pos/Seeders/ModuleSeeder.php
+- app/Packages/Pos/Seeders/PosSeeder.php
+- resources/js/components/layout/TabsContainer.vue
+
+Cambios adicionales:
+- PosLogService: Guarda logs en storage/logs/{db}/ (no en raiz)
+- PosLogService: writeLog() obtiene username correctamente via session/auth
+- PosLogService: Nuevo metodo readAllLogs() para leer todos los modulos
+- PosLogController: getLogs() maneja "Todos" (modulo vacio) usando readAllLogs()
+- PosLog.vue: Eliminado boton "Limpiar"
+- PosLog.vue: Boton "Filtrar" movido a la misma linea que los inputs
+- PosLog.vue: Cuando se selecciona "Todos" → Trae logs de TODOS los archivos
+- PosLog.vue: Columna "Usuario" muestra username (o N/A si no disponible)
+- PosLog.vue: Columna "Modulo" visible solo cuando se selecciona "Todos"
+
+---

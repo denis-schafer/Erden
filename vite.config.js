@@ -1,16 +1,31 @@
 import { defineConfig } from 'vite';
 import laravel from 'laravel-vite-plugin';
-import tailwindcss from '@tailwindcss/vite';
+import vue from '@vitejs/plugin-vue';
+import path from 'path';
 
 export default defineConfig({
     plugins: [
         laravel({
-            input: ['resources/css/app.css', 'resources/js/app.js'],
+            input: ['resources/sass/app.scss', 'resources/js/app.js'],
             refresh: true,
+            buildDirectory: 'build',
+            assetFileNames: 'assets/[name]-[hash][ext]',
         }),
-        tailwindcss(),
+        vue(),
     ],
+    resolve: {
+        alias: {
+            '@': path.resolve(__dirname, './resources/js'),
+        },
+    },
+    base: process.env.NODE_ENV === 'production' ? '/' : '/',
     server: {
+        host: '0.0.0.0',
+        port: 5173,
+        hmr: {
+            host: process.env.HMR_HOST || 'localhost',
+            protocol: process.env.HMR_PROTOCOL || 'ws',
+        },
         watch: {
             ignored: ['**/storage/framework/views/**'],
         },

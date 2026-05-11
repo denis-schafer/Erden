@@ -609,10 +609,12 @@ class PosStatisticsController extends Controller
 
         $filename = 'estadisticas_' . $startDate . '_' . $endDate . '.xlsx';
 
-        return response()->streamDownload(function () use ($writer) {
-            $writer->save('php://output');
-        }, $filename, [
+        $tempDir = sys_get_temp_dir();
+        $tempFile = $tempDir . DIRECTORY_SEPARATOR . $filename;
+        $writer->save($tempFile);
+
+        return response()->download($tempFile, $filename, [
             'Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-        ]);
+        ])->deleteFileAfterSend(true);
     }
 }

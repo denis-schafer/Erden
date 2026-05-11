@@ -493,14 +493,10 @@ const exportData = async () => {
 
         const response = await api.get('/pos/statistics/export', {
             params,
-            responseType: 'arraybuffer',
+            responseType: 'blob',
         });
 
-        const blob = new Blob([response.data], {
-            type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-        });
-
-        const url = URL.createObjectURL(blob);
+        const url = URL.createObjectURL(response.data);
         const a = document.createElement('a');
         a.href = url;
         a.download = `estadisticas_${startDate.value}_${endDate.value}.xlsx`;

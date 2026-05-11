@@ -69,31 +69,18 @@ class PosStatisticsController extends Controller
      */
     public function salesByPeriod(Request $request)
     {
-        $period = $request->input('period', 'day');
-        $startDate = $request->input('start_date', now()->subDays(30)->toDateString());
+        $startDate = $request->input('start_date', now()->subDays(3)->toDateString());
         $endDate = $request->input('end_date', now()->toDateString());
         $userId = $request->input('user_id');
 
         $query = DB::table('orders')
+            ->select('created_at as date', 'total')
             ->whereBetween('created_at', [$startDate . ' 00:00:00', $endDate . ' 23:59:59'])
-            ->where('status_id', '!=', 4); // Exclude canceled
+            ->where('status_id', '!=', 4)
+            ->orderBy('created_at');
 
         if ($userId) {
             $query->where('operator_id', $userId);
-        }
-
-        if ($period === 'week') {
-            $query->selectRaw('YEARWEEK(created_at) as week, MIN(DATE(created_at)) as week_start, SUM(total) as total, COUNT(*) as orders')
-                ->groupBy('week')
-                ->orderBy('week');
-        } elseif ($period === 'month') {
-            $query->selectRaw('DATE_FORMAT(created_at, "%Y-%m") as month, SUM(total) as total, COUNT(*) as orders')
-                ->groupBy('month')
-                ->orderBy('month');
-        } else {
-            $query->selectRaw('DATE(created_at) as date, SUM(total) as total, COUNT(*) as orders')
-                ->groupBy('date')
-                ->orderBy('date');
         }
 
         return response()->json($query->get());

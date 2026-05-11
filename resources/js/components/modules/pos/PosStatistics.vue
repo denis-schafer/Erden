@@ -89,7 +89,7 @@
                         </div>
                         <div class="card-body">
                             <div v-if="salesChartData.labels && salesChartData.labels.length" style="height: 300px;">
-                                <Line :data="salesChartData" :options="lineOptions" />
+                                <Bar :data="salesChartData" :options="barOptions" />
                             </div>
                             <p v-else class="text-muted text-center py-4">Sin datos para el gráfico</p>
                         </div>
@@ -152,9 +152,9 @@
 </template>
 
 <script setup>
-import { ref, onMounted, computed } from 'vue';
-import { Line, Doughnut } from 'vue-chartjs';
-import { Chart as ChartJS, CategoryScale, LinearScale, PointElement, LineElement, Title, Tooltip, Legend, Filler, ArcElement } from 'chart.js';
+import { ref, computed, onMounted, onUnmounted } from 'vue';
+import { Bar, Doughnut } from 'vue-chartjs';
+import { Chart as ChartJS, CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend, ArcElement } from 'chart.js';
 import * as XLSX from 'xlsx';
 import api from '../../../services/api';
 import { toast as toastify } from '../../../utils/toast';
@@ -166,28 +166,35 @@ const isAdmin = computed(() => {
     return authStore.user?.role_id === 1;
 });
 
-ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, Title, Tooltip, Legend, Filler, ArcElement);
+ChartJS.register(CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend, ArcElement);
 
 const loading = ref(true);
 const stats = ref({});
 const salesChartData = ref({ labels: [], datasets: [] });
 const topProducts = ref({});
 const users = ref([]);
-const period = ref('day');
 
-const startDate = ref(new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]);
+const startDate = ref(new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]);
 const endDate = ref(new Date().toISOString().split('T')[0]);
 const selectedUserId = ref(null);
 const selectedStatus = ref(null);
 
-const lineOptions = {
+const barOptions = {
     responsive: true,
     maintainAspectRatio: false,
     plugins: {
-        legend: { display: false }
+        legend: { display: false },
+        tooltip: {
+            callbacks: {
+                label: (ctx) => `${ctx.parsed.y} pedidos`
+            }
+        }
     },
     scales: {
-        y: { beginAtZero: true }
+        y: {
+            beginAtZero: true,
+            ticks: { stepSize: 1 }
+        }
     }
 };
 
@@ -198,6 +205,8 @@ const doughnutOptions = {
         legend: { position: 'right' }
     }
 };
+
+const barColors = ['#0d6efd', '#dc3545', '#198754', '#ffc107', '#0dcaf0', '#6f42c1', '#fd7e14', '#20c997', '#e83e8c', '#6c757d'];
 
 const productsChartData = computed(() => {
     if (!topProducts.value.products || !topProducts.value.products.length) {
@@ -232,7 +241,7 @@ const loadData = async () => {
 
         const [statsRes, salesRes, productsRes] = await Promise.all([
             api.get('/pos/statistics/summary', { params }),
-            api.get('/pos/statistics/sales-by-period', { ...params, period: period.value }),
+            api.get('/pos/statistics/sales-by-period', { params }),
             api.get('/pos/statistics/top-products', { params })
         ]);
 
@@ -247,27 +256,24 @@ const loadData = async () => {
             const intervalKey = date.toISOString().slice(0, 16);
             
             if (!salesByInterval[intervalKey]) {
-                salesByInterval[intervalKey] = { total: 0, count: 0 };
+                salesByInterval[intervalKey] = 0;
             }
-            salesByInterval[intervalKey].total += parseFloat(s.total);
-            salesByInterval[intervalKey].count += s.orders;
+            salesByInterval[intervalKey]++;
         });
         
         const labels = Object.keys(salesByInterval).map(key => {
             const d = new Date(key + ':00');
             return d.toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' });
         });
-        const totals = Object.values(salesByInterval).map(s => s.total);
+        const counts = Object.values(salesByInterval);
 
         salesChartData.value = {
-            labels: labels,
+            labels,
             datasets: [{
-                label: 'Ventas',
-                data: totals,
-                borderColor: '#0d6efd',
-                backgroundColor: 'rgba(13, 110, 253, 0.1)',
-                fill: true,
-                tension: 0.3
+                label: 'Pedidos',
+                data: counts,
+                backgroundColor: barColors.slice(0, labels.length),
+                borderRadius: 4
             }]
         };
 
@@ -277,51 +283,6 @@ const loadData = async () => {
     } finally {
         loading.value = false;
     }
-};
-
-const loadSalesByPeriod = () => {
-    const params = {
-        start_date: startDate.value,
-        end_date: endDate.value,
-        period: period.value
-    };
-    if (selectedUserId.value) params.user_id = selectedUserId.value;
-    if (selectedStatus.value) params.status_id = selectedStatus.value;
-
-    api.get('/pos/statistics/sales-by-period', { params })
-        .then(res => {
-            const salesByInterval = {};
-            res.data.forEach(s => {
-                const date = new Date(s.date);
-                date.setMinutes(Math.floor(date.getMinutes() / 10) * 10, 0, 0);
-                const intervalKey = date.toISOString().slice(0, 16);
-                
-                if (!salesByInterval[intervalKey]) {
-                    salesByInterval[intervalKey] = { total: 0, count: 0 };
-                }
-                salesByInterval[intervalKey].total += parseFloat(s.total);
-                salesByInterval[intervalKey].count += s.orders;
-            });
-            
-            const labels = Object.keys(salesByInterval).map(key => {
-                const d = new Date(key + ':00');
-                return d.toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' });
-            });
-            const totals = Object.values(salesByInterval).map(s => s.total);
-            
-            salesChartData.value = {
-                labels: labels,
-                datasets: [{
-                    label: 'Ventas',
-                    data: totals,
-                    borderColor: '#0d6efd',
-                    backgroundColor: 'rgba(13, 110, 253, 0.1)',
-                    fill: true,
-                    tension: 0.3
-                }]
-            };
-        })
-        .catch(error => console.error('Error loading sales by period:', error));
 };
 
 const loadUsers = async () => {
@@ -334,6 +295,55 @@ const loadUsers = async () => {
         users.value = response.data;
     } catch (error) {
         console.error('Error loading users:', error);
+    }
+};
+
+const refreshStats = async () => {
+    const params = {
+        start_date: startDate.value,
+        end_date: endDate.value,
+    };
+    if (selectedUserId.value) params.user_id = selectedUserId.value;
+    if (selectedStatus.value) params.status_id = selectedStatus.value;
+
+    try {
+        const [statsRes, salesRes, productsRes] = await Promise.all([
+            api.get('/pos/statistics/summary', { params }),
+            api.get('/pos/statistics/sales-by-period', { params }),
+            api.get('/pos/statistics/top-products', { params })
+        ]);
+
+        stats.value = statsRes.data;
+        topProducts.value = productsRes.data;
+
+        const salesByInterval = {};
+        salesRes.data.forEach(s => {
+            const date = new Date(s.date);
+            date.setMinutes(Math.floor(date.getMinutes() / 10) * 10, 0, 0);
+            const intervalKey = date.toISOString().slice(0, 16);
+            if (!salesByInterval[intervalKey]) {
+                salesByInterval[intervalKey] = 0;
+            }
+            salesByInterval[intervalKey]++;
+        });
+
+        const labels = Object.keys(salesByInterval).map(key => {
+            const d = new Date(key + ':00');
+            return d.toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' });
+        });
+        const counts = Object.values(salesByInterval);
+
+        salesChartData.value = {
+            labels,
+            datasets: [{
+                label: 'Pedidos',
+                data: counts,
+                backgroundColor: barColors.slice(0, labels.length),
+                borderRadius: 4
+            }]
+        };
+    } catch (error) {
+        console.error('Error refreshing statistics:', error);
     }
 };
 
@@ -385,6 +395,15 @@ onMounted(() => {
         selectedUserId.value = authStore.user.id;
     }
     loadData();
+    window.addEventListener('pos-order-created', refreshStats);
+    window.addEventListener('pos-order-updated', refreshStats);
+    window.addEventListener('pos-order-deleted', refreshStats);
+});
+
+onUnmounted(() => {
+    window.removeEventListener('pos-order-created', refreshStats);
+    window.removeEventListener('pos-order-updated', refreshStats);
+    window.removeEventListener('pos-order-deleted', refreshStats);
 });
 </script>
 

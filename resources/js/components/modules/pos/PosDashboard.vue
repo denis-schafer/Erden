@@ -64,7 +64,7 @@
                             <h6 class="mb-0">Tendencia de Ventas (Últimos 7 días)</h6>
                         </div>
                         <div class="card-body">
-                            <Line v-if="trendData.labels.length" :data="trendData" :options="lineOptions" />
+                            <Bar v-if="trendData.labels.length" :data="trendData" :options="barOptions" />
                             <p v-else class="text-muted text-center">Sin datos</p>
                         </div>
                     </div>
@@ -101,12 +101,12 @@
 
 <script setup>
 import { ref, computed, onMounted, onUnmounted, reactive } from 'vue';
-import { Doughnut, Line } from 'vue-chartjs';
-import { Chart as ChartJS, ArcElement, Tooltip, Legend, CategoryScale, LinearScale, PointElement, LineElement, Title, Filler } from 'chart.js';
+import { Doughnut, Bar } from 'vue-chartjs';
+import { Chart as ChartJS, ArcElement, Tooltip, Legend, CategoryScale, LinearScale, BarElement, Title } from 'chart.js';
 import api from '../../../services/api';
 import { useAuthStore } from '../../../stores/auth';
 
-ChartJS.register(ArcElement, Tooltip, Legend, CategoryScale, LinearScale, PointElement, LineElement, Title, Filler);
+ChartJS.register(ArcElement, Tooltip, Legend, CategoryScale, LinearScale, BarElement, Title);
 
 const authStore = useAuthStore();
 const loading = ref(true);
@@ -132,14 +132,17 @@ const doughnutOptions = {
     }
 };
 
-const lineOptions = {
+const barOptions = {
     responsive: true,
     maintainAspectRatio: false,
     plugins: {
         legend: { display: false }
     },
     scales: {
-        y: { beginAtZero: true }
+        y: {
+            beginAtZero: true,
+            ticks: { stepSize: 1 }
+        }
     }
 };
 
@@ -174,16 +177,14 @@ const loadData = async () => {
         }];
 
         const trendLabels = trendRes.data.map(t => t.date);
-        const trendTotals = trendRes.data.map(t => t.total);
+        const trendOrders = trendRes.data.map(t => t.orders);
         
         trendData.labels = trendLabels;
         trendData.datasets = [{
-            label: 'Ventas',
-            data: trendTotals,
-            borderColor: '#0d6efd',
-            backgroundColor: 'rgba(13, 110, 253, 0.1)',
-            fill: true,
-            tension: 0.3
+            label: 'Pedidos',
+            data: trendOrders,
+            backgroundColor: '#0d6efd',
+            borderRadius: 4
         }];
 
         topProducts.value = productsRes.data;
@@ -233,12 +234,10 @@ const refreshStats = async () => {
 
         trendData.labels = trendRes.data.map(t => t.date);
         trendData.datasets = [{
-            label: 'Ventas',
-            data: trendRes.data.map(t => t.total),
-            borderColor: '#0d6efd',
-            backgroundColor: 'rgba(13, 110, 253, 0.1)',
-            fill: true,
-            tension: 0.3
+            label: 'Pedidos',
+            data: trendRes.data.map(t => t.orders),
+            backgroundColor: '#0d6efd',
+            borderRadius: 4
         }];
 
         topProducts.value = productsRes.data;

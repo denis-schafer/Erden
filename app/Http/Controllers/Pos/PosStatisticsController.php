@@ -157,6 +157,62 @@ class PosStatisticsController extends Controller
         ]);
     }
 
+    public function productsByInterval(Request $request)
+    {
+        $startDate = $request->input('start_date', now()->subDays(3)->toDateString());
+        $endDate = $request->input('end_date', now()->toDateString());
+        $userId = $request->input('user_id');
+
+        $query = DB::table('orders')
+            ->select('created_at', 'detail')
+            ->whereBetween('created_at', [$startDate . ' 00:00:00', $endDate . ' 23:59:59'])
+            ->where('status_id', '!=', 4)
+            ->orderBy('created_at');
+
+        if ($userId) {
+            $query->where('operator_id', $userId);
+        }
+
+        $orders = $query->get();
+
+        $intervalData = [];
+        foreach ($orders as $order) {
+            $dt = \Carbon\Carbon::parse($order->created_at);
+            $minute = floor($dt->minute / 10) * 10;
+            $interval = $dt->format('Y-m-d H:') . str_pad($minute, 2, '0', STR_PAD_LEFT);
+
+            $detail = json_decode($order->detail, true);
+            foreach ($detail['items'] ?? [] as $item) {
+                $name = $item['name'] ?? 'Unknown';
+                $qty = $item['qty'] ?? 1;
+                $key = $interval . '|' . $name;
+                $intervalData[$key] = ($intervalData[$key] ?? 0) + $qty;
+            }
+        }
+
+        $intervals = [];
+        $productMap = [];
+        foreach ($intervalData as $key => $qty) {
+            [$interval, $product] = explode('|', $key, 2);
+            if (!in_array($interval, $intervals)) $intervals[] = $interval;
+            if (!isset($productMap[$product])) $productMap[$product] = [];
+            $productMap[$product][$interval] = $qty;
+        }
+
+        sort($intervals);
+
+        $products = [];
+        foreach ($productMap as $name => $data) {
+            $series = [];
+            foreach ($intervals as $interval) {
+                $series[] = $data[$interval] ?? 0;
+            }
+            $products[] = ['name' => $name, 'data' => $series];
+        }
+
+        return response()->json(['intervals' => $intervals, 'products' => $products]);
+    }
+
     /**
      * Exportar a Excel (XLSX)
      */

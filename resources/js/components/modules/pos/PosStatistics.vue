@@ -147,14 +147,29 @@
                     </div>
                 </div>
             </div>
+            <!-- Products Quantity by Interval Line Chart -->
+            <div class="row mb-4" v-if="productLineData.labels.length">
+                <div class="col-12">
+                    <div class="card">
+                        <div class="card-header">
+                            <h6 class="mb-0">Productos Vendidos cada 10 min</h6>
+                        </div>
+                        <div class="card-body">
+                            <div style="height: 350px;">
+                                <Line :data="productLineData" :options="productLineOptions" />
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
         </div>
     </div>
 </template>
 
 <script setup>
 import { ref, computed, onMounted, onUnmounted } from 'vue';
-import { Bar, Doughnut } from 'vue-chartjs';
-import { Chart as ChartJS, CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend, ArcElement } from 'chart.js';
+import { Bar, Line, Doughnut } from 'vue-chartjs';
+import { Chart as ChartJS, CategoryScale, LinearScale, BarElement, PointElement, LineElement, Title, Tooltip, Legend, ArcElement, Filler } from 'chart.js';
 import * as XLSX from 'xlsx';
 import api from '../../../services/api';
 import { toast as toastify } from '../../../utils/toast';
@@ -166,13 +181,21 @@ const isAdmin = computed(() => {
     return authStore.user?.role_id === 1;
 });
 
-ChartJS.register(CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend, ArcElement);
+ChartJS.register(CategoryScale, LinearScale, BarElement, PointElement, LineElement, Title, Tooltip, Legend, ArcElement, Filler);
 
 const loading = ref(true);
 const stats = ref({});
 const salesChartData = ref({ labels: [], datasets: [] });
 const topProducts = ref({});
+const productIntervalData = ref({ intervals: [], products: [] });
 const users = ref([]);
+
+const productQtyColors = [
+    '#0d6efd', '#dc3545', '#198754', '#ffc107', '#0dcaf0',
+    '#6f42c1', '#fd7e14', '#20c997', '#e83e8c', '#17a2b8',
+    '#6610f2', '#d63384', '#14b8a6', '#f97316', '#84cc16',
+    '#06b6d4', '#a855f7', '#ec4899', '#f59e0b', '#8b5cf6'
+];
 
 const startDate = ref(new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]);
 const endDate = ref(new Date().toISOString().split('T')[0]);
@@ -239,6 +262,67 @@ const productsChartData = computed(() => {
     };
 });
 
+const productLineOptions = {
+    responsive: true,
+    maintainAspectRatio: false,
+    plugins: {
+        legend: {
+            position: 'bottom',
+            labels: {
+                boxWidth: 12,
+                padding: 8,
+                font: { size: 10 }
+            }
+        },
+        tooltip: {
+            callbacks: {
+                label: (ctx) => `${ctx.dataset.label}: ${ctx.parsed.y} unidades`
+            }
+        }
+    },
+    scales: {
+        y: {
+            beginAtZero: true,
+            ticks: { stepSize: 1 }
+        },
+        x: {
+            ticks: {
+                maxRotation: 45,
+                font: { size: 9 }
+            }
+        }
+    }
+};
+
+const productLineData = computed(() => {
+    if (!productIntervalData.value.products.length) {
+        return { labels: [], datasets: [] };
+    }
+
+    const intervals = productIntervalData.value.intervals.map(i => {
+        const d = new Date(i + ':00');
+        return d.toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' });
+    });
+
+    const sorted = [...productIntervalData.value.products]
+        .sort((a, b) => b.data.reduce((s, v) => s + v, 0) - a.data.reduce((s, v) => s + v, 0))
+        .slice(0, 8);
+
+    return {
+        labels: intervals,
+        datasets: sorted.map((p, i) => ({
+            label: p.name,
+            data: p.data,
+            borderColor: productQtyColors[i % productQtyColors.length],
+            backgroundColor: productQtyColors[i % productQtyColors.length] + '33',
+            pointBackgroundColor: productQtyColors[i % productQtyColors.length],
+            pointRadius: 3,
+            tension: 0.3,
+            fill: false
+        }))
+    };
+});
+
 const loadData = async () => {
     loading.value = true;
     try {
@@ -249,14 +333,16 @@ const loadData = async () => {
         if (selectedUserId.value) params.user_id = selectedUserId.value;
         if (selectedStatus.value) params.status_id = selectedStatus.value;
 
-        const [statsRes, salesRes, productsRes] = await Promise.all([
+        const [statsRes, salesRes, productsRes, intervalRes] = await Promise.all([
             api.get('/pos/statistics/summary', { params }),
             api.get('/pos/statistics/sales-by-period', { params }),
-            api.get('/pos/statistics/top-products', { params })
+            api.get('/pos/statistics/top-products', { params }),
+            api.get('/pos/statistics/products-by-interval', { params })
         ]);
 
         stats.value = statsRes.data;
         topProducts.value = productsRes.data;
+        productIntervalData.value = intervalRes.data;
 
         // Process sales data for chart - group by 10 minute intervals
         const salesByInterval = {};
@@ -317,14 +403,16 @@ const refreshStats = async () => {
     if (selectedStatus.value) params.status_id = selectedStatus.value;
 
     try {
-        const [statsRes, salesRes, productsRes] = await Promise.all([
+        const [statsRes, salesRes, productsRes, intervalRes] = await Promise.all([
             api.get('/pos/statistics/summary', { params }),
             api.get('/pos/statistics/sales-by-period', { params }),
-            api.get('/pos/statistics/top-products', { params })
+            api.get('/pos/statistics/top-products', { params }),
+            api.get('/pos/statistics/products-by-interval', { params })
         ]);
 
         stats.value = statsRes.data;
         topProducts.value = productsRes.data;
+        productIntervalData.value = intervalRes.data;
 
         const salesByInterval = {};
         salesRes.data.forEach(s => {
@@ -443,5 +531,13 @@ onUnmounted(() => {
     background: white;
     border-bottom: 1px solid #dee2e6;
     font-weight: 600;
+}
+
+.product-legend .legend-color {
+    width: 12px;
+    height: 12px;
+    border-radius: 2px;
+    flex-shrink: 0;
+    display: inline-block;
 }
 </style>

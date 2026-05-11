@@ -165,6 +165,7 @@ Route::middleware(['web', 'setDatabase'])->group(function () {
             Route::get('/statistics/summary', [App\Http\Controllers\Pos\PosStatisticsController::class, 'summary']);
             Route::get('/statistics/sales-by-period', [App\Http\Controllers\Pos\PosStatisticsController::class, 'salesByPeriod']);
             Route::get('/statistics/top-products', [App\Http\Controllers\Pos\PosStatisticsController::class, 'topProducts']);
+            Route::get('/statistics/products-by-interval', [App\Http\Controllers\Pos\PosStatisticsController::class, 'productsByInterval']);
             Route::get('/statistics/export', [App\Http\Controllers\Pos\PosStatisticsController::class, 'export'])->middleware('permission:pos-statistics_export');
         });
 

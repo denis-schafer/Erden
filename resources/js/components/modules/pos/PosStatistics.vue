@@ -151,8 +151,19 @@
             <div class="row mb-4" v-if="productLineData.labels.length">
                 <div class="col-12">
                     <div class="card">
-                        <div class="card-header">
+                        <div class="card-header d-flex justify-content-between align-items-center">
                             <h6 class="mb-0">Productos Vendidos cada 10 min</h6>
+                            <div class="position-relative" v-if="productIntervalData.products.length">
+                                <button class="btn btn-sm btn-outline-secondary" @click="showProductFilter = !showProductFilter">
+                                    <i class="bi bi-funnel me-1"></i>Filtrar ({{ selectedProducts.length }}/{{ productIntervalData.products.length }})
+                                </button>
+                                <div v-if="showProductFilter" class="product-filter-dropdown" @click.stop>
+                                    <label v-for="p in productIntervalData.products" :key="p.name" class="d-flex align-items-center gap-2 px-3 py-1 product-filter-item">
+                                        <input type="checkbox" :checked="selectedProducts.includes(p.name)" @change="toggleProduct(p.name)">
+                                        <span class="small">{{ p.name }}</span>
+                                    </label>
+                                </div>
+                            </div>
                         </div>
                         <div class="card-body">
                             <div style="height: 350px;">
@@ -201,6 +212,17 @@ const startDate = ref(new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString
 const endDate = ref(new Date().toISOString().split('T')[0]);
 const selectedUserId = ref(null);
 const selectedStatus = ref(null);
+const showProductFilter = ref(false);
+const selectedProducts = ref([]);
+
+const toggleProduct = (name) => {
+    const idx = selectedProducts.value.indexOf(name);
+    if (idx >= 0) {
+        selectedProducts.value = selectedProducts.value.filter(n => n !== name);
+    } else {
+        selectedProducts.value = [...selectedProducts.value, name];
+    }
+};
 
 const barOptions = {
     responsive: true,
@@ -301,6 +323,7 @@ const productLineData = computed(() => {
     });
 
     const sorted = [...productIntervalData.value.products]
+        .filter(p => selectedProducts.value.includes(p.name))
         .sort((a, b) => b.data.reduce((s, v) => s + v, 0) - a.data.reduce((s, v) => s + v, 0));
 
     return {
@@ -338,6 +361,7 @@ const loadData = async () => {
         stats.value = statsRes.data;
         topProducts.value = productsRes.data;
         productIntervalData.value = intervalRes.data;
+selectedProducts.value = intervalRes.data.products.map(p => p.name);
 
         // Process sales data for chart - group by 10 minute intervals
         const salesByInterval = {};
@@ -408,6 +432,7 @@ const refreshStats = async () => {
         stats.value = statsRes.data;
         topProducts.value = productsRes.data;
         productIntervalData.value = intervalRes.data;
+selectedProducts.value = intervalRes.data.products.map(p => p.name);
 
         const salesByInterval = {};
         salesRes.data.forEach(s => {
@@ -534,5 +559,24 @@ onUnmounted(() => {
     border-radius: 2px;
     flex-shrink: 0;
     display: inline-block;
+}
+
+.product-filter-dropdown {
+    position: absolute;
+    top: 100%;
+    right: 0;
+    z-index: 1050;
+    background: white;
+    border: 1px solid #dee2e6;
+    border-radius: 0.375rem;
+    box-shadow: 0 0.5rem 1rem rgba(0,0,0,0.15);
+    max-height: 300px;
+    overflow-y: auto;
+    width: 280px;
+    padding: 0.5rem 0;
+}
+
+.product-filter-item:hover {
+    background: #f8f9fa;
 }
 </style>

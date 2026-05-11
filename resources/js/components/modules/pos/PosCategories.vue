@@ -109,7 +109,7 @@ const loadData = async () => {
 const editCategory = (category) => {
     editingCategory.value = category;
     form.name = category.name;
-    form.default = category.default;
+    form.default = Boolean(category.default);
     form.enable = category.enable;
     showModal.value = true;
 };

@@ -30,6 +30,10 @@ class PosCategoryController extends Controller
 
         $id = DB::table('categories')->insertGetId($validated + ['created_at' => now(), 'updated_at' => now()]);
 
+        if (!empty($validated['default'])) {
+            DB::table('categories')->where('id', '!=', $id)->update(['default' => 0]);
+        }
+
         event(new CategoryUpdated($id));
 
         return response()->json(['id' => $id, 'message' => 'Categoría creada']);
@@ -44,6 +48,10 @@ class PosCategoryController extends Controller
         ]);
 
         DB::table('categories')->where('id', $id)->update($validated + ['updated_at' => now()]);
+
+        if (!empty($validated['default'])) {
+            DB::table('categories')->where('id', '!=', $id)->update(['default' => 0]);
+        }
 
         event(new CategoryUpdated($id));
 

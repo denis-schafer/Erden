@@ -5,6 +5,15 @@ namespace App\Http\Controllers\Pos;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use App\Http\Controllers\Controller;
+use PhpOffice\PhpSpreadsheet\Spreadsheet;
+use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
+use PhpOffice\PhpSpreadsheet\Chart\Chart;
+use PhpOffice\PhpSpreadsheet\Chart\DataSeries;
+use PhpOffice\PhpSpreadsheet\Chart\DataSeriesValues;
+use PhpOffice\PhpSpreadsheet\Chart\Legend;
+use PhpOffice\PhpSpreadsheet\Chart\PlotArea;
+use PhpOffice\PhpSpreadsheet\Chart\Title;
+use PhpOffice\PhpSpreadsheet\Cell\Coordinate;
 
 class PosStatisticsController extends Controller
 {
@@ -214,7 +223,7 @@ class PosStatisticsController extends Controller
     }
 
     /**
-     * Exportar a Excel (XLSX)
+     * Exportar a Excel (XLSX) con 4 hojas: Resumen, Pedidos, Productos, Gráficos
      */
     public function export(Request $request)
     {
@@ -222,31 +231,33 @@ class PosStatisticsController extends Controller
         $endDate = $request->input('end_date', now()->toDateString());
         $userId = $request->input('user_id');
         $statusId = $request->input('status_id');
+        $selectedProducts = $request->input('selected_products');
 
-        $query = DB::table('orders')
+        if ($selectedProducts && is_string($selectedProducts)) {
+            $selectedProducts = json_decode($selectedProducts, true);
+        }
+        if (!is_array($selectedProducts)) {
+            $selectedProducts = null;
+        }
+
+        // ---- Query helpers ----
+        $applyUserAndStatus = function ($query) use ($userId, $statusId) {
+            if ($userId) $query->where('operator_id', $userId);
+            if ($statusId) $query->where('status_id', $statusId);
+        };
+
+        $dateRange = [$startDate . ' 00:00:00', $endDate . ' 23:59:59'];
+
+        // 1. Orders with operator name (all statuses)
+        $orders = DB::table('orders')
             ->join('users', 'orders.operator_id', '=', 'users.id')
-            ->whereBetween('orders.created_at', [$startDate . ' 00:00:00', $endDate . ' 23:59:59']);
+            ->whereBetween('orders.created_at', $dateRange);
+        $applyUserAndStatus($orders);
+        $orders = $orders->select('orders.*', 'users.name as operator_name')->get();
 
-        if ($userId) {
-            $query->where('orders.operator_id', $userId);
-        }
-        if ($statusId) {
-            $query->where('orders.status_id', $statusId);
-        }
-
-        $orders = $query->select('orders.*', 'users.name as operator_name')->get();
-
-        // Get statistics
-        $statsQuery = DB::table('orders')
-            ->whereBetween('created_at', [$startDate . ' 00:00:00', $endDate . ' 23:59:59']);
-        
-        if ($userId) {
-            $statsQuery->where('operator_id', $userId);
-        }
-        if ($statusId) {
-            $statsQuery->where('status_id', $statusId);
-        }
-
+        // 2. Summary stats
+        $statsQuery = DB::table('orders')->whereBetween('created_at', $dateRange);
+        $applyUserAndStatus($statsQuery);
         $stats = $statsQuery->selectRaw('
             COUNT(*) as total_orders,
             SUM(total) as total_sales,
@@ -255,24 +266,15 @@ class PosStatisticsController extends Controller
             SUM(CASE WHEN status_id = 4 THEN total ELSE 0 END) as canceled_amount
         ')->first();
 
-        // Get top products
+        // 3. Top products (exclude canceled)
         $ordersForProducts = DB::table('orders')
-            ->whereBetween('created_at', [$startDate . ' 00:00:00', $endDate . ' 23:59:59'])
+            ->whereBetween('created_at', $dateRange)
             ->where('status_id', '!=', 4);
-        
-        if ($userId) {
-            $ordersForProducts->where('operator_id', $userId);
-        }
-        if ($statusId) {
-            $ordersForProducts->where('status_id', $statusId);
-        }
+        $applyUserAndStatus($ordersForProducts);
 
         $ordersData = $ordersForProducts->get();
-        
         $productStats = [];
         $totalItems = 0;
-        $totalAmount = 0;
-
         foreach ($ordersData as $order) {
             $detail = json_decode($order->detail, true);
             if (isset($detail['items']) && is_array($detail['items'])) {
@@ -280,35 +282,96 @@ class PosStatisticsController extends Controller
                     $name = $item['name'] ?? 'Unknown';
                     $qty = $item['qty'] ?? 1;
                     $amount = $item['amount'] ?? 0;
-                    
                     if (!isset($productStats[$name])) {
-                        $productStats[$name] = [
-                            'name' => $name,
-                            'quantity' => 0,
-                            'amount' => 0,
-                        ];
+                        $productStats[$name] = ['name' => $name, 'quantity' => 0, 'amount' => 0];
                     }
                     $productStats[$name]['quantity'] += $qty;
                     $productStats[$name]['amount'] += ($amount * $qty);
                     $totalItems += $qty;
-                    $totalAmount += ($amount * $qty);
                 }
             }
         }
-
-        uasort($productStats, function ($a, $b) {
-            return $b['quantity'] - $a['quantity'];
-        });
-
+        uasort($productStats, fn($a, $b) => $b['quantity'] - $a['quantity']);
         $topProducts = array_slice($productStats, 0, 20);
+        $totalTopAmount = array_sum(array_map(fn($p) => $p['amount'], $topProducts));
         foreach ($topProducts as &$product) {
             $product['quantity_pct'] = $totalItems > 0 ? ($product['quantity'] / $totalItems) * 100 : 0;
-            $product['amount_pct'] = $totalAmount > 0 ? ($product['amount'] / $totalAmount) * 100 : 0;
+            $product['amount_pct'] = $totalTopAmount > 0 ? ($product['amount'] / $totalTopAmount) * 100 : 0;
         }
 
-        // Generate Excel with multiple sheets
-        $sheet1Data = [
-            ['Resumen General'],
+        // 4. Sales by period (for bar chart)
+        $salesData = DB::table('orders')
+            ->select('created_at')
+            ->whereBetween('created_at', $dateRange)
+            ->where('status_id', '!=', 4);
+        $applyUserAndStatus($salesData);
+        $salesData = $salesData->get();
+
+        $salesByInterval = [];
+        foreach ($salesData as $sale) {
+            $dt = \Carbon\Carbon::parse($sale->created_at);
+            $minute = floor($dt->minute / 10) * 10;
+            $interval = $dt->format('Y-m-d H:') . str_pad($minute, 2, '0', STR_PAD_LEFT);
+            $salesByInterval[$interval] = ($salesByInterval[$interval] ?? 0) + 1;
+        }
+        ksort($salesByInterval);
+
+        // 5. Products by interval (for line chart)
+        $intervalData = [];
+        $productOrders = DB::table('orders')
+            ->select('created_at', 'detail')
+            ->whereBetween('created_at', $dateRange)
+            ->where('status_id', '!=', 4);
+        $applyUserAndStatus($productOrders);
+        $productOrders = $productOrders->get();
+
+        foreach ($productOrders as $order) {
+            $dt = \Carbon\Carbon::parse($order->created_at);
+            $minute = floor($dt->minute / 10) * 10;
+            $interval = $dt->format('Y-m-d H:') . str_pad($minute, 2, '0', STR_PAD_LEFT);
+            $detail = json_decode($order->detail, true);
+            foreach ($detail['items'] ?? [] as $item) {
+                $name = $item['name'] ?? 'Unknown';
+                $qty = $item['qty'] ?? 1;
+                $key = $interval . '|' . $name;
+                $intervalData[$key] = ($intervalData[$key] ?? 0) + $qty;
+            }
+        }
+
+        $intervals = [];
+        $productMap = [];
+        foreach ($intervalData as $key => $qty) {
+            [$interval, $product] = explode('|', $key, 2);
+            if (!in_array($interval, $intervals)) $intervals[] = $interval;
+            if (!isset($productMap[$product])) $productMap[$product] = [];
+            $productMap[$product][$interval] = $qty;
+        }
+        sort($intervals);
+
+        if ($selectedProducts) {
+            $productMap = array_intersect_key($productMap, array_flip($selectedProducts));
+        }
+
+        uasort($productMap, fn($a, $b) => array_sum($b) - array_sum($a));
+
+        $lineProducts = [];
+        foreach ($productMap as $name => $data) {
+            $series = [];
+            foreach ($intervals as $interval) {
+                $series[] = $data[$interval] ?? 0;
+            }
+            $lineProducts[] = ['name' => $name, 'data' => $series];
+        }
+
+        // ===== Create PhpSpreadsheet workbook =====
+        $spreadsheet = new Spreadsheet();
+
+        // ---- Sheet 1: Resumen ----
+        $sheet1 = $spreadsheet->getActiveSheet();
+        $sheet1->setTitle('Resumen');
+        $sheet1->setCellValue('A1', 'Resumen General');
+        $sheet1->getStyle('A1')->getFont()->setBold(true)->setSize(14);
+        $summaryRows = [
             ['Total Pedidos', $stats->total_orders ?? 0],
             ['Total Recaudado', number_format($stats->total_sales ?? 0, 2, '.', '')],
             ['Ticket Promedio', number_format($stats->avg_order ?? 0, 2, '.', '')],
@@ -319,40 +382,237 @@ class PosStatisticsController extends Controller
             ['Pedidos Cancelados', $stats->canceled_orders ?? 0],
             ['Monto Cancelado', number_format($stats->canceled_amount ?? 0, 2, '.', '')],
         ];
+        foreach ($summaryRows as $i => [$label, $value]) {
+            $row = $i + 2;
+            $sheet1->setCellValue('A' . $row, $label);
+            $sheet1->setCellValue('B' . $row, $value);
+            $sheet1->getStyle('A' . $row)->getFont()->setBold(true);
+        }
+        $sheet1->getColumnDimension('A')->setAutoSize(true);
+        $sheet1->getColumnDimension('B')->setAutoSize(true);
 
-        $sheet2Headers = ['ID', 'Fecha', 'Total', 'Operador', 'Estado', 'Pagado', 'ID Pago (MP)'];
-        $sheet2Rows = [];
+        // ---- Sheet 2: Pedidos ----
+        $sheet2 = $spreadsheet->createSheet();
+        $sheet2->setTitle('Pedidos');
+        $orderHeaders = ['ID', 'Fecha', 'Total', 'Operador', 'Estado', 'Pagado', 'ID Pago (MP)'];
+        foreach ($orderHeaders as $i => $header) {
+            $col = Coordinate::stringFromColumnIndex($i + 1);
+            $sheet2->setCellValue($col . '1', $header);
+            $sheet2->getStyle($col . '1')->getFont()->setBold(true);
+        }
+        $row = 2;
         foreach ($orders as $order) {
-            $sheet2Rows[] = [
-                $order->id,
-                $order->created_at,
-                number_format($order->total, 2, '.', ''),
-                $order->operator_name,
-                $order->status_id == 3 ? 'Completado' : ($order->status_id == 4 ? 'Cancelado' : 'Pendiente'),
-                $order->paid ? 'Sí' : 'No',
-                $order->mp_payment_id ?? 'N/A'
-            ];
+            $sheet2->setCellValue('A' . $row, $order->id);
+            $sheet2->setCellValue('B' . $row, $order->created_at);
+            $sheet2->setCellValue('C' . $row, number_format($order->total, 2, '.', ''));
+            $sheet2->setCellValue('D' . $row, $order->operator_name);
+            $sheet2->setCellValue('E' . $row, match ($order->status_id) { 3 => 'Completado', 4 => 'Cancelado', default => 'Pendiente' });
+            $sheet2->setCellValue('F' . $row, $order->paid ? 'Sí' : 'No');
+            $sheet2->setCellValue('G' . $row, $order->mp_payment_id ?? 'N/A');
+            $row++;
+        }
+        foreach (range('A', 'G') as $col) {
+            $sheet2->getColumnDimension($col)->setAutoSize(true);
         }
 
-        $sheet3Headers = ['Producto', 'Cantidad Vendida', '% Cantidad', 'Total', '% del Total'];
-        $sheet3Rows = [];
+        // ---- Sheet 3: Productos ----
+        $sheet3 = $spreadsheet->createSheet();
+        $sheet3->setTitle('Productos');
+        $prodHeaders = ['Producto', 'Cantidad Vendida', '% Cantidad', 'Total', '% del Total'];
+        foreach ($prodHeaders as $i => $header) {
+            $col = Coordinate::stringFromColumnIndex($i + 1);
+            $sheet3->setCellValue($col . '1', $header);
+            $sheet3->getStyle($col . '1')->getFont()->setBold(true);
+        }
+        $row = 2;
         foreach ($topProducts as $product) {
-            $sheet3Rows[] = [
-                $product['name'],
-                $product['quantity'],
-                number_format($product['quantity_pct'], 1) . '%',
-                number_format($product['amount'], 2, '.', ''),
-                number_format($product['amount_pct'], 1) . '%'
-            ];
+            $sheet3->setCellValue('A' . $row, $product['name']);
+            $sheet3->setCellValue('B' . $row, $product['quantity']);
+            $sheet3->setCellValue('C' . $row, number_format($product['quantity_pct'], 1) . '%');
+            $sheet3->setCellValue('D' . $row, number_format($product['amount'], 2, '.', ''));
+            $sheet3->setCellValue('E' . $row, number_format($product['amount_pct'], 1) . '%');
+            $row++;
+        }
+        foreach (range('A', 'E') as $col) {
+            $sheet3->getColumnDimension($col)->setAutoSize(true);
         }
 
-        // Return JSON data for frontend to generate Excel (XLSX is a frontend library)
-        return response()->json([
-            'summary' => $sheet1Data,
-            'orders' => ['headers' => $sheet2Headers, 'rows' => $sheet2Rows],
-            'products' => ['headers' => $sheet3Headers, 'rows' => $sheet3Rows],
-            'start_date' => $startDate,
-            'end_date' => $endDate,
+        // ---- Sheet 4: Gráficos ----
+        $sheet4 = $spreadsheet->createSheet();
+        $sheet4->setTitle('Gráficos');
+
+        $colorPalette = [
+            '0D6EFD', 'DC3545', '198754', 'FFC107', '0DCAF0',
+            '6F42C1', 'FD7E14', '20C997', 'E83E8C', '17A2B8',
+            '6610F2', 'D63384', '14B8A6', 'F97316', '84CC16',
+            '06B6D4', 'A855F7', 'EC4899', 'F59E0B', '8B5CF6'
+        ];
+
+        // --- Bar Chart: Ventas por Período ---
+        $barTitleRow = 1;
+        $barHeaderRow = 2;
+        $barFirstRow = 3;
+        $barIntervalLabels = array_keys($salesByInterval);
+        $barCounts = array_values($salesByInterval);
+        $barLastRow = $barFirstRow + count($barIntervalLabels) - 1;
+
+        $sheet4->setCellValue('A' . $barTitleRow, 'Ventas por Período');
+        $sheet4->getStyle('A' . $barTitleRow)->getFont()->setBold(true)->setSize(12);
+        $sheet4->setCellValue('A' . $barHeaderRow, 'Intervalo');
+        $sheet4->setCellValue('B' . $barHeaderRow, 'Pedidos');
+        $sheet4->getStyle('A' . $barHeaderRow . ':B' . $barHeaderRow)->getFont()->setBold(true);
+
+        foreach ($barIntervalLabels as $i => $interval) {
+            $sheet4->setCellValue('A' . ($barFirstRow + $i), substr($interval, 11, 5));
+            $sheet4->setCellValue('B' . ($barFirstRow + $i), $barCounts[$i]);
+        }
+
+        $barLabel = new DataSeriesValues(DataSeriesValues::DATASERIES_TYPE_STRING, 'Gráficos!$B$' . $barHeaderRow, null, 1);
+        $barCategory = new DataSeriesValues(DataSeriesValues::DATASERIES_TYPE_STRING, 'Gráficos!$A$' . $barFirstRow . ':$A$' . $barLastRow, null, count($barIntervalLabels));
+        $barValues = new DataSeriesValues(DataSeriesValues::DATASERIES_TYPE_NUMBER, 'Gráficos!$B$' . $barFirstRow . ':$B$' . $barLastRow, null, count($barCounts));
+
+        $barSeries = new DataSeries(
+            DataSeries::TYPE_BARCHART,
+            DataSeries::GROUPING_CLUSTERED,
+            [0],
+            [$barLabel],
+            [$barCategory],
+            [$barValues]
+        );
+
+        $barPlotArea = new PlotArea(null, [$barSeries]);
+        $barLegend = new Legend();
+        $barTitle = new Title('Ventas por Período');
+
+        $barChart = new Chart('ventas', $barTitle, $barLegend, $barPlotArea);
+        $barChart->setTopLeftPosition('D1');
+        $barChart->setBottomRightPosition('O16');
+        $sheet4->addChart($barChart);
+
+        // --- Doughnut Chart: Distribución de Productos ---
+        $doughnutTitleRow = $barLastRow + 2;
+        $doughnutHeaderRow = $doughnutTitleRow + 1;
+        $doughnutFirstRow = $doughnutTitleRow + 2;
+        $doughnutLastRow = $doughnutFirstRow + count($topProducts) - 1;
+
+        $sheet4->setCellValue('A' . $doughnutTitleRow, 'Distribución de Productos');
+        $sheet4->getStyle('A' . $doughnutTitleRow)->getFont()->setBold(true)->setSize(12);
+        $sheet4->setCellValue('A' . $doughnutHeaderRow, 'Producto');
+        $sheet4->setCellValue('B' . $doughnutHeaderRow, 'Cantidad');
+        $sheet4->getStyle('A' . $doughnutHeaderRow . ':B' . $doughnutHeaderRow)->getFont()->setBold(true);
+
+        $doughnutRow = $doughnutFirstRow;
+        foreach ($topProducts as $product) {
+            $sheet4->setCellValue('A' . $doughnutRow, $product['name']);
+            $sheet4->setCellValue('B' . $doughnutRow, $product['quantity']);
+            $doughnutRow++;
+        }
+
+        $doughnutLabel = new DataSeriesValues(DataSeriesValues::DATASERIES_TYPE_STRING, 'Gráficos!$B$' . $doughnutHeaderRow, null, 1);
+        $doughnutCategory = new DataSeriesValues(DataSeriesValues::DATASERIES_TYPE_STRING, 'Gráficos!$A$' . $doughnutFirstRow . ':$A$' . $doughnutLastRow, null, count($topProducts));
+        $doughnutValues = new DataSeriesValues(DataSeriesValues::DATASERIES_TYPE_NUMBER, 'Gráficos!$B$' . $doughnutFirstRow . ':$B$' . $doughnutLastRow, null, count($topProducts));
+
+        $doughnutSeries = new DataSeries(
+            DataSeries::TYPE_DOUGHNUTCHART,
+            null,
+            [0],
+            [$doughnutLabel],
+            [$doughnutCategory],
+            [$doughnutValues]
+        );
+
+        $doughnutPlotArea = new PlotArea(null, [$doughnutSeries]);
+        $doughnutLegend = new Legend(Legend::POSITION_RIGHT);
+        $doughnutTitle = new Title('Distribución de Productos');
+
+        $doughnutChart = new Chart('distribucion', $doughnutTitle, $doughnutLegend, $doughnutPlotArea);
+        $doughnutChart->setTopLeftPosition('D18');
+        $doughnutChart->setBottomRightPosition('O33');
+        $sheet4->addChart($doughnutChart);
+
+        // --- Line Chart: Productos Vendidos cada 10 min ---
+        if (!empty($lineProducts) && !empty($intervals)) {
+            $lineTitleRow = $doughnutLastRow + 2;
+            $lineHeaderRow = $lineTitleRow + 1;
+            $lineFirstRow = $lineTitleRow + 2;
+            $lineLastRow = $lineFirstRow + count($intervals) - 1;
+
+            $sheet4->setCellValue('A' . $lineTitleRow, 'Productos Vendidos cada 10 min');
+            $sheet4->getStyle('A' . $lineTitleRow)->getFont()->setBold(true)->setSize(12);
+            $sheet4->setCellValue('A' . $lineHeaderRow, 'Intervalo');
+            $sheet4->getStyle('A' . $lineHeaderRow)->getFont()->setBold(true);
+
+            foreach ($lineProducts as $i => $product) {
+                $col = Coordinate::stringFromColumnIndex($i + 2);
+                $sheet4->setCellValue($col . $lineHeaderRow, $product['name']);
+                $sheet4->getStyle($col . $lineHeaderRow)->getFont()->setBold(true);
+            }
+
+            foreach ($intervals as $i => $interval) {
+                $sheet4->setCellValue('A' . ($lineFirstRow + $i), substr($interval, 11, 5));
+                foreach ($lineProducts as $j => $product) {
+                    $col = Coordinate::stringFromColumnIndex($j + 2);
+                    $sheet4->setCellValue($col . ($lineFirstRow + $i), $product['data'][$i]);
+                }
+            }
+
+            $lineSeriesLabels = [];
+            $lineSeriesValues = [];
+            foreach ($lineProducts as $i => $product) {
+                $col = Coordinate::stringFromColumnIndex($i + 2);
+                $lineSeriesLabels[] = new DataSeriesValues(
+                    DataSeriesValues::DATASERIES_TYPE_STRING,
+                    'Gráficos!' . $col . '$' . $lineHeaderRow,
+                    null, 1
+                );
+                $values = new DataSeriesValues(
+                    DataSeriesValues::DATASERIES_TYPE_NUMBER,
+                    'Gráficos!' . $col . '$' . $lineFirstRow . ':$' . $col . '$' . $lineLastRow,
+                    null, count($intervals)
+                );
+                $values->setFillColor($colorPalette[$i % count($colorPalette)]);
+                $lineSeriesValues[] = $values;
+            }
+
+            $lineCategory = new DataSeriesValues(
+                DataSeriesValues::DATASERIES_TYPE_STRING,
+                'Gráficos!$A$' . $lineFirstRow . ':$A$' . $lineLastRow,
+                null, count($intervals)
+            );
+
+            $lineDataSeries = new DataSeries(
+                DataSeries::TYPE_LINECHART,
+                null,
+                range(0, count($lineProducts) - 1),
+                $lineSeriesLabels,
+                [$lineCategory],
+                $lineSeriesValues
+            );
+
+            $linePlotArea = new PlotArea(null, [$lineDataSeries]);
+            $lineLegend = new Legend(Legend::POSITION_BOTTOM);
+            $lineTitle = new Title('Productos Vendidos cada 10 min');
+
+            $lineChart = new Chart('productos', $lineTitle, $lineLegend, $linePlotArea);
+            $lineChart->setTopLeftPosition('D35');
+            $lineChart->setBottomRightPosition('O55');
+            $sheet4->addChart($lineChart);
+        }
+
+        // Auto-size columns for readability
+        $sheet4->getColumnDimension('A')->setAutoSize(true);
+        $sheet4->getColumnDimension('B')->setAutoSize(true);
+
+        // ===== Generate and return XLSX =====
+        $writer = new Xlsx($spreadsheet);
+        $writer->setIncludeCharts(true);
+
+        $filename = 'estadisticas_' . $startDate . '_' . $endDate . '.xlsx';
+
+        return response()->streamDownload(function () use ($writer) {
+            $writer->save('php://output');
+        }, $filename, [
+            'Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
         ]);
     }
 }

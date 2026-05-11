@@ -185,7 +185,6 @@
 import { ref, computed, onMounted, onUnmounted } from 'vue';
 import { Bar, Line, Doughnut } from 'vue-chartjs';
 import { Chart as ChartJS, CategoryScale, LinearScale, BarElement, PointElement, LineElement, Title, Tooltip, Legend, ArcElement, Filler } from 'chart.js';
-import * as XLSX from 'xlsx';
 import api from '../../../services/api';
 import { toast as toastify } from '../../../utils/toast';
 import { useAuthStore } from '../../../stores/auth';
@@ -487,36 +486,29 @@ const exportData = async () => {
         const params = {
             start_date: startDate.value,
             end_date: endDate.value,
+            selected_products: JSON.stringify(selectedProducts.value),
         };
         if (selectedUserId.value) params.user_id = selectedUserId.value;
         if (selectedStatus.value) params.status_id = selectedStatus.value;
 
-        const response = await api.get('/pos/statistics/export', { params });
-        const data = response.data;
-        
-        const wb = XLSX.utils.book_new();
-        
-        // Sheet 1: Resumen
-        const summarySheet = XLSX.utils.aoa_to_sheet(data.summary);
-        XLSX.utils.book_append_sheet(wb, summarySheet, 'Resumen');
-        
-        // Sheet 2: Pedidos
-        if (data.orders && data.orders.rows.length > 0) {
-            const orderData = [data.orders.headers, ...data.orders.rows];
-            const orderSheet = XLSX.utils.aoa_to_sheet(orderData);
-            XLSX.utils.book_append_sheet(wb, orderSheet, 'Pedidos');
-        }
-        
-        // Sheet 3: Productos
-        if (data.products && data.products.rows.length > 0) {
-            const productData = [data.products.headers, ...data.products.rows];
-            const productSheet = XLSX.utils.aoa_to_sheet(productData);
-            XLSX.utils.book_append_sheet(wb, productSheet, 'Productos');
-        }
-        
-        const fileName = `estadisticas_${data.start_date}_${data.end_date}.xlsx`;
-        XLSX.writeFile(wb, fileName);
-        
+        const response = await api.get('/pos/statistics/export', {
+            params,
+            responseType: 'arraybuffer',
+        });
+
+        const blob = new Blob([response.data], {
+            type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        });
+
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `estadisticas_${startDate.value}_${endDate.value}.xlsx`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+
         toastify.success('Archivo Excel generado');
     } catch (error) {
         console.error('Error exporting:', error);

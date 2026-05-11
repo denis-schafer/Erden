@@ -206,7 +206,17 @@ const doughnutOptions = {
     }
 };
 
-const barColors = ['#0d6efd', '#dc3545', '#198754', '#ffc107', '#0dcaf0', '#6f42c1', '#fd7e14', '#20c997', '#e83e8c', '#6c757d'];
+const getBarColors = (counts) => {
+    const min = Math.min(...counts);
+    const max = Math.max(...counts);
+    return counts.map(count => {
+        if (max === min) return 'hsl(50, 100%, 55%)';
+        const ratio = (count - min) / (max - min);
+        const hue = Math.round(50 - (ratio * 50));
+        const lightness = Math.round(60 - (ratio * 10));
+        return `hsl(${hue}, 100%, ${lightness}%)`;
+    });
+};
 
 const productsChartData = computed(() => {
     if (!topProducts.value.products || !topProducts.value.products.length) {
@@ -272,7 +282,7 @@ const loadData = async () => {
             datasets: [{
                 label: 'Pedidos',
                 data: counts,
-                backgroundColor: barColors.slice(0, labels.length),
+                backgroundColor: getBarColors(counts),
                 borderRadius: 4
             }]
         };
@@ -338,7 +348,7 @@ const refreshStats = async () => {
             datasets: [{
                 label: 'Pedidos',
                 data: counts,
-                backgroundColor: barColors.slice(0, labels.length),
+                backgroundColor: getBarColors(counts),
                 borderRadius: 4
             }]
         };

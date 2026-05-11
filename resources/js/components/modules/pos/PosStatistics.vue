@@ -246,17 +246,13 @@ const productsChartData = computed(() => {
         return { labels: [], datasets: [] };
     }
     
-    const products = topProducts.value.products.slice(0, 10);
-    const colors = [
-        '#0d6efd', '#198754', '#dc3545', '#ffc107', '#6f42c1',
-        '#20c997', '#fd7e14', '#6610f2', '#e83e8c', '#17a2b8'
-    ];
+    const products = topProducts.value.products;
     
     return {
         labels: products.map(p => p.name),
         datasets: [{
             data: products.map(p => p.quantity),
-            backgroundColor: colors.slice(0, products.length),
+            backgroundColor: products.map((_, i) => `hsl(${(i * 360) / products.length}, 70%, 60%)`),
             borderWidth: 1
         }]
     };
@@ -305,8 +301,7 @@ const productLineData = computed(() => {
     });
 
     const sorted = [...productIntervalData.value.products]
-        .sort((a, b) => b.data.reduce((s, v) => s + v, 0) - a.data.reduce((s, v) => s + v, 0))
-        .slice(0, 8);
+        .sort((a, b) => b.data.reduce((s, v) => s + v, 0) - a.data.reduce((s, v) => s + v, 0));
 
     return {
         labels: intervals,

@@ -158,6 +158,10 @@
                                     <i class="bi bi-funnel me-1"></i>Filtrar ({{ selectedProducts.length }}/{{ productIntervalData.products.length }})
                                 </button>
                                 <div v-if="showProductFilter" class="product-filter-dropdown" @click.stop>
+                                    <label class="d-flex align-items-center gap-2 px-3 py-1 product-filter-item border-bottom">
+                                        <input type="checkbox" :checked="allSelected" @change="toggleAll">
+                                        <span class="small fw-semibold">Todos</span>
+                                    </label>
                                     <label v-for="p in productIntervalData.products" :key="p.name" class="d-flex align-items-center gap-2 px-3 py-1 product-filter-item">
                                         <input type="checkbox" :checked="selectedProducts.includes(p.name)" @change="toggleProduct(p.name)">
                                         <span class="small">{{ p.name }}</span>
@@ -223,6 +227,19 @@ const toggleProduct = (name) => {
         selectedProducts.value = [...selectedProducts.value, name];
     }
 };
+
+const toggleAll = () => {
+    if (selectedProducts.value.length === productIntervalData.value.products.length) {
+        selectedProducts.value = [];
+    } else {
+        selectedProducts.value = productIntervalData.value.products.map(p => p.name);
+    }
+};
+
+const allSelected = computed(() => {
+    if (!productIntervalData.value.products.length) return false;
+    return selectedProducts.value.length === productIntervalData.value.products.length;
+});
 
 const barOptions = {
     responsive: true,

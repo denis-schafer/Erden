@@ -50,6 +50,9 @@ class PosProductController extends Controller
 
         $id = DB::table('products')->insertGetId($validated + ['created_at' => now(), 'updated_at' => now()]);
 
+        $product = DB::table('products')->find($id);
+        event(new ProductUpdated((array) $product));
+
         return response()->json(['id' => $id, 'message' => 'Producto creado']);
     }
 
@@ -66,6 +69,9 @@ class PosProductController extends Controller
         ]);
 
         DB::table('products')->where('id', $id)->update($validated + ['updated_at' => now()]);
+
+        $product = DB::table('products')->find($id);
+        event(new ProductUpdated((array) $product));
 
         return response()->json(['message' => 'Producto actualizado']);
     }
@@ -86,6 +92,10 @@ class PosProductController extends Controller
 
     public function destroy($id)
     {
+        $product = DB::table('products')->find($id);
+        if ($product) {
+            event(new ProductUpdated((array) $product));
+        }
         DB::table('products')->where('id', $id)->delete();
         return response()->json(['message' => 'Producto eliminado']);
     }

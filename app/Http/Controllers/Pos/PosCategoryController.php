@@ -7,6 +7,7 @@ use Illuminate\Support\Facades\DB;
 use App\Http\Controllers\Controller;
 use App\Events\CategoryDisabled;
 use App\Events\CategoryEnabled;
+use App\Events\CategoryUpdated;
 
 class PosCategoryController extends Controller
 {
@@ -29,6 +30,8 @@ class PosCategoryController extends Controller
 
         $id = DB::table('categories')->insertGetId($validated + ['created_at' => now(), 'updated_at' => now()]);
 
+        event(new CategoryUpdated($id));
+
         return response()->json(['id' => $id, 'message' => 'Categoría creada']);
     }
 
@@ -42,11 +45,14 @@ class PosCategoryController extends Controller
 
         DB::table('categories')->where('id', $id)->update($validated + ['updated_at' => now()]);
 
+        event(new CategoryUpdated($id));
+
         return response()->json(['message' => 'Categoría actualizada']);
     }
 
     public function destroy($id)
     {
+        event(new CategoryUpdated($id));
         DB::table('categories')->where('id', $id)->delete();
         return response()->json(['message' => 'Categoría eliminada']);
     }

@@ -68,6 +68,12 @@ const initWebSockets = async () => {
             }));
         });
 
+        window.Echo.channel('categories').listen('.CategoryUpdated', (event) => {
+            window.dispatchEvent(new CustomEvent('pos-category-changed', {
+                detail: { type: 'updated', categoryId: event.id }
+            }));
+        });
+
         window.Echo.channel('products').listen('.ProductDisabled', (event) => {
             window.dispatchEvent(new CustomEvent('pos-product-changed', {
                 detail: { type: 'disabled', productId: event.id }
@@ -77,6 +83,12 @@ const initWebSockets = async () => {
         window.Echo.channel('products').listen('.ProductEnabled', (event) => {
             window.dispatchEvent(new CustomEvent('pos-product-changed', {
                 detail: { type: 'enabled', productId: event.id }
+            }));
+        });
+
+        window.Echo.channel('products').listen('.ProductUpdated', (event) => {
+            window.dispatchEvent(new CustomEvent('pos-product-changed', {
+                detail: { type: 'updated', productId: event.id }
             }));
         });
 

@@ -112,7 +112,7 @@ const authStore = useAuthStore();
 const loading = ref(true);
 const stats = ref({});
 const statusData = reactive({ labels: [], datasets: [] });
-const trendData = reactive({ labels: [], datasets: [] });
+const trendData = ref({ labels: [], datasets: [] });
 const topProducts = ref([]);
 const cashiers = ref([]);
 
@@ -145,6 +145,8 @@ const barOptions = {
         }
     }
 };
+
+const barColors = ['#0d6efd', '#dc3545', '#198754', '#ffc107', '#0dcaf0', '#6f42c1', '#fd7e14', '#20c997', '#e83e8c', '#6c757d'];
 
 const loadData = async () => {
     loading.value = true;
@@ -179,13 +181,15 @@ const loadData = async () => {
         const trendLabels = trendRes.data.map(t => t.date);
         const trendOrders = trendRes.data.map(t => t.orders);
         
-        trendData.labels = trendLabels;
-        trendData.datasets = [{
-            label: 'Pedidos',
-            data: trendOrders,
-            backgroundColor: '#0d6efd',
-            borderRadius: 4
-        }];
+        trendData.value = {
+            labels: trendLabels,
+            datasets: [{
+                label: 'Pedidos',
+                data: trendOrders,
+                backgroundColor: barColors.slice(0, trendLabels.length),
+                borderRadius: 4
+            }]
+        };
 
         topProducts.value = productsRes.data;
 
@@ -232,13 +236,18 @@ const refreshStats = async () => {
             backgroundColor: ['#ffc107', '#17a2b8', '#28a745', '#dc3545', '#6c757d'].slice(0, statusRes.data.length)
         }];
 
-        trendData.labels = trendRes.data.map(t => t.date);
-        trendData.datasets = [{
-            label: 'Pedidos',
-            data: trendRes.data.map(t => t.orders),
-            backgroundColor: '#0d6efd',
-            borderRadius: 4
-        }];
+        const trendLabels = trendRes.data.map(t => t.date);
+        const trendOrders = trendRes.data.map(t => t.orders);
+
+        trendData.value = {
+            labels: trendLabels,
+            datasets: [{
+                label: 'Pedidos',
+                data: trendOrders,
+                backgroundColor: barColors.slice(0, trendLabels.length),
+                borderRadius: 4
+            }]
+        };
 
         topProducts.value = productsRes.data;
     } catch (error) {

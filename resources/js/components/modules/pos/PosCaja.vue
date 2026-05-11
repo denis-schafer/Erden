@@ -98,7 +98,7 @@
                                 type="range" 
                                 class="zoom-slider"
                                 min="0.5" 
-                                max="2" 
+                                max="3" 
                                 step="0.1" 
                                 v-model="fontSizeScale"
                             >
@@ -467,7 +467,7 @@ const decreaseScale = () => {
 };
 
 const increaseScale = () => {
-    if (fontSizeScale.value < 2) {
+    if (fontSizeScale.value < 3) {
         fontSizeScale.value = Math.round((fontSizeScale.value + 0.1) * 10) / 10;
     }
 };

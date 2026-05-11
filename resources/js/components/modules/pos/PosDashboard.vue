@@ -207,19 +207,43 @@ const loadCashiers = async () => {
 };
 
 const refreshStats = async () => {
-    try {
-        const params = {
-            start_date: startDate.value,
-            end_date: endDate.value,
-        };
-        if (isAdmin.value && selectedUserId.value) {
-            params.user_id = selectedUserId.value;
-        }
+    const params = {
+        start_date: startDate.value,
+        end_date: endDate.value,
+    };
+    if (isAdmin.value && selectedUserId.value) {
+        params.user_id = selectedUserId.value;
+    }
 
-        const statsRes = await api.get('/pos/dashboard/stats', { params });
+    try {
+        const [statsRes, statusRes, trendRes, productsRes] = await Promise.all([
+            api.get('/pos/dashboard/stats', { params }),
+            api.get('/pos/dashboard/by-status', { params }),
+            api.get('/pos/dashboard/sales-trend', { params }),
+            api.get('/pos/dashboard/top-products', { params })
+        ]);
+
         stats.value = statsRes.data;
+
+        statusData.labels = statusRes.data.map(s => s.status);
+        statusData.datasets = [{
+            data: statusRes.data.map(s => s.count),
+            backgroundColor: ['#ffc107', '#17a2b8', '#28a745', '#dc3545', '#6c757d'].slice(0, statusRes.data.length)
+        }];
+
+        trendData.labels = trendRes.data.map(t => t.date);
+        trendData.datasets = [{
+            label: 'Ventas',
+            data: trendRes.data.map(t => t.total),
+            borderColor: '#0d6efd',
+            backgroundColor: 'rgba(13, 110, 253, 0.1)',
+            fill: true,
+            tension: 0.3
+        }];
+
+        topProducts.value = productsRes.data;
     } catch (error) {
-        console.error('Error refreshing stats:', error);
+        console.error('Error refreshing dashboard:', error);
     }
 };
 

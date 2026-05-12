@@ -22,3 +22,9 @@ Ingresar con el usuario admin para obtener el token desde el dispositivo en dond
 
 Lanzar los websockets:
 php artisan reverb:start
+
+npm run ws:start — inicia Reverb con PM2
+npm run ws:stop — detiene Reverb
+npm run ws:restart — reinicia
+npm run ws:status — muestra estado
+npm run ws:logs — muestra logs en vivo

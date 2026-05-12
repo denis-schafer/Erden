@@ -5,7 +5,14 @@
     "scripts": {
         "build": "vite build",
         "dev": "vite",
-        "wp": "vite build"
+        "wp": "vite build",
+        "ws:start": "pm2 start ecosystem.config.cjs",
+        "ws:stop": "pm2 stop reverb",
+        "ws:restart": "pm2 restart reverb",
+        "ws:status": "pm2 status reverb",
+        "ws:logs": "pm2 logs reverb",
+        "ws:save": "pm2 save",
+        "ws:startup": "pm2 startup"
     },
     "devDependencies": {
         "@tailwindcss/vite": "^4.0.0",

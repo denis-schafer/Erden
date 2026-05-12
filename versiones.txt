@@ -180,3 +180,37 @@ Cambios adicionales:
 - PosLog.vue: Columna "Modulo" visible solo cuando se selecciona "Todos"
 
 ---
+
+[Pos con Estadísticas gráficas]
+Fecha: 2026-05-11
+Estado: Completado
+
+Cambios realizados:
+- Exportación Excel migrada a server-side con PhpSpreadsheet (4 hojas: Resumen, Pedidos, Productos, Gráficos)
+- Hoja "Gráficos" con 3 gráficos nativos de Excel (Bar, Doughnut, Line)
+- BOM UTF-8 fix: bypass del Response de Laravel con ob_end_clean() + echo directo
+- Dashboard POS: excluye órdenes canceladas (status_id=2) de totales, ventas y tendencia
+- Dashboard POS: Top productos devuelve todos sin límite, ordenados por cantidad
+- Dashboard POS: Nuevo gráfico Doughnut "Distribución de Productos (Cantidades)"
+- Dashboard POS: statusData cambiado de reactive a ref para reactividad en charts
+- Dashboard POS: Cancelados muestra card separada con color rojo
+- Dashboard POS: Gráfico "Pedidos por Estado" reemplazado por "Pagados/Impagos" (orders.paid)
+- Dashboard POS: Tendencia usa fechas del filtro, título dinámico
+- Módulo Órdenes POS: Nuevo botón "Marcar como Pagado" con modal de confirmación
+- Módulo Caja POS: Mismo botón en modal de órdenes
+- togglePaid: Admin puede toggle libre, Cashier solo 0→1
+- isAdmin corregido: usa authStore.isGlobalAdmin || user.role_id === 1
+- Timezone configurado a America/Argentina/Buenos_Aires
+- Bundle JS: 554 kB (eliminado xlsx/SheetJS del frontend)
+
+Archivos modificados:
+- app/Http/Controllers/Pos/PosStatisticsController.php
+- app/Http/Controllers/Pos/PosDashboardController.php
+- app/Http/Controllers/Pos/PosOrderController.php
+- resources/js/components/modules/pos/PosDashboard.vue
+- resources/js/components/modules/pos/PosOrders.vue
+- resources/js/components/modules/pos/PosCaja.vue
+- routes/web.php
+- config/app.php
+
+---

@@ -140,6 +140,7 @@ Route::middleware(['web', 'setDatabase'])->group(function () {
         Route::get('/orders/{id}', [App\Http\Controllers\Pos\PosOrderController::class, 'show']);
         Route::post('/orders/{id}/cancel', [App\Http\Controllers\Pos\PosOrderController::class, 'cancel']);
         Route::delete('/orders/{id}', [App\Http\Controllers\Pos\PosOrderController::class, 'destroy']);
+        Route::post('/orders/{id}/toggle-paid', [App\Http\Controllers\Pos\PosOrderController::class, 'togglePaid']);
         Route::post('/orders/{id}/reprint', [App\Http\Controllers\Pos\PosOrderController::class, 'reprint']);
         
         Route::get('/users', [App\Http\Controllers\Pos\PosUserController::class, 'index']);

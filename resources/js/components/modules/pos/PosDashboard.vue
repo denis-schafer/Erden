@@ -20,7 +20,7 @@
 
         <div v-else>
             <div class="row mb-4">
-                <div class="col-md-4">
+                <div class="col-md-3">
                     <div class="card stat-card">
                         <div class="card-body">
                             <h6 class="text-muted">Pedidos</h6>
@@ -28,7 +28,7 @@
                         </div>
                     </div>
                 </div>
-                <div class="col-md-4">
+                <div class="col-md-3">
                     <div class="card stat-card">
                         <div class="card-body">
                             <h6 class="text-muted">Ventas Total</h6>
@@ -36,11 +36,19 @@
                         </div>
                     </div>
                 </div>
-                <div class="col-md-4">
+                <div class="col-md-3">
                     <div class="card stat-card">
                         <div class="card-body">
                             <h6 class="text-muted">Promedio/Pedido</h6>
                             <h2 class="mb-0">${{ Number(stats.avg_order || 0).toFixed(2) }}</h2>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="card stat-card" style="border-left-color: #dc3545;">
+                        <div class="card-body">
+                            <h6 class="text-muted">Cancelados</h6>
+                            <h2 class="mb-0" style="color: #dc3545;">{{ stats.canceled_orders || 0 }}</h2>
                         </div>
                     </div>
                 </div>
@@ -71,28 +79,43 @@
                 </div>
             </div>
 
-            <div class="card">
-                <div class="card-header">
-                    <h6 class="mb-0">Productos Más Vendidos</h6>
+            <div class="row">
+                <div class="col-md-8">
+                    <div class="card h-100">
+                        <div class="card-header">
+                            <h6 class="mb-0">Productos Más Vendidos</h6>
+                        </div>
+                        <div class="card-body">
+                            <table class="table table-sm">
+                                <thead>
+                                    <tr>
+                                        <th>Producto</th>
+                                        <th class="text-center">Cantidad</th>
+                                        <th class="text-end">Total</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr v-for="product in topProducts" :key="product.name">
+                                        <td>{{ product.name }}</td>
+                                        <td class="text-center">{{ product.qty }}</td>
+                                        <td class="text-end">${{ Number(product.total).toFixed(2) }}</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                            <p v-if="topProducts.length === 0" class="text-muted text-center">Sin datos</p>
+                        </div>
+                    </div>
                 </div>
-                <div class="card-body">
-                    <table class="table table-sm">
-                        <thead>
-                            <tr>
-                                <th>Producto</th>
-                                <th class="text-center">Cantidad</th>
-                                <th class="text-end">Total</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <tr v-for="product in topProducts" :key="product.name">
-                                <td>{{ product.name }}</td>
-                                <td class="text-center">{{ product.qty }}</td>
-                                <td class="text-end">${{ Number(product.total).toFixed(2) }}</td>
-                            </tr>
-                        </tbody>
-                    </table>
-                    <p v-if="topProducts.length === 0" class="text-muted text-center">Sin datos</p>
+                <div class="col-md-4">
+                    <div class="card h-100">
+                        <div class="card-header">
+                            <h6 class="mb-0">Distribución de Productos (Cantidades)</h6>
+                        </div>
+                        <div class="card-body">
+                            <Doughnut v-if="productDoughnutData.labels.length" :data="productDoughnutData" :options="productDoughnutOptions" />
+                            <p v-else class="text-muted text-center">Sin datos</p>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
@@ -100,7 +123,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, onUnmounted, reactive } from 'vue';
+import { ref, computed, onMounted, onUnmounted } from 'vue';
 import { Doughnut, Bar } from 'vue-chartjs';
 import { Chart as ChartJS, ArcElement, Tooltip, Legend, CategoryScale, LinearScale, BarElement, Title } from 'chart.js';
 import api from '../../../services/api';
@@ -111,10 +134,11 @@ ChartJS.register(ArcElement, Tooltip, Legend, CategoryScale, LinearScale, BarEle
 const authStore = useAuthStore();
 const loading = ref(true);
 const stats = ref({});
-const statusData = reactive({ labels: [], datasets: [] });
+const statusData = ref({ labels: [], datasets: [] });
 const trendData = ref({ labels: [], datasets: [] });
 const topProducts = ref([]);
 const cashiers = ref([]);
+const productDoughnutData = ref({ labels: [], datasets: [] });
 
 const startDate = ref(new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]);
 const endDate = ref(new Date().toISOString().split('T')[0]);
@@ -146,6 +170,14 @@ const barOptions = {
     }
 };
 
+const productDoughnutOptions = {
+    responsive: true,
+    maintainAspectRatio: false,
+    plugins: {
+        legend: { position: 'bottom', labels: { boxWidth: 12, padding: 8, font: { size: 10 } } }
+    }
+};
+
 const barColors = ['#0d6efd', '#dc3545', '#198754', '#ffc107', '#0dcaf0', '#6f42c1', '#fd7e14', '#20c997', '#e83e8c', '#6c757d'];
 
 const loadData = async () => {
@@ -170,13 +202,15 @@ const loadData = async () => {
 
         const statusLabels = statusRes.data.map(s => s.status);
         const statusCounts = statusRes.data.map(s => s.count);
-        const statusColors = ['#ffc107', '#17a2b8', '#28a745', '#dc3545', '#6c757d'];
+        const statusColors = ['#28a745', '#dc3545'];
         
-        statusData.labels = statusLabels;
-        statusData.datasets = [{
-            data: statusCounts,
-            backgroundColor: statusColors.slice(0, statusLabels.length)
-        }];
+        statusData.value = {
+            labels: statusLabels,
+            datasets: [{
+                data: statusCounts,
+                backgroundColor: statusColors.slice(0, statusLabels.length)
+            }]
+        };
 
         const trendLabels = trendRes.data.map(t => t.date);
         const trendOrders = trendRes.data.map(t => t.orders);
@@ -192,6 +226,17 @@ const loadData = async () => {
         };
 
         topProducts.value = productsRes.data;
+
+        const prodLabels = productsRes.data.map(p => p.name);
+        const prodQtys = productsRes.data.map(p => p.qty);
+        productDoughnutData.value = {
+            labels: prodLabels,
+            datasets: [{
+                data: prodQtys,
+                backgroundColor: barColors.slice(0, prodLabels.length),
+                borderWidth: 1
+            }]
+        };
 
     } catch (error) {
         console.error('Error loading dashboard:', error);
@@ -230,11 +275,13 @@ const refreshStats = async () => {
 
         stats.value = statsRes.data;
 
-        statusData.labels = statusRes.data.map(s => s.status);
-        statusData.datasets = [{
-            data: statusRes.data.map(s => s.count),
-            backgroundColor: ['#ffc107', '#17a2b8', '#28a745', '#dc3545', '#6c757d'].slice(0, statusRes.data.length)
-        }];
+        statusData.value = {
+            labels: statusRes.data.map(s => s.status),
+            datasets: [{
+                data: statusRes.data.map(s => s.count),
+                backgroundColor: ['#28a745', '#dc3545'].slice(0, statusRes.data.length)
+            }]
+        };
 
         const trendLabels = trendRes.data.map(t => t.date);
         const trendOrders = trendRes.data.map(t => t.orders);
@@ -250,6 +297,17 @@ const refreshStats = async () => {
         };
 
         topProducts.value = productsRes.data;
+
+        const prodLabels = productsRes.data.map(p => p.name);
+        const prodQtys = productsRes.data.map(p => p.qty);
+        productDoughnutData.value = {
+            labels: prodLabels,
+            datasets: [{
+                data: prodQtys,
+                backgroundColor: barColors.slice(0, prodLabels.length),
+                borderWidth: 1
+            }]
+        };
     } catch (error) {
         console.error('Error refreshing dashboard:', error);
     }

@@ -28,7 +28,8 @@ class PosStatisticsController extends Controller
         $statusId = $request->input('status_id');
 
         $query = DB::table('orders')
-            ->whereBetween('created_at', [$startDate . ' 00:00:00', $endDate . ' 23:59:59']);
+            ->whereBetween('created_at', [$startDate . ' 00:00:00', $endDate . ' 23:59:59'])
+            ->where('status_id', '!=', 2);
 
         if ($userId) {
             $query->where('operator_id', $userId);
@@ -41,15 +42,13 @@ class PosStatisticsController extends Controller
             COUNT(*) as total_orders,
             SUM(total) as total_sales,
             AVG(total) as avg_order,
-            SUM(CASE WHEN paid = 1 THEN 1 ELSE 0 END) as paid_orders,
-            SUM(CASE WHEN status_id = 4 THEN 1 ELSE 0 END) as canceled_orders,
-            SUM(CASE WHEN status_id = 4 THEN total ELSE 0 END) as canceled_amount
+            SUM(CASE WHEN paid = 1 THEN 1 ELSE 0 END) as paid_orders
         ')->first();
 
         // Get canceled orders separately for clarity
         $canceledQuery = DB::table('orders')
             ->whereBetween('created_at', [$startDate . ' 00:00:00', $endDate . ' 23:59:59'])
-            ->where('status_id', 4);
+            ->where('status_id', 2);
         
         if ($userId) {
             $canceledQuery->where('operator_id', $userId);
@@ -85,7 +84,7 @@ class PosStatisticsController extends Controller
         $query = DB::table('orders')
             ->select('created_at as date', 'total')
             ->whereBetween('created_at', [$startDate . ' 00:00:00', $endDate . ' 23:59:59'])
-            ->where('status_id', '!=', 4)
+            ->where('status_id', '!=', 2)
             ->orderBy('created_at');
 
         if ($userId) {
@@ -108,7 +107,7 @@ class PosStatisticsController extends Controller
         // Parse JSON detail and aggregate
         $ordersQuery = DB::table('orders')
             ->whereBetween('created_at', [$startDate . ' 00:00:00', $endDate . ' 23:59:59'])
-            ->where('status_id', '!=', 4);
+            ->where('status_id', '!=', 2);
 
         if ($userId) {
             $ordersQuery->where('operator_id', $userId);
@@ -175,7 +174,7 @@ class PosStatisticsController extends Controller
         $query = DB::table('orders')
             ->select('created_at', 'detail')
             ->whereBetween('created_at', [$startDate . ' 00:00:00', $endDate . ' 23:59:59'])
-            ->where('status_id', '!=', 4)
+            ->where('status_id', '!=', 2)
             ->orderBy('created_at');
 
         if ($userId) {
@@ -255,21 +254,31 @@ class PosStatisticsController extends Controller
         $applyUserAndStatus($orders);
         $orders = $orders->select('orders.*', 'users.name as operator_name')->get();
 
-        // 2. Summary stats
-        $statsQuery = DB::table('orders')->whereBetween('created_at', $dateRange);
+        // 2. Summary stats (exclude canceled)
+        $statsQuery = DB::table('orders')
+            ->whereBetween('created_at', $dateRange)
+            ->where('status_id', '!=', 2);
         $applyUserAndStatus($statsQuery);
         $stats = $statsQuery->selectRaw('
             COUNT(*) as total_orders,
             SUM(total) as total_sales,
-            AVG(total) as avg_order,
-            SUM(CASE WHEN status_id = 4 THEN 1 ELSE 0 END) as canceled_orders,
-            SUM(CASE WHEN status_id = 4 THEN total ELSE 0 END) as canceled_amount
+            AVG(total) as avg_order
+        ')->first();
+
+        // 2b. Canceled orders stats (separate query)
+        $canceledQuery = DB::table('orders')
+            ->whereBetween('created_at', $dateRange)
+            ->where('status_id', 2);
+        $applyUserAndStatus($canceledQuery);
+        $canceledStats = $canceledQuery->selectRaw('
+            COUNT(*) as canceled_orders,
+            SUM(total) as canceled_amount
         ')->first();
 
         // 3. Top products (exclude canceled)
         $ordersForProducts = DB::table('orders')
             ->whereBetween('created_at', $dateRange)
-            ->where('status_id', '!=', 4);
+            ->where('status_id', '!=', 2);
         $applyUserAndStatus($ordersForProducts);
 
         $ordersData = $ordersForProducts->get();
@@ -303,7 +312,7 @@ class PosStatisticsController extends Controller
         $salesData = DB::table('orders')
             ->select('created_at')
             ->whereBetween('created_at', $dateRange)
-            ->where('status_id', '!=', 4);
+            ->where('status_id', '!=', 2);
         $applyUserAndStatus($salesData);
         $salesData = $salesData->get();
 
@@ -321,7 +330,7 @@ class PosStatisticsController extends Controller
         $productOrders = DB::table('orders')
             ->select('created_at', 'detail')
             ->whereBetween('created_at', $dateRange)
-            ->where('status_id', '!=', 4);
+            ->where('status_id', '!=', 2);
         $applyUserAndStatus($productOrders);
         $productOrders = $productOrders->get();
 
@@ -379,8 +388,8 @@ class PosStatisticsController extends Controller
             ['Productos Únicos', count($productStats)],
             ['Fecha Inicio', $startDate],
             ['Fecha Fin', $endDate],
-            ['Pedidos Cancelados', $stats->canceled_orders ?? 0],
-            ['Monto Cancelado', number_format($stats->canceled_amount ?? 0, 2, '.', '')],
+            ['Pedidos Cancelados', $canceledStats->canceled_orders ?? 0],
+            ['Monto Cancelado', number_format($canceledStats->canceled_amount ?? 0, 2, '.', '')],
         ];
         foreach ($summaryRows as $i => [$label, $value]) {
             $row = $i + 2;
@@ -406,7 +415,7 @@ class PosStatisticsController extends Controller
             $sheet2->setCellValue('B' . $row, $order->created_at);
             $sheet2->setCellValue('C' . $row, number_format($order->total, 2, '.', ''));
             $sheet2->setCellValue('D' . $row, $order->operator_name);
-            $sheet2->setCellValue('E' . $row, match ($order->status_id) { 3 => 'Completado', 4 => 'Cancelado', default => 'Pendiente' });
+            $sheet2->setCellValue('E' . $row, match ($order->status_id) { 3 => 'Completado', 2 => 'Cancelado', default => 'Pendiente' });
             $sheet2->setCellValue('F' . $row, $order->paid ? 'Sí' : 'No');
             $sheet2->setCellValue('G' . $row, $order->mp_payment_id ?? 'N/A');
             $row++;
@@ -609,12 +618,23 @@ class PosStatisticsController extends Controller
 
         $filename = 'estadisticas_' . $startDate . '_' . $endDate . '.xlsx';
 
-        $tempDir = sys_get_temp_dir();
-        $tempFile = $tempDir . DIRECTORY_SEPARATOR . $filename;
+        $tempFile = tempnam(sys_get_temp_dir(), 'estadisticas_');
         $writer->save($tempFile);
+        $content = file_get_contents($tempFile);
+        unlink($tempFile);
 
-        return response()->download($tempFile, $filename, [
-            'Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-        ])->deleteFileAfterSend(true);
+        if (empty($content)) {
+            return response()->json(['error' => 'No se pudo generar el archivo Excel'], 500);
+        }
+
+        // Bypass Laravel Response entirely to prevent any BOM injection during transmission
+        while (ob_get_level()) {
+            ob_end_clean();
+        }
+        header('Content-Type: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+        header('Content-Disposition: attachment; filename="' . $filename . '"');
+        header('Content-Length: ' . strlen($content));
+        echo $content;
+        exit;
     }
 }

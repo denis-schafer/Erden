@@ -295,6 +295,13 @@
                                                 <button class="btn btn-sm btn-primary" @click="viewOrderDetail(order)" title="Ver">
                                                     <i class="bi bi-eye-fill"></i>
                                                 </button>
+                                                <button v-if="order.status_id !== 2 && (isAdmin || !order.paid)"
+                                                    class="btn btn-sm"
+                                                    :class="order.paid ? 'btn-warning' : 'btn-success'"
+                                                    @click="togglePaid(order)"
+                                                    :title="order.paid ? 'Desmarcar como pagado' : 'Marcar como Pagado'">
+                                                    <i class="bi" :class="order.paid ? 'bi-arrow-counterclockwise' : 'bi-cash'"></i>
+                                                </button>
                                                 <button class="btn btn-sm btn-secondary" @click="reprintOrder(order)" title="Reimprimir">
                                                     <i class="bi bi-printer-fill"></i>
                                                 </button>
@@ -438,7 +445,7 @@ const canViewQR = computed(() => {
 });
 
 // Filter orders for non-admin users
-const isAdmin = computed(() => authStore.isGlobalAdmin);
+const isAdmin = computed(() => authStore.isGlobalAdmin || authStore.user?.role_id === 1);
 const currentUserId = computed(() => authStore.user?.id);
 
 const filteredOrders = computed(() => {
@@ -830,6 +837,33 @@ const deleteOrder = (order) => {
                 window.dispatchEvent(new CustomEvent('pos-order-deleted'));
             } catch (error) {
                 toastify.error('Error al eliminar pedido: ' + (error.response?.data?.message || 'Error desconocido'));
+            }
+        }
+    });
+};
+
+const togglePaid = (order) => {
+    const isAdminVal = isAdmin.value;
+    const title = isAdminVal
+        ? (order.paid ? 'Desmarcar como Pagado' : 'Marcar como Pagado')
+        : 'Marcar como Pagado';
+    const message = isAdminVal
+        ? `¿Estás seguro de ${order.paid ? 'desmarcar' : 'marcar'} el pago del pedido #${order.id}?`
+        : `¿Estás seguro de marcar el pedido #${order.id} como pagado?`;
+
+    confirmModal.value.open({
+        title,
+        message,
+        confirmText: 'Confirmar',
+        type: order.paid ? 'warning' : 'success',
+        onConfirm: async () => {
+            try {
+                await api.post(`/pos/orders/${order.id}/toggle-paid`);
+                await loadOrders();
+                toastify.success(order.paid ? 'Pago desmarcado' : 'Pedido marcado como pagado');
+                window.dispatchEvent(new CustomEvent('pos-order-updated'));
+            } catch (error) {
+                toastify.error('Error: ' + (error.response?.data?.message || 'Error desconocido'));
             }
         }
     });

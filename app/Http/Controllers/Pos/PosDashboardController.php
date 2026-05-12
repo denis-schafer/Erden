@@ -59,7 +59,8 @@ class PosDashboardController extends Controller
         }
         
         $baseQuery = DB::table('orders')
-            ->whereBetween('created_at', [$startDate . ' 00:00:00', $endDate . ' 23:59:59']);
+            ->whereBetween('created_at', [$startDate . ' 00:00:00', $endDate . ' 23:59:59'])
+            ->where('status_id', '!=', 2);
         
         if ($userIdFilter) {
             $baseQuery->where('operator_id', $userIdFilter);
@@ -69,10 +70,22 @@ class PosDashboardController extends Controller
         $totalSales = $baseQuery->sum('total');
         $avgOrder = $totalOrders > 0 ? $totalSales / $totalOrders : 0;
         
+        // Canceled orders separate query
+        $canceledQuery = DB::table('orders')
+            ->whereBetween('created_at', [$startDate . ' 00:00:00', $endDate . ' 23:59:59'])
+            ->where('status_id', 2);
+        if ($userIdFilter) {
+            $canceledQuery->where('operator_id', $userIdFilter);
+        }
+        $canceledOrders = $canceledQuery->count();
+        $canceledAmount = $canceledQuery->sum('total');
+        
         return response()->json([
             'total_orders' => $totalOrders,
             'total_sales' => round($totalSales, 2),
             'avg_order' => round($avgOrder, 2),
+            'canceled_orders' => $canceledOrders,
+            'canceled_amount' => round($canceledAmount, 2),
             'period' => [
                 'start' => $startDate,
                 'end' => $endDate
@@ -96,20 +109,30 @@ class PosDashboardController extends Controller
             $userIdFilter = $userId;
         }
         
-        $query = DB::table('orders')
-            ->select('status_orders.name as status', 'status_orders.id as status_id', DB::raw('COUNT(*) as count'), DB::raw('COALESCE(SUM(orders.total), 0) as total'))
-            ->join('status_orders', 'orders.status_id', '=', 'status_orders.id')
-            ->whereBetween('orders.created_at', [$startDate . ' 00:00:00', $endDate . ' 23:59:59']);
+        $paidQuery = DB::table('orders')
+            ->whereBetween('created_at', [$startDate . ' 00:00:00', $endDate . ' 23:59:59'])
+            ->where('paid', 1)
+            ->where('status_id', '!=', 2);
+        
+        $unpaidQuery = DB::table('orders')
+            ->whereBetween('created_at', [$startDate . ' 00:00:00', $endDate . ' 23:59:59'])
+            ->where('paid', 0)
+            ->where('status_id', '!=', 2);
         
         if ($userIdFilter) {
-            $query->where('orders.operator_id', $userIdFilter);
+            $paidQuery->where('operator_id', $userIdFilter);
+            $unpaidQuery->where('operator_id', $userIdFilter);
         }
         
-        $data = $query->groupBy('status_orders.id', 'status_orders.name')
-            ->orderBy('status_orders.id')
-            ->get();
+        $paidCount = (clone $paidQuery)->count();
+        $paidTotal = (clone $paidQuery)->sum('total');
+        $unpaidCount = (clone $unpaidQuery)->count();
+        $unpaidTotal = (clone $unpaidQuery)->sum('total');
         
-        return response()->json($data);
+        return response()->json([
+            ['status' => 'Pagados', 'count' => $paidCount, 'total' => round($paidTotal, 2)],
+            ['status' => 'Impagos', 'count' => $unpaidCount, 'total' => round($unpaidTotal, 2)],
+        ]);
     }
 
     public function topProducts(Request $request)
@@ -129,14 +152,15 @@ class PosDashboardController extends Controller
         }
         
         $query = DB::table('orders')
-            ->select('orders.detail', DB::raw('SUM(orders.total) as total_sales'), DB::raw('COUNT(*) as order_count'))
-            ->whereBetween('orders.created_at', [$startDate . ' 00:00:00', $endDate . ' 23:59:59']);
+            ->select('orders.detail')
+            ->whereBetween('orders.created_at', [$startDate . ' 00:00:00', $endDate . ' 23:59:59'])
+            ->where('status_id', '!=', 2);
         
         if ($userIdFilter) {
             $query->where('orders.operator_id', $userIdFilter);
         }
         
-        $orders = $query->groupBy('orders.id', 'orders.detail')->get();
+        $orders = $query->get();
         
         $productStats = [];
         foreach ($orders as $order) {
@@ -153,9 +177,9 @@ class PosDashboardController extends Controller
             }
         }
         
-        usort($productStats, fn($a, $b) => $b['total'] <=> $a['total']);
+        usort($productStats, fn($a, $b) => $b['qty'] <=> $a['qty']);
         
-        return response()->json(array_slice($productStats, 0, 10));
+        return response()->json($productStats);
     }
 
     public function salesTrend(Request $request)
@@ -177,7 +201,8 @@ class PosDashboardController extends Controller
         
         $query = DB::table('orders')
             ->select(DB::raw('DATE(created_at) as date'), DB::raw('COUNT(*) as orders'), DB::raw('COALESCE(SUM(total), 0) as total'))
-            ->whereBetween('created_at', [$startDate . ' 00:00:00', $endDate . ' 23:59:59']);
+            ->whereBetween('created_at', [$startDate . ' 00:00:00', $endDate . ' 23:59:59'])
+            ->where('status_id', '!=', 2);
         
         if ($userIdFilter) {
             $query->where('operator_id', $userIdFilter);

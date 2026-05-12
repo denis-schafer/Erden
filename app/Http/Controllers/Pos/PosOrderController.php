@@ -208,6 +208,56 @@ class PosOrderController extends Controller
         return response()->json(['message' => 'Pedido eliminado', 'success' => true]);
     }
 
+    public function togglePaid(Request $request, $id)
+    {
+        $order = DB::table('orders')->where('id', $id)->first();
+
+        if (!$order) {
+            return response()->json(['message' => 'Pedido no encontrado'], 404);
+        }
+
+        if ($order->status_id == 2) {
+            return response()->json(['message' => 'No se puede cambiar el pago de una orden anulada'], 400);
+        }
+
+        $token = $request->bearerToken();
+        $isAdmin = false;
+        if ($token) {
+            try {
+                $decoded = json_decode(base64_decode($token), true);
+                $userId = $decoded['sub'] ?? null;
+                if ($userId) {
+                    $user = DB::table('users')->find($userId);
+                    $isAdmin = $user && ($user->role_id == 1 || $user->is_global_admin);
+                }
+            } catch (\Exception $e) {}
+        }
+        if (!$isAdmin) {
+            $sessionUser = $request->session()->get('user');
+            $isAdmin = $sessionUser && ($sessionUser['role_id'] == 1 || $sessionUser['is_global_admin'] ?? false);
+        }
+
+        if (!$isAdmin && $order->paid) {
+            return response()->json(['message' => 'No tienes permiso para desmarcar el pago de una orden'], 403);
+        }
+
+        $newPaid = $order->paid ? 0 : 1;
+
+        DB::table('orders')->where('id', $id)->update([
+            'paid' => $newPaid,
+            'updated_at' => now(),
+        ]);
+
+        $updatedOrder = DB::table('orders')->where('id', $id)->first();
+        event(new OrderUpdated((array) $updatedOrder));
+
+        return response()->json([
+            'message' => $newPaid ? 'Pedido marcado como pagado' : 'Pedido desmarcado como pagado',
+            'success' => true,
+            'order' => $updatedOrder,
+        ]);
+    }
+
     public function reprint(Request $request, $id)
     {
         $order = DB::table('orders')->where('id', $id)->first();

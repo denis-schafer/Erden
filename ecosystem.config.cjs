@@ -1,10 +1,14 @@
+const isWin = process.platform === 'win32';
+
 module.exports = {
     apps: [{
         name: 'reverb',
         script: 'artisan',
-        args: 'reverb:start --host=0.0.0.0',
+        args: 'reverb:start',
         cwd: __dirname,
-        interpreter: 'C:\\laragon\\bin\\php\\php-8.2.30-nts-Win32-vs16-x64\\php.exe',
+        interpreter: isWin
+            ? 'C:\\laragon\\bin\\php\\php-8.2.30-nts-Win32-vs16-x64\\php.exe'
+            : 'php',
         interpreter_args: '',
         watch: false,
         autorestart: true,

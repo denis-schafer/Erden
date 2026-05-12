@@ -69,7 +69,7 @@
                 <div class="col-md-6">
                     <div class="card h-100">
                         <div class="card-header">
-                            <h6 class="mb-0">Tendencia de Ventas (Últimos 7 días)</h6>
+                            <h6 class="mb-0">Tendencia de Ventas {{ startDate }} a {{ endDate }}</h6>
                         </div>
                         <div class="card-body">
                             <Bar v-if="trendData.labels.length" :data="trendData" :options="barOptions" />

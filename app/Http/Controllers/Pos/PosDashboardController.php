@@ -188,9 +188,8 @@ class PosDashboardController extends Controller
         $userId = $userInfo['user_id'];
         $userRole = $userInfo['role_id'];
         
-        $days = $request->input('days', 7);
-        $startDate = now()->subDays($days)->toDateString();
-        $endDate = now()->toDateString();
+        $startDate = $request->input('start_date', now()->subDays(7)->toDateString());
+        $endDate = $request->input('end_date', now()->toDateString());
         
         $userIdFilter = null;
         if ($userRole == 1 && $request->has('user_id')) {

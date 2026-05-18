@@ -2,7 +2,7 @@
 
 
 a = Analysis(
-    ['print-agent.py'],
+    ['C:\\laragon\\www\\erden\\print-agent.py'],
     pathex=[],
     binaries=[],
     datas=[],

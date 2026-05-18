@@ -186,6 +186,7 @@ Route::middleware(['web', 'setDatabase'])->group(function () {
     Route::prefix('print-agent')->group(function () {
         Route::get('/info', [App\Http\Controllers\Pos\PosConfigController::class, 'printAgentInfo']);
         Route::post('/regenerate', [App\Http\Controllers\Pos\PosConfigController::class, 'regeneratePrintAgentKey']);
+        Route::get('/download', [App\Http\Controllers\Pos\PosConfigController::class, 'downloadAgent']);
     });
 });
 

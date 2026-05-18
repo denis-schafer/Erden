@@ -111,9 +111,47 @@
                     <div class="alert alert-info py-2 mb-0 mt-2">
                         <small>
                             <i class="bi bi-info-circle me-1"></i>
-                            Descarga el <strong>print-agent.py</strong> desde el repositorio, ejecútalo en la PC local conectada a la impresora y pega esta clave cuando la solicite.
+                            Descarga el <strong>ErdenPrintAgent.exe</strong>, ejecútalo en la PC local conectada a la impresora y pega la clave API cuando la solicite.
                         </small>
                     </div>
+                    <div class="mt-2">
+                        <a v-if="downloadAvailable"
+                           :href="'/pos/print-agent/download'"
+                           class="btn btn-success btn-sm w-100"
+                           download>
+                            <i class="bi bi-download me-1"></i>
+                            Descargar ErdenPrintAgent.exe
+                        </a>
+                        <div v-else class="alert alert-warning py-2 mb-0">
+                            <small>
+                                <i class="bi bi-exclamation-triangle me-1"></i>
+                                El ejecutable no está disponible en el servidor.
+                                <a href="#" @click.prevent="showBuildInstructions = !showBuildInstructions">
+                                    Ver instrucciones para generarlo
+                                </a>
+                            </small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div v-if="showBuildInstructions" class="mt-3">
+            <div class="setting-card">
+                <div class="setting-header d-flex justify-content-between align-items-center">
+                    <h6 class="setting-title mb-0">Instrucciones para generar ErdenPrintAgent.exe</h6>
+                    <button type="button" class="btn-close" @click="showBuildInstructions = false"></button>
+                </div>
+                <div class="mt-2">
+                    <ol class="mb-0 ps-3">
+                        <li class="mb-1">Instala Python 3 desde <a href="https://python.org" target="_blank">python.org</a> (marca "Add to PATH")</li>
+                        <li class="mb-1">Abre una terminal (CMD) y ejecuta: <code class="text-nowrap">pip install pyinstaller requests</code></li>
+                        <li class="mb-1">Descarga <code>print-agent.py</code> del repositorio</li>
+                        <li class="mb-1">En la terminal, ve a la carpeta del script y ejecuta:<br>
+                            <code>pyinstaller --onefile --name "ErdenPrintAgent" --console print-agent.py</code></li>
+                        <li class="mb-1">El .exe se genera en <code>dist/ErdenPrintAgent.exe</code></li>
+                        <li>Sube el .exe al VPS: <code>scp dist/ErdenPrintAgent.exe root@149.50.133.48:/var/www/html/erden/storage/app/print-agent/</code></li>
+                    </ol>
                 </div>
             </div>
         </div>
@@ -135,6 +173,8 @@ const authStore = useAuthStore();
 const agentKey = ref('');
 const serverUrl = ref('');
 const regenerating = ref(false);
+const downloadAvailable = ref(false);
+const showBuildInstructions = ref(false);
 
 const settingLabels = {
     'business_name': 'Nombre del Negocio',
@@ -295,6 +335,7 @@ const loadPrintAgentInfo = async () => {
         const response = await api.get('/pos/print-agent/info');
         agentKey.value = response.data?.agent_key || '';
         serverUrl.value = response.data?.server_url || '';
+        downloadAvailable.value = response.data?.download_available || false;
     } catch (error) {
         // Silently fail - agent info may not be configured yet
     }

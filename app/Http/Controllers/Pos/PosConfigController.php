@@ -6,6 +6,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
+use Illuminate\Support\Facades\Storage;
 use App\Http\Controllers\Controller;
 use App\Events\ConfigUpdated;
 
@@ -68,6 +69,7 @@ class PosConfigController extends Controller
         return response()->json([
             'agent_key' => $parentCompany->print_agent_key ?? '',
             'server_url' => url('/'),
+            'download_available' => Storage::exists('print-agent/ErdenPrintAgent.exe'),
         ]);
     }
 
@@ -98,5 +100,16 @@ class PosConfigController extends Controller
             'success' => true,
             'agent_key' => $newKey,
         ]);
+    }
+
+    public function downloadAgent()
+    {
+        $filePath = 'print-agent/ErdenPrintAgent.exe';
+
+        if (!Storage::exists($filePath)) {
+            return response()->json(['error' => 'Agente no disponible. Genera el .exe siguiendo las instrucciones.'], 404);
+        }
+
+        return Storage::download($filePath, 'ErdenPrintAgent.exe');
     }
 }

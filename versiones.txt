@@ -214,3 +214,49 @@ Archivos modificados:
 - config/app.php
 
 ---
+
+[Agente de Impresion funcional]
+Fecha: 2026-05-18
+Estado: Completado
+
+Cambios realizados:
+- Sistema de agente de impresion local (print-agent.py) que consulta el VPS cada 1 segundo
+- Middleware PrintAgentAuth con validacion de API key y auto-creacion de tabla print_jobs
+- PrintJobController con endpoints pending/ack para consultar en mysql_parent con company_db
+- PrintJobService escribe print_jobs en mysql_parent (no en DB hijas)
+- Migration 2026_05_18_122141 crea tabla print_jobs en mysql_parent
+- Polling forzado a 1 segundo (ignora config guardada)
+- BOM removido de routes/api.php
+- .exe compilado con PyInstaller y servido desde storage/app/private/print-agent/
+
+Archivos creados:
+- print-agent.py
+- app/Http/Middleware/PrintAgentAuth.php
+- app/Http/Controllers/Pos/PrintJobController.php
+- app/Services/PrintJobService.php
+- database/migrations/2026_05_18_122141_create_print_jobs_table_on_parent.php
+- dist_new/ErdenPrintAgent.exe
+
+Archivos modificados:
+- routes/api.php
+- app/Console/Commands/MigrationAll.php
+- app/Http/Controllers/Pos/PosOrderController.php
+- .gitignore
+
+---
+
+[Agente de Impresion - Fix ruta config]
+Fecha: 2026-05-18
+Estado: Completado
+
+Cambios realizados:
+- Corregido CONFIG_FILE en print-agent.py: ahora usa sys.executable en vez de __file__
+- El .exe guarda y lee agent-config.json en su propia carpeta (no en temp de Windows)
+- Al ejecutar el .exe por primera vez pide URL/token y los recuerda para siempre
+- Recompilado ErdenPrintAgent.exe
+
+Archivos modificados:
+- print-agent.py
+- dist_new/ErdenPrintAgent.exe
+
+---

@@ -23,7 +23,7 @@ import sys
 import os
 from pathlib import Path
 
-CONFIG_FILE = Path(__file__).parent / "agent-config.json"
+CONFIG_FILE = Path(sys.executable).parent / "agent-config.json"
 
 VERSION = "1.0.0"
 

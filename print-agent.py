@@ -74,7 +74,7 @@ def request_config():
         print("[!] La clave API no puede estar vacia.")
         sys.exit(1)
 
-    return {"vps_url": url, "api_key": api_key, "poll_interval": 3}
+    return {"vps_url": url, "api_key": api_key, "poll_interval": 1}
 
 
 def test_connection(config):
@@ -126,7 +126,7 @@ def poll_loop(config):
     headers = {"X-Print-Agent-Key": config["api_key"]}
     poll_url = "{}/pos/print-jobs/pending".format(config["vps_url"])
     ack_url = config["vps_url"] + "/pos/print-jobs/{}/ack"
-    interval = config.get("poll_interval", 3)
+    interval = config.get("poll_interval", 1)
 
     print("[*] Iniciando ciclo de polling cada {} segundos...".format(interval))
     print("[*] Presiona Ctrl+C para detener.")

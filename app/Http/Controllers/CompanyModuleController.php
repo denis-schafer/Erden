@@ -9,6 +9,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Str;
 
 class CompanyModuleController extends Controller
 {
@@ -117,6 +118,18 @@ class CompanyModuleController extends Controller
         $this->runPosMigrations();
         $this->verifyPosTablesStructure($company);
         $this->runPosSeeders($company);
+        $this->verifyPrintJobsTable($company);
+        
+        // Generate print_agent_key if not exists
+        if (empty($company->print_agent_key)) {
+            DB::connection('mysql_parent')
+                ->table('companies')
+                ->where('id', $company->id)
+                ->update(['print_agent_key' => (string) Str::uuid()]);
+            
+            $company->refresh();
+            \Log::info('[CompanyModuleController] installPosPackage: print_agent_key generada para: ' . $company->name);
+        }
         
         \Log::info('[CompanyModuleController] installPosPackage: FIN para empresa: ' . $company->name);
     }
@@ -282,5 +295,35 @@ class CompanyModuleController extends Controller
         }
 
         Log::info('[CompanyModuleController] verifyPosTablesStructure: FIN');
+    }
+
+    protected function verifyPrintJobsTable(Company $company): void
+    {
+        Log::info('[CompanyModuleController] verifyPrintJobsTable: INICIO for ' . $company->db);
+
+        config(['database.connections.mysql.database' => $company->db]);
+        DB::purge('mysql');
+        DB::reconnect('mysql');
+
+        if (!Schema::hasTable('print_jobs')) {
+            Schema::create('print_jobs', function ($table) {
+                $table->id();
+                $table->unsignedBigInteger('order_id');
+                $table->string('printer_ip', 45);
+                $table->integer('printer_port')->default(9100);
+                $table->string('printer_width', 10)->default('80mm');
+                $table->longText('ticket_data');
+                $table->enum('status', ['pending', 'processing', 'completed', 'failed'])->default('pending');
+                $table->text('error_message')->nullable();
+                $table->tinyInteger('attempts')->default(0);
+                $table->timestamp('created_at')->useCurrent();
+                $table->timestamp('processed_at')->nullable();
+            });
+            Log::info('[CompanyModuleController] verifyPrintJobsTable: print_jobs table created');
+        } else {
+            Log::info('[CompanyModuleController] verifyPrintJobsTable: print_jobs table already exists');
+        }
+
+        Log::info('[CompanyModuleController] verifyPrintJobsTable: FIN');
     }
 }

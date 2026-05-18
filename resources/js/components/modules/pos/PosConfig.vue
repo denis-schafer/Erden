@@ -73,6 +73,50 @@
                 <p class="mt-3">No hay configuraciones definidas</p>
             </div>
         </div>
+
+        <div class="mt-4">
+            <div class="setting-card">
+                <div class="setting-header">
+                    <h6 class="setting-title">Agente de Impresión Local</h6>
+                </div>
+                <div class="setting-description">
+                    <small class="text-muted">
+                        Clave para que el agente local (print-agent) se conecte al servidor y procese impresiones pendientes.
+                    </small>
+                </div>
+                <div class="mt-3">
+                    <div class="mb-2">
+                        <label class="form-label fw-semibold">URL del Servidor</label>
+                        <div class="input-group input-group-sm">
+                            <input type="text" class="form-control" :value="serverUrl" readonly @click="copyText(serverUrl)">
+                            <button class="btn btn-outline-secondary" @click="copyText(serverUrl)" title="Copiar URL">
+                                <i class="bi bi-clipboard"></i>
+                            </button>
+                        </div>
+                    </div>
+                    <div class="mb-2">
+                        <label class="form-label fw-semibold">Clave API</label>
+                        <div class="input-group input-group-sm">
+                            <input type="text" class="form-control font-monospace" :value="agentKey" readonly @click="copyText(agentKey)">
+                            <button class="btn btn-outline-secondary" @click="copyText(agentKey)" title="Copiar clave">
+                                <i class="bi bi-clipboard"></i>
+                            </button>
+                            <button class="btn btn-outline-warning" @click="regenerateKey" :disabled="regenerating">
+                                <span v-if="regenerating" class="spinner-border spinner-border-sm"></span>
+                                <i v-else class="bi bi-arrow-clockwise"></i>
+                                Regenerar
+                            </button>
+                        </div>
+                    </div>
+                    <div class="alert alert-info py-2 mb-0 mt-2">
+                        <small>
+                            <i class="bi bi-info-circle me-1"></i>
+                            Descarga el <strong>print-agent.py</strong> desde el repositorio, ejecútalo en la PC local conectada a la impresora y pega esta clave cuando la solicite.
+                        </small>
+                    </div>
+                </div>
+            </div>
+        </div>
     </div>
 </template>
 
@@ -88,6 +132,9 @@ const isGettingToken = ref(false);
 const mpMessage = ref('');
 const mpMessageType = ref('alert-info');
 const authStore = useAuthStore();
+const agentKey = ref('');
+const serverUrl = ref('');
+const regenerating = ref(false);
 
 const settingLabels = {
     'business_name': 'Nombre del Negocio',
@@ -233,10 +280,52 @@ const loadSettings = async () => {
         
         const allowedSettings = ['business_name', 'business_address', 'business_phone', 'business_nit', 'ticket_title', 'redirect_uri', 'mp_access_token'];
         settings.value = allSettings.filter(s => allowedSettings.includes(s.name));
+
+        // Load print agent info
+        await loadPrintAgentInfo();
     } catch (error) {
         
     } finally {
         loading.value = false;
+    }
+};
+
+const loadPrintAgentInfo = async () => {
+    try {
+        const response = await api.get('/pos/print-agent/info');
+        agentKey.value = response.data?.agent_key || '';
+        serverUrl.value = response.data?.server_url || '';
+    } catch (error) {
+        // Silently fail - agent info may not be configured yet
+    }
+};
+
+const copyText = async (text) => {
+    try {
+        await navigator.clipboard.writeText(text);
+    } catch {
+        // Fallback for older browsers
+        const textarea = document.createElement('textarea');
+        textarea.value = text;
+        document.body.appendChild(textarea);
+        textarea.select();
+        document.execCommand('copy');
+        document.body.removeChild(textarea);
+    }
+};
+
+const regenerateKey = async () => {
+    if (!confirm('¿Estás seguro? La clave actual dejará de funcionar y deberás actualizarla en el agente de impresión.')) {
+        return;
+    }
+    regenerating.value = true;
+    try {
+        const response = await api.post('/pos/print-agent/regenerate');
+        agentKey.value = response.data?.agent_key || '';
+    } catch (error) {
+        
+    } finally {
+        regenerating.value = false;
     }
 };
 

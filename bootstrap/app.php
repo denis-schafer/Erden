@@ -17,8 +17,12 @@ return Application::configure(basePath: dirname(__DIR__))
             'setDatabase' => \App\Http\Middleware\SetDatabase::class,
             'permission' => \App\Http\Middleware\CheckPermission::class,
             'apiAuth' => \App\Http\Middleware\ApiAuth::class,
+            'printAgentAuth' => \App\Http\Middleware\PrintAgentAuth::class,
         ]);
         $middleware->prepend(\App\Http\Middleware\ForceDynamicAssetUrl::class);
+        $middleware->validateCsrfTokens(except: [
+            'pos/print-jobs/*',
+        ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         //

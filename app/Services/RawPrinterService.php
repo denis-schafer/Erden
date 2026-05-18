@@ -53,6 +53,14 @@ class RawPrinterService
     }
 
     /**
+     * Generar bytes ESC/POS y devolver base64
+     */
+    public function generateTicketData($orderData, $width = 80, $ticketTitle = 'MI NEGOCIO', $businessInfo = [])
+    {
+        return base64_encode($this->generateTicket($orderData, $width, $ticketTitle, $businessInfo));
+    }
+
+    /**
      * Generar ticket según ancho de impresión
      */
     public function generateTicket($orderData, $width = 80, $ticketTitle = 'MI NEGOCIO', $businessInfo = [])

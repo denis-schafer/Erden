@@ -4,11 +4,12 @@ namespace App\Http\Controllers\Pos;
 
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use App\Http\Controllers\Controller;
 use App\Events\OrderCreated;
 use App\Events\OrderUpdated;
 use App\Events\OrderDeleted;
-use App\Services\RawPrinterService;
+use App\Services\PrintJobService;
 
 class PosOrderController extends Controller
 {
@@ -56,100 +57,25 @@ class PosOrderController extends Controller
         ]);
 
         $order = DB::table('orders')->where('id', $id)->first();
-        $printResult = ['success' => false, 'message' => ''];
 
-        // Try to print ticket if enabled
-        $printResult = $this->tryPrintTicket($order, $validated['detail'], $validated['operator_id']);
+        // Create print job for local agent
+        $this->createPrintJob($order, $validated['detail'], $validated['operator_id']);
 
         event(new OrderCreated((array) $order));
 
         return response()->json([
             'id' => $id, 
             'message' => 'Pedido creado',
-            'print' => $printResult
         ]);
     }
 
-    private function tryPrintTicket($order, $detail, $operatorId)
+    private function createPrintJob($order, $detail, $operatorId)
     {
         try {
-            // Get operator (user) to get printer config from user settings
-            $operator = DB::table('users')->find($operatorId);
-            
-            if (!$operator) {
-                return ['success' => false, 'message' => 'Usuario operador no encontrado'];
-            }
-
-            // Check if printing is enabled for this user
-            $enablePrint = $operator->enable_print ?? false;
-            
-            if (!$enablePrint) {
-                return ['success' => false, 'enable_print' => false, 'message' => 'Impresión deshabilitada para este usuario'];
-            }
-
-            // Get printer config from user
-            $printerIp = $operator->printer_ip ?? null;
-
-            if (empty($printerIp)) {
-                return ['success' => false, 'printer_configured' => false, 'message' => 'Impresora no configurada para este usuario'];
-            }
-
-            $printerPort = $operator->printer_port ?? 9100;
-            $printerWidth = (int) ($operator->printer_width ?? 80);
-
-            // Get ticket title from configs (business-level setting)
-            $ticketTitleConfig = DB::table('configs')->where('name', 'ticket_title')->first();
-            $ticketTitle = $ticketTitleConfig ? $ticketTitleConfig->value : 'MI NEGOCIO';
-
-            // Get business info
-            $businessName = DB::table('configs')->where('name', 'business_name')->first();
-            $businessAddress = DB::table('configs')->where('name', 'business_address')->first();
-            $businessPhone = DB::table('configs')->where('name', 'business_phone')->first();
-            $businessNit = DB::table('configs')->where('name', 'business_nit')->first();
-
-            $businessInfo = [
-                'name' => $businessName ? $businessName->value : '',
-                'address' => $businessAddress ? $businessAddress->value : '',
-                'phone' => $businessPhone ? $businessPhone->value : '',
-                'nit' => $businessNit ? $businessNit->value : '',
-            ];
-
-            // Get operator name
-            $userName = $operator->name ?? 'Caja';
-
-            // Prepare order data for printing
-            $cartItems = [];
-            if (isset($detail['items'])) {
-                foreach ($detail['items'] as $item) {
-                    $cartItems[] = [
-                        'name' => $item['name'] ?? 'Producto',
-                        'qty' => $item['qty'] ?? 1,
-                        'amount' => $item['amount'] ?? 0,
-                    ];
-                }
-            }
-
-            $orderData = [
-                'order_id' => $order->id,
-                'total' => $order->total,
-                'user_name' => $userName,
-                'cart' => $cartItems,
-            ];
-
-            // Print ticket
-            $printerService = new RawPrinterService();
-            $printerService->printTicket($orderData, [
-                'ip' => $printerIp,
-                'port' => $printerPort,
-                'width' => $printerWidth,
-                'title' => $ticketTitle,
-                'business' => $businessInfo,
-            ]);
-
-            return ['success' => true, 'message' => 'Ticket impreso'];
-
+            $printJobService = new PrintJobService();
+            $printJobService->createFromOrder($order, $detail, $operatorId);
         } catch (\Exception $e) {
-            return ['success' => false, 'message' => 'Error: ' . $e->getMessage()];
+            Log::error('Error creating print job: ' . $e->getMessage());
         }
     }
 
@@ -234,7 +160,7 @@ class PosOrderController extends Controller
         }
         if (!$isAdmin) {
             $sessionUser = $request->session()->get('user');
-            $isAdmin = $sessionUser && ($sessionUser['role_id'] == 1 || $sessionUser['is_global_admin'] ?? false);
+            $isAdmin = $sessionUser && ($sessionUser['role_id'] == 1 || $request->session()->get('is_global_admin', false));
         }
 
         if (!$isAdmin && $order->paid) {
@@ -266,84 +192,15 @@ class PosOrderController extends Controller
             return response()->json(['message' => 'Pedido no encontrado'], 404);
         }
 
-        $detail = json_decode($order->detail);
-        
-        // Get printer config from operator (user) - same as tryPrintTicket
-        $operator = DB::table('users')->find($order->operator_id);
-        
-        if (!$operator) {
-            return response()->json(['success' => false, 'message' => 'Usuario operador no encontrado'], 404);
-        }
-
-        // Check if printing is enabled for this user
-        $enablePrint = $operator->enable_print ?? false;
-        
-        if (!$enablePrint) {
-            return response()->json(['success' => false, 'enable_print' => false, 'message' => 'Impresión deshabilitada para este usuario'], 400);
-        }
-
-        // Get printer config from user
-        $printerIp = $operator->printer_ip ?? null;
-
-        if (empty($printerIp)) {
-            return response()->json(['success' => false, 'message' => 'Impresora no configurada para este usuario'], 400);
-        }
-
-        $printerPort = $operator->printer_port ?? 9100;
-        $printerWidth = (int) ($operator->printer_width ?? 80);
-
-        // Get ticket title from configs (business-level setting)
-        $ticketTitleConfig = DB::table('configs')->where('name', 'ticket_title')->first();
-        $ticketTitle = $ticketTitleConfig ? $ticketTitleConfig->value : 'MI NEGOCIO';
-
-        // Get business info
-        $businessName = DB::table('configs')->where('name', 'business_name')->first();
-        $businessAddress = DB::table('configs')->where('name', 'business_address')->first();
-        $businessPhone = DB::table('configs')->where('name', 'business_phone')->first();
-        $businessNit = DB::table('configs')->where('name', 'business_nit')->first();
-
-        $businessInfo = [
-            'name' => $businessName ? $businessName->value : '',
-            'address' => $businessAddress ? $businessAddress->value : '',
-            'phone' => $businessPhone ? $businessPhone->value : '',
-            'nit' => $businessNit ? $businessNit->value : '',
-        ];
-
-        // Get operator name
-        $userName = $operator->name ?? 'Caja';
+        $detail = json_decode($order->detail, true) ?? [];
 
         try {
-            // Prepare order data
-            $cartItems = [];
-            if (isset($detail->items)) {
-                foreach ($detail->items as $item) {
-                    $cartItems[] = [
-                        'name' => $item->name,
-                        'qty' => $item->qty,
-                        'amount' => $item->amount,
-                    ];
-                }
-            }
-
-            $orderData = [
-                'order_id' => $order->id,
-                'total' => $order->total,
-                'user_name' => $userName,
-                'cart' => $cartItems,
-            ];
-
-            $printerService = new RawPrinterService();
-            $printerService->printTicket($orderData, [
-                'ip' => $printerIp,
-                'port' => $printerPort,
-                'width' => $printerWidth,
-                'title' => $ticketTitle,
-                'business' => $businessInfo,
-            ]);
+            $printJobService = new PrintJobService();
+            $printJobService->createFromOrder($order, $detail, $order->operator_id);
             
             return response()->json([
                 'success' => true,
-                'message' => 'Ticket reimpreso exitosamente'
+                'message' => 'Ticket enviado a impresión'
             ]);
         } catch (\Exception $e) {
             return response()->json([

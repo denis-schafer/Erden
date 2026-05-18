@@ -174,10 +174,22 @@ Route::middleware(['web', 'setDatabase'])->group(function () {
         Route::middleware(['permission:pos-log_read'])->group(function () {
             Route::get('/log', [App\Http\Controllers\Pos\PosLogController::class, 'index']);
             Route::get('/log/entries', [App\Http\Controllers\Pos\PosLogController::class, 'getLogs']);
-        });
     });
 
-    // MP OAuth Callback - Standalone (sin middleware, sin autenticación)
+    // Print Agent API (autenticado por API key, no por sesión)
+    Route::prefix('print-jobs')->middleware('printAgentAuth')->group(function () {
+        Route::get('/pending', [App\Http\Controllers\Pos\PrintJobController::class, 'pending']);
+        Route::post('/{id}/ack', [App\Http\Controllers\Pos\PrintJobController::class, 'ack']);
+    });
+
+    // Print Agent info (autenticado por sesión normal)
+    Route::prefix('print-agent')->group(function () {
+        Route::get('/info', [App\Http\Controllers\Pos\PosConfigController::class, 'printAgentInfo']);
+        Route::post('/regenerate', [App\Http\Controllers\Pos\PosConfigController::class, 'regeneratePrintAgentKey']);
+    });
+});
+
+// MP OAuth Callback - Standalone (sin middleware, sin autenticación)
     // Esta ruta debe estar fuera del grupo SPA para ngrok (HTTP)
     Route::get('/mp/callback', [\App\Http\Controllers\Pos\MercadoPagoController::class, 'callback']);
     Route::post('/mp/exchange-code', [\App\Http\Controllers\Pos\MercadoPagoController::class, 'exchangeCode']);

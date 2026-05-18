@@ -72,7 +72,8 @@ class PosOrderController extends Controller
     private function createPrintJob($order, $detail, $operatorId)
     {
         try {
-            $companyDb = session('company_db');
+            $company = session('company', []);
+            $companyDb = $company['db'] ?? session('company_db', 'erden');
             $printJobService = new PrintJobService();
             $printJobService->createFromOrder($order, $detail, $operatorId, $companyDb);
         } catch (\Exception $e) {
@@ -196,7 +197,8 @@ class PosOrderController extends Controller
         $detail = json_decode($order->detail, true) ?? [];
 
         try {
-            $companyDb = session('company_db');
+            $company = session('company', []);
+            $companyDb = $company['db'] ?? session('company_db', 'erden');
             $printJobService = new PrintJobService();
             $printJobService->createFromOrder($order, $detail, $order->operator_id, $companyDb);
             

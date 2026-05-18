@@ -72,8 +72,9 @@ class PosOrderController extends Controller
     private function createPrintJob($order, $detail, $operatorId)
     {
         try {
+            $companyDb = session('company_db');
             $printJobService = new PrintJobService();
-            $printJobService->createFromOrder($order, $detail, $operatorId);
+            $printJobService->createFromOrder($order, $detail, $operatorId, $companyDb);
         } catch (\Exception $e) {
             Log::error('Error creating print job: ' . $e->getMessage());
         }
@@ -195,8 +196,9 @@ class PosOrderController extends Controller
         $detail = json_decode($order->detail, true) ?? [];
 
         try {
+            $companyDb = session('company_db');
             $printJobService = new PrintJobService();
-            $printJobService->createFromOrder($order, $detail, $order->operator_id);
+            $printJobService->createFromOrder($order, $detail, $order->operator_id, $companyDb);
             
             return response()->json([
                 'success' => true,

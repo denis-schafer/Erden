@@ -14,7 +14,7 @@ class PrintJobService
         $this->rawPrinter = new RawPrinterService();
     }
 
-    public function createFromOrder($order, $detail, $operatorId): void
+    public function createFromOrder($order, $detail, $operatorId, $companyDb = null): void
     {
         $operator = DB::table('users')->find($operatorId);
         if (!$operator || empty($operator->enable_print) || empty($operator->printer_ip)) {
@@ -60,7 +60,8 @@ class PrintJobService
             $businessInfo
         );
 
-        DB::table('print_jobs')->insert([
+        DB::connection('mysql_parent')->table('print_jobs')->insert([
+            'company_db' => $companyDb ?? 'erden',
             'order_id' => $order->id,
             'printer_ip' => $operator->printer_ip,
             'printer_port' => $operator->printer_port ?? 9100,
@@ -70,6 +71,6 @@ class PrintJobService
             'created_at' => now(),
         ]);
 
-        Log::info("PrintJob created for order #{$order->id} to printer {$operator->printer_ip}");
+        Log::info("PrintJob created for order #{$order->id} to printer {$operator->printer_ip} (company_db: {$companyDb})");
     }
 }

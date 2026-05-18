@@ -108,6 +108,7 @@ class MigrationAll extends Command
             'database/migrations/2026_04_16_000002_create_global_configs_table.php',
             'database/migrations/2026_04_16_000003_rename_mp_configs.php',
             'database/migrations/2026_05_17_000001_add_print_agent_key_to_companies_table.php',
+            'database/migrations/2026_05_18_122141_create_print_jobs_table_on_parent.php',
         ];
 
         foreach ($parentMigrations as $path) {
@@ -271,10 +272,7 @@ class MigrationAll extends Command
             $this->runSeeders();
         }
 
-        // Step 5: Verify/Create print_jobs table
-        $this->createPrintJobsTable();
-
-        // Step 6: Generate print_agent_key if missing
+        // Step 5: Generate print_agent_key if missing
         $this->ensurePrintAgentKey($company);
 
         $this->info("Company {$company->name} completed.");
@@ -837,47 +835,6 @@ class MigrationAll extends Command
         }
         
         $this->info('WebSockets configurado correctamente.');
-    }
-
-    protected function createPrintJobsTable(): void
-    {
-        $this->info('Verificando tabla print_jobs...');
-
-        if (!Schema::hasTable('print_jobs')) {
-            Schema::create('print_jobs', function ($table) {
-                $table->id();
-                $table->unsignedBigInteger('order_id');
-                $table->string('printer_ip', 45);
-                $table->string('printer_port', 20)->default('9100');
-                $table->string('printer_width', 10)->default('80mm');
-                $table->longText('ticket_data');
-                $table->string('status')->default('pending');
-                $table->text('error_message')->nullable();
-                $table->unsignedTinyInteger('attempts')->default(0);
-                $table->timestamp('created_at')->useCurrent();
-                $table->timestamp('processed_at')->nullable();
-                $table->index('status');
-            });
-            $this->info('Tabla print_jobs creada correctamente.');
-        } else {
-            $this->info('Tabla print_jobs ya existe.');
-
-            // Ensure status column is string (not enum) for compatibility
-            try {
-                DB::statement("ALTER TABLE print_jobs MODIFY COLUMN status VARCHAR(20) NOT NULL DEFAULT 'pending'");
-                $this->info('Columna status actualizada a VARCHAR.');
-            } catch (\Exception $e) {
-                $this->warn('No se pudo modificar columna status: ' . $e->getMessage());
-            }
-
-            // Add index on status if missing
-            try {
-                DB::statement('ALTER TABLE print_jobs ADD INDEX print_jobs_status_index (status)');
-                $this->info('Índice en status agregado.');
-            } catch (\Exception $e) {
-                $this->warn('Índice ya existe o error: ' . $e->getMessage());
-            }
-        }
     }
 
     protected function ensurePrintAgentKey(object $company): void

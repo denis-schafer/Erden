@@ -8,8 +8,9 @@ return new class extends Migration
 {
     public function up(): void
     {
-        Schema::create('print_jobs', function (Blueprint $table) {
+        Schema::connection('mysql_parent')->create('print_jobs', function (Blueprint $table) {
             $table->id();
+            $table->string('company_db');
             $table->unsignedBigInteger('order_id');
             $table->string('printer_ip', 45);
             $table->string('printer_port', 20)->default('9100');
@@ -20,6 +21,7 @@ return new class extends Migration
             $table->unsignedTinyInteger('attempts')->default(0);
             $table->timestamp('created_at')->useCurrent();
             $table->timestamp('processed_at')->nullable();
+            $table->index(['company_db', 'status']);
         });
     }
 

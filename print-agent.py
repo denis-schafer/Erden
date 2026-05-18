@@ -125,7 +125,7 @@ def send_to_printer(ip, port, data):
 def poll_loop(config):
     headers = {"X-Print-Agent-Key": config["api_key"]}
     poll_url = "{}/pos/print-jobs/pending".format(config["vps_url"])
-    ack_url = "{}/pos/print-jobs/{}/ack".format(config["vps_url"])
+    ack_url = config["vps_url"] + "/pos/print-jobs/{}/ack"
     interval = config.get("poll_interval", 3)
 
     print("[*] Iniciando ciclo de polling cada {} segundos...".format(interval))
@@ -210,44 +210,51 @@ def prompt_new_url():
 
 
 def main():
-    print_banner()
+    try:
+        print_banner()
 
-    config = load_config()
+        config = load_config()
 
-    if config is None:
-        # Primera ejecucion - pedir datos
-        config = request_config()
-        save_config(config)
-
-    # Verificar conexion
-    connected = test_connection(config)
-
-    if not connected:
-        new_url = prompt_new_url()
-        if new_url:
-            config["vps_url"] = new_url
+        if config is None:
+            # Primera ejecucion - pedir datos
+            config = request_config()
             save_config(config)
-            connected = test_connection(config)
+
+        # Verificar conexion
+        connected = test_connection(config)
 
         if not connected:
-            print()
-            print("[!] No se pudo establecer conexion. Verifica:")
-            print("    1. La URL del servidor")
-            print("    2. La clave API")
-            print("    3. Que el servidor VPS este accesible")
-            print()
-            input("Presiona Enter para salir...")
-            sys.exit(1)
+            new_url = prompt_new_url()
+            if new_url:
+                config["vps_url"] = new_url
+                save_config(config)
+                connected = test_connection(config)
 
-    # Iniciar polling
-    try:
-        poll_loop(config)
-    except KeyboardInterrupt:
-        pass
+            if not connected:
+                print()
+                print("[!] No se pudo establecer conexion. Verifica:")
+                print("    1. La URL del servidor")
+                print("    2. La clave API")
+                print("    3. Que el servidor VPS este accesible")
+                print()
+                input("Presiona Enter para salir...")
+                return
 
-    print()
-    print("[*] Agente detenido.")
-    input("Presiona Enter para salir...")
+        # Iniciar polling
+        try:
+            poll_loop(config)
+        except KeyboardInterrupt:
+            pass
+
+        print()
+        print("[*] Agente detenido.")
+    except Exception as e:
+        print()
+        print("[!] Error inesperado: {}".format(e))
+        import traceback
+        traceback.print_exc()
+    finally:
+        input("Presiona Enter para salir...")
 
 
 if __name__ == "__main__":

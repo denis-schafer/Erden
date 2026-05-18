@@ -24,6 +24,11 @@ return new class extends Migration
                 $table->timestamp('processed_at')->nullable();
                 $table->index(['company_db', 'status']);
             });
+        } elseif (!Schema::connection('mysql_parent')->hasColumn('print_jobs', 'company_db')) {
+            Schema::connection('mysql_parent')->table('print_jobs', function (Blueprint $table) {
+                $table->string('company_db')->after('id');
+                $table->index(['company_db', 'status']);
+            });
         }
     }
 

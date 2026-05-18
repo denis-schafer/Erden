@@ -848,18 +848,35 @@ class MigrationAll extends Command
                 $table->id();
                 $table->unsignedBigInteger('order_id');
                 $table->string('printer_ip', 45);
-                $table->integer('printer_port')->default(9100);
+                $table->string('printer_port', 20)->default('9100');
                 $table->string('printer_width', 10)->default('80mm');
                 $table->longText('ticket_data');
-                $table->enum('status', ['pending', 'processing', 'completed', 'failed'])->default('pending');
+                $table->string('status')->default('pending');
                 $table->text('error_message')->nullable();
-                $table->tinyInteger('attempts')->default(0);
+                $table->unsignedTinyInteger('attempts')->default(0);
                 $table->timestamp('created_at')->useCurrent();
                 $table->timestamp('processed_at')->nullable();
+                $table->index('status');
             });
             $this->info('Tabla print_jobs creada correctamente.');
         } else {
             $this->info('Tabla print_jobs ya existe.');
+
+            // Ensure status column is string (not enum) for compatibility
+            try {
+                DB::statement("ALTER TABLE print_jobs MODIFY COLUMN status VARCHAR(20) NOT NULL DEFAULT 'pending'");
+                $this->info('Columna status actualizada a VARCHAR.');
+            } catch (\Exception $e) {
+                $this->warn('No se pudo modificar columna status: ' . $e->getMessage());
+            }
+
+            // Add index on status if missing
+            try {
+                DB::statement('ALTER TABLE print_jobs ADD INDEX print_jobs_status_index (status)');
+                $this->info('Índice en status agregado.');
+            } catch (\Exception $e) {
+                $this->warn('Índice ya existe o error: ' . $e->getMessage());
+            }
         }
     }
 

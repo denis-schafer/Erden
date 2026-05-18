@@ -29,7 +29,7 @@ class PrintAgentAuth
         DB::purge('mysql');
         DB::reconnect('mysql');
 
-        $request->merge(['_company' => $company]);
+        $request->merge(['_company' => (array) $company]);
 
         return $next($request);
     }

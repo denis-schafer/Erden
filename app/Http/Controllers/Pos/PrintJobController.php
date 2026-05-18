@@ -10,7 +10,11 @@ class PrintJobController extends Controller
 {
     public function pending(Request $request)
     {
-        $jobs = DB::table('print_jobs')
+        $companyDb = $request->_company['db'] ?? 'erden';
+
+        $jobs = DB::connection('mysql_parent')
+            ->table('print_jobs')
+            ->where('company_db', $companyDb)
             ->where('status', 'pending')
             ->orderBy('created_at')
             ->limit(10)
@@ -30,22 +34,32 @@ class PrintJobController extends Controller
 
     public function ack(Request $request, $id)
     {
+        $companyDb = $request->_company['db'] ?? 'erden';
+
         $request->validate([
             'status' => 'required|in:completed,failed',
             'error_message' => 'nullable|string',
         ]);
 
-        $job = DB::table('print_jobs')->where('id', $id)->first();
+        $job = DB::connection('mysql_parent')
+            ->table('print_jobs')
+            ->where('company_db', $companyDb)
+            ->where('id', $id)
+            ->first();
+
         if (!$job) {
             return response()->json(['error' => 'Print job not found'], 404);
         }
 
-        DB::table('print_jobs')->where('id', $id)->update([
-            'status' => $request->status,
-            'error_message' => $request->error_message,
-            'processed_at' => now(),
-            'attempts' => $job->attempts + 1,
-        ]);
+        DB::connection('mysql_parent')
+            ->table('print_jobs')
+            ->where('id', $id)
+            ->update([
+                'status' => $request->status,
+                'error_message' => $request->error_message,
+                'processed_at' => now(),
+                'attempts' => $job->attempts + 1,
+            ]);
 
         return response()->json(['success' => true]);
     }

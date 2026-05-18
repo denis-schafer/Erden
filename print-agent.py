@@ -126,7 +126,7 @@ def poll_loop(config):
     headers = {"X-Print-Agent-Key": config["api_key"]}
     poll_url = "{}/pos/print-jobs/pending".format(config["vps_url"])
     ack_url = config["vps_url"] + "/pos/print-jobs/{}/ack"
-    interval = config.get("poll_interval", 1)
+    interval = 1
 
     print("[*] Iniciando ciclo de polling cada {} segundos...".format(interval))
     print("[*] Presiona Ctrl+C para detener.")

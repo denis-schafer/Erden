@@ -278,16 +278,16 @@ Archivos modificados:
 
 ---
 
-[WebSocket - Soporte HTTPS (WSS)]
+[WebSocket - Soporte HTTPS + Fix fallback HTTP]
 Fecha: 2026-05-18
 Estado: Completado
 
 Cambios realizados:
-- bootstrap.js: detecta si la pagina esta en HTTPS y usa WSS en lugar de WS
-- forceTLS se activa automaticamente en HTTPS
-- enabledTransports cambia a ['wss', 'http'] en HTTPS
-- wsPort siempre usa el puerto real de Reverb (8080) en vez del puerto de la pagina
-- Requiere configurar Nginx en el VPS para proxy WebSocket
+- bootstrap.js: detecta HTTPS y usa WSS para conexion principal
+- httpPort siempre apunta a Reverb (8080), nunca a Nginx (80/443)
+- forceTLS=false para que el fallback HTTP use http:// (no https://) hacia Reverb
+- Si WSS falla, el fallback HTTP va a http://host:8080 (Reverb) como funcionaba antes
+- Fix: el error original era cambiar httpPort de 8080 a 443/80
 
 Archivos modificados:
 - resources/js/bootstrap.js

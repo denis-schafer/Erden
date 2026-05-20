@@ -31,8 +31,8 @@ const initWebSockets = async () => {
             wsPort: wsPort,
             wssPort: wsPort,
             httpHost: wsHost,
-            httpPort: isHttps ? 443 : 80,
-            forceTLS: isHttps,
+            httpPort: wsPort,
+            forceTLS: false,
             enabledTransports: isHttps ? ['wss', 'http'] : ['ws', 'http'],
             disableStats: true,
         });

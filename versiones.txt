@@ -260,3 +260,20 @@ Archivos modificados:
 - dist_new/ErdenPrintAgent.exe
 
 ---
+
+[Agente de Impresion - Batch ACK]
+Fecha: 2026-05-18
+Estado: Completado
+
+Cambios realizados:
+- Separada la logica de impresion y ACK en dos fases
+- Primero imprime TODOS los trabajos pendientes sin esperar confirmacion del VPS
+- Despues confirma (ACK) todos los trabajos en lote
+- Elimina latencia de red entre cada trabajo (antes: imprime#1 → ACK#1 → imprime#2 → ACK#2)
+- Recompilado ErdenPrintAgent.exe
+
+Archivos modificados:
+- print-agent.py
+- dist_new/ErdenPrintAgent.exe
+
+---

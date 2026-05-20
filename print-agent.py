@@ -148,6 +148,8 @@ def poll_loop(config):
                     time.strftime("%H:%M:%S"), len(jobs)
                 ))
 
+            results = []
+
             for job in jobs:
                 try:
                     print("    -> Pedido #{} a {}:{}... ".format(
@@ -160,21 +162,29 @@ def poll_loop(config):
                     )
 
                     if success:
-                        status = "completed"
                         print("IMPRESO")
                     else:
-                        status = "failed"
                         print("ERROR: {}".format(error))
 
+                    results.append((job, success, error))
+
+                except Exception as e:
+                    print("    -> Error procesando trabajo #{}: {}".format(
+                        job.get("id", "?"), e
+                    ))
+                    results.append((job, False, str(e)))
+
+            for job, success, error in results:
+                try:
+                    status = "completed" if success else "failed"
                     requests.post(
                         ack_url.format(job["id"]),
                         json={"status": status, "error_message": error},
                         headers=headers,
                         timeout=10,
                     )
-
                 except Exception as e:
-                    print("    -> Error procesando trabajo #{}: {}".format(
+                    print("    -> Error al confirmar trabajo #{}: {}".format(
                         job.get("id", "?"), e
                     ))
 

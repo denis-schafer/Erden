@@ -277,3 +277,20 @@ Archivos modificados:
 - dist_new/ErdenPrintAgent.exe
 
 ---
+
+[WebSocket - Soporte HTTPS (WSS)]
+Fecha: 2026-05-18
+Estado: Completado
+
+Cambios realizados:
+- bootstrap.js: detecta si la pagina esta en HTTPS y usa WSS en lugar de WS
+- forceTLS se activa automaticamente en HTTPS
+- enabledTransports cambia a ['wss', 'http'] en HTTPS
+- wsPort siempre usa el puerto real de Reverb (8080) en vez del puerto de la pagina
+- Requiere configurar Nginx en el VPS para proxy WebSocket
+
+Archivos modificados:
+- resources/js/bootstrap.js
+- public/build/assets/ (recompilado)
+
+---

@@ -18,10 +18,10 @@ const initWebSockets = async () => {
         // SIEMPRE usar la IP/HOST actual de la página para que funcione desde otras PCs
         // import.meta.env.VITE_REVERB_HOST se ignora porque apunta a 'localhost' y solo funciona local
         const wsHost = window.location.hostname;
-        const currentPort = window.location.port;
-        const wsPort = currentPort ? parseInt(currentPort) : parseInt(import.meta.env.VITE_REVERB_PORT || '8080');
+        const isHttps = window.location.protocol === 'https:';
+        const wsPort = parseInt(import.meta.env.VITE_REVERB_PORT || '8080');
         
-        console.log('[WebSocket] Connecting to:', wsHost + ':' + wsPort);
+        console.log('[WebSocket] Connecting to:', (isHttps ? 'wss' : 'ws') + '://' + wsHost + ':' + wsPort);
         
         const echo = new Echo({
             broadcaster: 'pusher',
@@ -29,10 +29,11 @@ const initWebSockets = async () => {
             cluster: import.meta.env.VITE_PUSHER_APP_CLUSTER || 'mt1',
             wsHost: wsHost,
             wsPort: wsPort,
+            wssPort: wsPort,
             httpHost: wsHost,
-            httpPort: wsPort,
-            forceTLS: false,
-            enabledTransports: ['ws', 'http'],
+            httpPort: isHttps ? 443 : 80,
+            forceTLS: isHttps,
+            enabledTransports: isHttps ? ['wss', 'http'] : ['ws', 'http'],
             disableStats: true,
         });
         

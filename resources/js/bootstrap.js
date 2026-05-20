@@ -123,14 +123,20 @@ const initWebSockets = async () => {
             }));
         });
 
+        console.log('[WS] Subscribed to users channel for PosQRUpdated');
+
         window.Echo.channel('users').listen('.PosQRUpdated', (event) => {
+            console.log('[WS] PosQRUpdated received:', JSON.stringify(event));
             window.dispatchEvent(new CustomEvent('pos-qr-updated', {
                 detail: { ...event }
             }));
         });
 
         // Listen for OrderPaid events to update POS Orders in real-time
+        console.log('[WS] Subscribed to users channel for OrderPaid');
+
         window.Echo.channel('users').listen('.OrderPaid', (event) => {
+            console.log('[WS] OrderPaid received:', JSON.stringify(event));
             window.dispatchEvent(new CustomEvent('order-paid', {
                 detail: { ...event }
             }));

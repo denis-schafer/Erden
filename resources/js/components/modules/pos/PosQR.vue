@@ -570,6 +570,7 @@ const handleOpenFullscreen = () => {
 
 const handleOpenSpecificOrder = async (event) => {
     const { orderId, username: targetUsername, total } = event.detail;
+    console.log('[QR] handleOpenSpecificOrder:', { orderId, targetUsername, total });
     loading.value = true;
     error.value = null;
     qrCode.value = null;
@@ -578,18 +579,21 @@ const handleOpenSpecificOrder = async (event) => {
     
     try {
         const response = await api.get(`/pos/order-display/${targetUsername}/${orderId}`);
+        console.log('[QR] order loaded:', response.data.order?.id, 'status:', response.data.order?.status_id);
         order.value = response.data.order;
         
         // Solo generar QR si la orden está en status pending (status_id = 1)
         if (order.value && order.value.id && order.value.status_id === 1) {
             generateQR();
         } else if (order.value && order.value.status_id !== 1) {
-            // Orden no disponible para pago - no generar QR
+            console.log('[QR] order not pending (status:' + order.value.status_id + '), skipping QR');
             qrCode.value = null;
             error.value = null;
+        } else {
+            console.log('[QR] no order data received');
         }
     } catch (err) {
-        console.error('Error loading order:', err);
+        console.error('[QR] Error loading order:', err);
         error.value = err.response?.data?.error || 'Error al cargar pedido';
     } finally {
         loading.value = false;
@@ -599,6 +603,7 @@ const handleOpenSpecificOrder = async (event) => {
 const handleQRUpdated = (event) => {
     const currentUserId = authStore.user?.id;
     const { target_user_id, order_id, username, total } = event.detail;
+    console.log('[QR] handleQRUpdated:', { currentUserId, target_user_id, order_id, username, total, match: target_user_id === currentUserId });
     
     if (target_user_id === currentUserId) {
         handleOpenSpecificOrder({
@@ -608,6 +613,8 @@ const handleQRUpdated = (event) => {
                 total: total
             }
         });
+    } else {
+        console.log('[QR] target_user_id != currentUserId, ignorando');
     }
 };
 

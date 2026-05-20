@@ -38,25 +38,63 @@ const initWebSockets = async () => {
         });
         
         window.Echo = echo;
+
+        echo.connector.pusher.connection.bind('connected', () => {
+            console.log('[WS] Pusher connected: ' + echo.connector.pusher.connection.socket_id);
+        });
+        echo.connector.pusher.connection.bind('disconnected', () => {
+            console.log('[WS] Pusher disconnected');
+        });
+        echo.connector.pusher.connection.bind('error', (err) => {
+            console.log('[WS] Pusher error:', err);
+        });
         
+        const usersChannel = window.Echo.channel('users');
+        usersChannel.subscribed(() => {
+            console.log('[WS] SUCCESS: Subscribed to users channel');
+        });
+        usersChannel.error((err) => {
+            console.log('[WS] ERROR: users channel subscription failed:', err);
+        });
+        
+        usersChannel.listen('.UserSettingsUpdated', (event) => {
+            window.dispatchEvent(new CustomEvent('pos-user-settings-updated', {
+                detail: { ...event }
+            }));
+        });
+        
+        usersChannel.listen('.UserDisabled', (event) => {
+            window.dispatchEvent(new CustomEvent('pos-user-disabled', {
+                detail: { userId: event.id, disabledAt: event.disabled_at }
+            }));
+        });
+
+        usersChannel.listen('.MpCodeReceived', (event) => {
+            window.dispatchEvent(new CustomEvent('mp-code-received', {
+                detail: { code: event.code, company_id: event.company_id }
+            }));
+        });
+
+        usersChannel.listen('.PosQRUpdated', (event) => {
+            console.log('[WS] PosQRUpdated received:', JSON.stringify(event));
+            window.dispatchEvent(new CustomEvent('pos-qr-updated', {
+                detail: { ...event }
+            }));
+        });
+
+        usersChannel.listen('.OrderPaid', (event) => {
+            console.log('[WS] OrderPaid received:', JSON.stringify(event));
+            window.dispatchEvent(new CustomEvent('order-paid', {
+                detail: { ...event }
+            }));
+        });
+
         window.Echo.channel('configs').listen('.ConfigUpdated', (event) => {
             window.dispatchEvent(new CustomEvent('pos-config-updated', {
                 detail: { name: event.name, value: event.value }
             }));
         });
         
-        window.Echo.channel('users').listen('.UserSettingsUpdated', (event) => {
-            window.dispatchEvent(new CustomEvent('pos-user-settings-updated', {
-                detail: { ...event }
-            }));
-        });
-        
-        window.Echo.channel('users').listen('.UserDisabled', (event) => {
-            window.dispatchEvent(new CustomEvent('pos-user-disabled', {
-                detail: { userId: event.id, disabledAt: event.disabled_at }
-            }));
-        });
-
         window.Echo.channel('categories').listen('.CategoryDisabled', (event) => {
             window.dispatchEvent(new CustomEvent('pos-category-changed', {
                 detail: { type: 'disabled', categoryId: event.id }
@@ -114,31 +152,6 @@ const initWebSockets = async () => {
         window.Echo.channel('orders').listen('.OrderDeleted', (event) => {
             window.dispatchEvent(new CustomEvent('pos-order-deleted', {
                 detail: { orderId: event.id }
-            }));
-        });
-
-        window.Echo.channel('users').listen('.MpCodeReceived', (event) => {
-            window.dispatchEvent(new CustomEvent('mp-code-received', {
-                detail: { code: event.code, company_id: event.company_id }
-            }));
-        });
-
-        console.log('[WS] Subscribed to users channel for PosQRUpdated');
-
-        window.Echo.channel('users').listen('.PosQRUpdated', (event) => {
-            console.log('[WS] PosQRUpdated received:', JSON.stringify(event));
-            window.dispatchEvent(new CustomEvent('pos-qr-updated', {
-                detail: { ...event }
-            }));
-        });
-
-        // Listen for OrderPaid events to update POS Orders in real-time
-        console.log('[WS] Subscribed to users channel for OrderPaid');
-
-        window.Echo.channel('users').listen('.OrderPaid', (event) => {
-            console.log('[WS] OrderPaid received:', JSON.stringify(event));
-            window.dispatchEvent(new CustomEvent('order-paid', {
-                detail: { ...event }
             }));
         });
     } catch (e) {

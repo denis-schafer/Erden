@@ -19,20 +19,20 @@ const initWebSockets = async () => {
         // import.meta.env.VITE_REVERB_HOST se ignora porque apunta a 'localhost' y solo funciona local
         const wsHost = window.location.hostname;
         const isHttps = window.location.protocol === 'https:';
-        const wsPort = parseInt(import.meta.env.VITE_REVERB_PORT || '8080');
+        const defaultPort = isHttps ? 443 : parseInt(import.meta.env.VITE_REVERB_PORT || '8080');
         
-        console.log('[WebSocket] Connecting to:', (isHttps ? 'wss' : 'ws') + '://' + wsHost + ':' + wsPort);
+        console.log('[WebSocket] Connecting to:', (isHttps ? 'wss' : 'ws') + '://' + wsHost + ':' + defaultPort);
         
         const echo = new Echo({
             broadcaster: 'pusher',
             key: pusherKey,
             cluster: import.meta.env.VITE_PUSHER_APP_CLUSTER || 'mt1',
             wsHost: wsHost,
-            wsPort: wsPort,
-            wssPort: wsPort,
+            wsPort: defaultPort,
+            wssPort: defaultPort,
             httpHost: wsHost,
-            httpPort: wsPort,
-            forceTLS: false,
+            httpPort: defaultPort,
+            forceTLS: isHttps,
             enabledTransports: isHttps ? ['wss', 'http'] : ['ws', 'http'],
             disableStats: true,
         });

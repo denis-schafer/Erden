@@ -21,13 +21,6 @@ const initWebSockets = async () => {
         const isHttps = window.location.protocol === 'https:';
         const defaultPort = isHttps ? 443 : parseInt(import.meta.env.VITE_REVERB_PORT || '8080');
         
-        console.log('[WebSocket] Connecting to:', (isHttps ? 'wss' : 'ws') + '://' + wsHost + ':' + defaultPort);
-        
-        console.log('[WS] Echo options:', { 
-            key: pusherKey, wsHost, wsPort: defaultPort, 
-            httpPort: defaultPort, forceTLS: isHttps, enabledTransports: ['ws', 'http']
-        });
-
         const echo = new Echo({
             broadcaster: 'pusher',
             key: pusherKey,
@@ -44,47 +37,7 @@ const initWebSockets = async () => {
         
         window.Echo = echo;
         
-        console.log('[WS] Echo created, connector:', echo.connector ? 'exists' : 'undefined');
-        console.log('[WS] Pusher instance:', echo.connector?.pusher ? 'exists' : 'undefined');
-        
-        if (echo.connector && echo.connector.pusher) {
-            const pusher = echo.connector.pusher;
-            console.log('[WS] Connection state:', pusher.connection?.state);
-            console.log('[WS] Transports available:', Object.keys(pusher.transports || {}).join(', '));
-            
-            pusher.connection.bind('connected', () => {
-                console.log('[WS] Pusher connected: ' + (pusher.connection.socket_id || 'unknown'));
-            });
-            pusher.connection.bind('disconnected', () => {
-                console.log('[WS] Pusher disconnected');
-            });
-            pusher.connection.bind('error', (err) => {
-                console.log('[WS] Pusher error:', err?.data?.message || err?.message || err);
-            });
-            pusher.connection.bind('connecting', () => {
-                console.log('[WS] Pusher connecting...');
-            });
-            pusher.connection.bind('state_change', (states) => {
-                console.log('[WS] State change:', states?.previous, '->', states?.current);
-            });
-            
-            // Show current socket_id after short delay
-            setTimeout(() => {
-                console.log('[WS] After 3s - socket_id:', pusher.connection.socket_id || 'null');
-                console.log('[WS] After 3s - state:', pusher.connection.state);
-            }, 3000);
-        } else {
-            console.error('[WS] Pusher not found! Echo.connector.pusher is undefined');
-        }
-        
         const usersChannel = window.Echo.channel('users');
-        console.log('[WS] users channel created, subscription:', usersChannel.subscription ? 'exists' : 'undefined');
-        usersChannel.subscribed(() => {
-            console.log('[WS] SUCCESS: Subscribed to users channel');
-        });
-        usersChannel.error((err) => {
-            console.log('[WS] ERROR: users channel subscription failed:', JSON.stringify(err));
-        });
         
         usersChannel.listen('.UserSettingsUpdated', (event) => {
             window.dispatchEvent(new CustomEvent('pos-user-settings-updated', {
@@ -105,14 +58,12 @@ const initWebSockets = async () => {
         });
 
         usersChannel.listen('.PosQRUpdated', (event) => {
-            console.log('[WS] PosQRUpdated received:', JSON.stringify(event));
             window.dispatchEvent(new CustomEvent('pos-qr-updated', {
                 detail: { ...event }
             }));
         });
 
         usersChannel.listen('.OrderPaid', (event) => {
-            console.log('[WS] OrderPaid received:', JSON.stringify(event));
             window.dispatchEvent(new CustomEvent('order-paid', {
                 detail: { ...event }
             }));
@@ -184,7 +135,7 @@ const initWebSockets = async () => {
             }));
         });
     } catch (e) {
-        console.error('[WebSocket] Init error:', e?.message || e, e?.stack || '');
+        console.warn('[WebSocket] Init error (non-critical):', e);
     }
 };
 

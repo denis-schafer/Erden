@@ -31,6 +31,7 @@ const initWebSockets = async () => {
         const echo = new Echo({
             broadcaster: 'pusher',
             key: pusherKey,
+            cluster: '',
             wsHost: wsHost,
             wsPort: defaultPort,
             wssPort: defaultPort,

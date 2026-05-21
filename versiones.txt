@@ -319,6 +319,32 @@ Archivos modificados:
 
 ---
 
+[Login rediseñado con logo, fondo animado y efecto humo/agua]
+Fecha: 2026-05-21
+Estado: Completado
+
+Cambios realizados:
+- Login.vue: fondo con gradiente animado (400% tamaño, 20s loop) con colores del logo (#0d2137, #1a6d91, #2391c1)
+- Login.vue: 4 burbujas de humo flotantes con filter:blur(80px) y animaciones independientes
+- Login.vue: ondas SVG animadas en la parte inferior (efecto agua)
+- Login.vue: tarjeta rediseñada con header degradado oscuro, icono del logo extraído del SVG, título ERDEN
+- Login.vue: inputs con iconos (bi-person, bi-lock, bi-building), focus ring en color primario
+- Login.vue: botón con gradiente y efecto shine (hover ::before slide)
+- Login.vue: animación de entrada (slideUp + fadeIn)
+- CompanySelector.vue: mismo fondo animado, burbujas, ondas, tarjeta consistente
+- PosLogin.vue: mismo diseño adaptado (más compacto, fondo más oscuro)
+- PosStandalone.vue: fondo gradiente consistente
+- Build exitoso
+
+Archivos modificados:
+- resources/js/components/modules/Login.vue
+- resources/js/components/modules/CompanySelector.vue
+- resources/js/components/modules/pos/PosLogin.vue
+- resources/js/components/modules/pos/PosStandalone.vue
+- versiones.txt
+
+---
+
 [Impresion Local - VPS]
 Fecha: 2026-05-21
 Estado: Completado

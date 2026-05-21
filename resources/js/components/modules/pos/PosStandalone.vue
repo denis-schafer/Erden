@@ -89,6 +89,6 @@ onMounted(() => {
 <style scoped>
 .pos-standalone {
     min-height: 100vh;
-    background: #212529;
+    background: linear-gradient(135deg, #0a1520 0%, #152d42 50%, #1a4a6e 100%);
 }
 </style>

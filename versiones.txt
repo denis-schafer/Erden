@@ -345,6 +345,29 @@ Archivos modificados:
 
 ---
 
+[Rol Stats - POS]
+Fecha: 2026-05-21
+Estado: Completado
+
+Cambios realizados:
+- Nuevo rol "stats" (id=3) en RoleSeeder.php con permisos: menu_read, pos-dashboard_read, pos-statistics_read
+- PosSeeder.php: seedRolePermissions() asigna permisos stats
+- MigrationAll.php: Step 8 en processCompany() crea rol stats + permisos en empresas existentes
+- Sidebar.vue: visibleModules filtra módulos POS por permiso de lectura explícito (stats ve dashboard+stats)
+- PosStatistics.vue: canViewAllStats para que stats no se auto-filtre por operador
+- Build exitoso
+
+Archivos modificados:
+- database/seeders/child/RoleSeeder.php
+- database/seeders/child/PosSeeder.php
+- app/Console/Commands/MigrationAll.php
+- resources/js/components/layout/Sidebar.vue
+- resources/js/components/modules/pos/PosStatistics.vue
+- versiones.txt
+
+---
+
+
 [Impresion Local - VPS]
 Fecha: 2026-05-21
 Estado: Completado

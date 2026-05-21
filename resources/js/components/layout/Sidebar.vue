@@ -143,13 +143,11 @@ const visibleModules = computed(() => {
         return modules;
     }
     
-    // Cashier can only see: pos-caja, pos-orders, pos-qr
-    const allowedPosModules = ['pos-caja', 'pos-orders', 'pos-qr'];
-    
+    // Non-admin: show modules based on explicit read permissions
     return modules.filter(m => {
-        // For POS modules, only show if explicitly allowed for cashier
         if (m.route.startsWith('pos-')) {
-            return allowedPosModules.includes(m.route);
+            const perm = `${m.route}_read`;
+            return authStore.permissions.includes(perm);
         }
         const permission = `${m.route}_read`;
         return authStore.permissions.includes(permission);

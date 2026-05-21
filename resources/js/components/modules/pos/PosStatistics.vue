@@ -197,6 +197,10 @@ const isAdmin = computed(() => {
     return authStore.user?.role_id === 1;
 });
 
+const canViewAllStats = computed(() => {
+    return authStore.user?.role_id === 1 || authStore.permissions.includes('pos-statistics_read');
+});
+
 ChartJS.register(CategoryScale, LinearScale, BarElement, PointElement, LineElement, Title, Tooltip, Legend, ArcElement, Filler);
 
 const loading = ref(true);
@@ -516,7 +520,7 @@ const exportData = async () => {
 
 onMounted(() => {
     loadUsers();
-    if (!isAdmin.value && authStore.user?.id) {
+    if (!canViewAllStats.value && authStore.user?.id) {
         selectedUserId.value = authStore.user.id;
     }
     loadData();

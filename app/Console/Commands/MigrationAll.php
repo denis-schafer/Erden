@@ -295,6 +295,35 @@ class MigrationAll extends Command
             $this->warn('Could not ensure printing_mode config: ' . $e->getMessage());
         }
 
+        // Step 8: Ensure stats role exists (for existing companies running migration_all)
+        try {
+            $statsRole = DB::table('roles')->where('name', 'stats')->first();
+            if (!$statsRole) {
+                DB::table('roles')->insert([
+                    'id' => 3,
+                    'name' => 'stats',
+                    'created_at' => now(),
+                    'updated_at' => now(),
+                ]);
+                $this->info('Stats role created.');
+            }
+
+            DB::table('role_permission')->where('role_id', 3)->delete();
+            $statsSlugs = ['menu_read', 'pos-dashboard_read', 'pos-statistics_read'];
+            foreach ($statsSlugs as $slug) {
+                $perm = DB::table('permissions')->where('slug', $slug)->first();
+                if ($perm) {
+                    DB::table('role_permission')->insert([
+                        'role_id' => 3,
+                        'permission_id' => $perm->id,
+                    ]);
+                }
+            }
+            $this->info('Stats role permissions assigned.');
+        } catch (\Exception $e) {
+            $this->warn('Could not ensure stats role: ' . $e->getMessage());
+        }
+
         $this->info("Company {$company->name} completed.");
     }
 

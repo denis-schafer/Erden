@@ -113,8 +113,30 @@ class PosSeeder extends Seeder
             }
         }
         
+        // Stats role: only menu, dashboard, and statistics
+        $statsRole = DB::table('roles')->where('name', 'stats')->first();
+        if ($statsRole) {
+            DB::table('role_permission')->where('role_id', $statsRole->id)->delete();
+
+            $statsPermissions = [
+                'menu_read',
+                'pos-dashboard_read',
+                'pos-statistics_read',
+            ];
+
+            foreach ($statsPermissions as $slug) {
+                $permission = DB::table('permissions')->where('slug', $slug)->first();
+                if ($permission) {
+                    DB::table('role_permission')->insert([
+                        'role_id' => $statsRole->id,
+                        'permission_id' => $permission->id
+                    ]);
+                }
+            }
+        }
+
         if ($this->command) {
-            $this->command->info('POS Role permissions seeded for admin and cashier');
+            $this->command->info('POS Role permissions seeded for admin, cashier, stats');
         }
     }
 

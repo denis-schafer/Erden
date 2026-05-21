@@ -275,6 +275,26 @@ class MigrationAll extends Command
         // Step 5: Generate print_agent_key if missing
         $this->ensurePrintAgentKey($company);
 
+        // Step 6: Reconnect to child database (ensurePrintAgentKey switches to parent)
+        $this->connectToDatabase($dbName);
+
+        // Step 7: Ensure printing_mode config exists on child database
+        try {
+            $exists = DB::table('configs')->where('name', 'printing_mode')->exists();
+            if (!$exists) {
+                DB::table('configs')->insert([
+                    'name' => 'printing_mode',
+                    'value' => 'vps',
+                    'type' => 'string',
+                    'created_at' => now(),
+                    'updated_at' => now(),
+                ]);
+                $this->info('printing_mode config created with default: vps');
+            }
+        } catch (\Exception $e) {
+            $this->warn('Could not ensure printing_mode config: ' . $e->getMessage());
+        }
+
         $this->info("Company {$company->name} completed.");
     }
 

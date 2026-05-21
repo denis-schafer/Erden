@@ -34,6 +34,12 @@ class PosConfigSeeder extends Seeder
                 'target' => 'general',
                 'type' => 'string',
             ],
+            [
+                'name' => 'printing_mode',
+                'value' => 'vps',
+                'target' => 'print',
+                'type' => 'string',
+            ],
         ];
 
         foreach ($configs as $config) {

@@ -60,6 +60,22 @@ class PrintJobService
             $businessInfo
         );
 
+        $printingMode = DB::table('configs')->where('name', 'printing_mode')->value('value');
+
+        if ($printingMode === 'local') {
+            try {
+                $this->rawPrinter->sendToNetworkPrinter(
+                    $operator->printer_ip,
+                    $operator->printer_port ?? 9100,
+                    base64_decode($ticketData)
+                );
+                Log::info("Direct print for order #{$order->id} to {$operator->printer_ip}");
+            } catch (\Exception $e) {
+                Log::error("Direct print failed for order #{$order->id}: " . $e->getMessage());
+            }
+            return;
+        }
+
         DB::connection('mysql_parent')->table('print_jobs')->insert([
             'company_db' => $companyDb ?? 'erden',
             'order_id' => $order->id,

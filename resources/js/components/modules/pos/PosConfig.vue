@@ -58,6 +58,19 @@
                         </select>
                     </div>
                     
+                    <div v-else-if="setting.name === 'printing_mode'" class="form-group">
+                        <div class="form-check form-switch">
+                            <input class="form-check-input" 
+                                   type="checkbox"
+                                   :id="`toggle-${setting.id}`"
+                                   :checked="setting.value === 'vps'"
+                                   @change="togglePrintingMode(setting, $event)">
+                            <label class="form-check-label" :for="`toggle-${setting.id}`">
+                                {{ setting.value === 'vps' ? 'VPS' : 'Local' }}
+                            </label>
+                        </div>
+                    </div>
+
                     <div v-else class="form-group">
                         <input type="text" 
                                class="form-control form-control-sm" 
@@ -74,7 +87,7 @@
             </div>
         </div>
 
-        <div class="mt-4">
+        <div v-if="showAgentSection" class="mt-4">
             <div class="setting-card">
                 <div class="setting-header">
                     <h6 class="setting-title">Agente de Impresión Local</h6>
@@ -136,7 +149,7 @@
             </div>
         </div>
 
-        <div v-if="showBuildInstructions" class="mt-3">
+        <div v-if="showAgentSection && showBuildInstructions" class="mt-3">
             <div class="setting-card">
                 <div class="setting-header d-flex justify-content-between align-items-center">
                     <h6 class="setting-title mb-0">Instrucciones para generar ErdenPrintAgent.exe</h6>
@@ -159,7 +172,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted, onUnmounted } from 'vue';
+import { ref, computed, onMounted, onUnmounted } from 'vue';
 import api from '../../../services/api';
 import { useAuthStore } from '../../../stores/auth';
 
@@ -176,6 +189,11 @@ const regenerating = ref(false);
 const downloadAvailable = ref(false);
 const showBuildInstructions = ref(false);
 
+const showAgentSection = computed(() => {
+    const mode = settings.value.find(s => s.name === 'printing_mode');
+    return mode?.value !== 'local';
+});
+
 const settingLabels = {
     'business_name': 'Nombre del Negocio',
     'business_address': 'Dirección',
@@ -184,6 +202,7 @@ const settingLabels = {
     'ticket_title': 'Título del Ticket',
     'redirect_uri': 'URL de Callback (ngrok)',
     'mp_access_token': 'Token OAuth',
+    'printing_mode': 'Modo de Impresión',
 };
 
 const settingDescriptions = {
@@ -194,6 +213,7 @@ const settingDescriptions = {
     'ticket_title': 'Título que aparecerá en el ticket',
     'redirect_uri': 'URL de ngrok para recibir el callback de MercadoPago',
     'mp_access_token': 'Token OAuth generado (se obtiene automáticamente)',
+    'printing_mode': 'VPS (a través del agente) / Local (directo a impresora)',
 };
 
 const settingPlaceholders = {
@@ -318,7 +338,7 @@ const loadSettings = async () => {
         const response = await api.get('/pos/configs');
         const allSettings = response.data;
         
-        const allowedSettings = ['business_name', 'business_address', 'business_phone', 'business_nit', 'ticket_title', 'redirect_uri', 'mp_access_token'];
+        const allowedSettings = ['business_name', 'business_address', 'business_phone', 'business_nit', 'ticket_title', 'redirect_uri', 'mp_access_token', 'printing_mode'];
         settings.value = allSettings.filter(s => allowedSettings.includes(s.name));
 
         // Load print agent info
@@ -383,6 +403,17 @@ const toggleBoolean = async (setting, event) => {
         }));
     } catch (error) {
         event.target.checked = !newValue;
+    }
+};
+
+const togglePrintingMode = async (setting, event) => {
+    const newValue = event.target.checked ? 'vps' : 'local';
+    
+    try {
+        await api.put(`/pos/configs/${setting.id}`, { value: newValue });
+        setting.value = newValue;
+    } catch (error) {
+        event.target.checked = !event.target.checked;
     }
 };
 

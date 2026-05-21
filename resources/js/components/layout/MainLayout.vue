@@ -111,11 +111,20 @@ onMounted(() => {
             }, 2000);
         }
     });
+
+    window.addEventListener('session-expired', () => {
+        toastify.warning('Tu sesión ha expirado. Serás redirigido al login.', 8000);
+        setTimeout(() => {
+            localStorage.clear();
+            window.location.href = '/login';
+        }, 2000);
+    });
 });
 
 onUnmounted(() => {
     window.removeEventListener('resize', checkMobile);
     window.removeEventListener('pos-user-disabled', () => {});
+    window.removeEventListener('session-expired', () => {});
 });
 </script>
 

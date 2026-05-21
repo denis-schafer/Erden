@@ -294,3 +294,59 @@ Archivos modificados:
 - public/build/assets/ (recompilado)
 
 ---
+
+[Fix company_db incorrecto en print_jobs por sesión expirada]
+Fecha: 2026-05-21
+Estado: Completado
+
+Cambios realizados:
+- PosOrderController.php: nueva resolveCompanyDb() con fallback session → header X-Company-Db → DB conectada
+- PosOrderController.php: createPrintJob() y reprint() nunca caen a 'erden' como fallback
+- PrintJobService.php: company_db usa config('database.connections.mysql.database') en vez de hardcode 'erden'
+- api.js: interceptor maneja 419 (CSRF expirado) además de 401
+- api.js: dispara evento 'session-expired' para POS requests
+- MainLayout.vue: listener de 'session-expired' que limpia localStorage y redirige a /login
+- .env: SESSION_LIFETIME subido de 120 a 1440 minutos (24 horas)
+- Build exitoso
+
+Archivos modificados:
+- app/Http/Controllers/Pos/PosOrderController.php
+- app/Services/PrintJobService.php
+- resources/js/services/api.js
+- resources/js/components/layout/MainLayout.vue
+- .env
+- versiones.txt
+
+---
+
+[Impresion Local - VPS]
+Fecha: 2026-05-21
+Estado: Completado
+
+Cambios realizados:
+- Switch VPS/Local en Configuración POS: modo Local imprime directo a impresora de red vía PHP socket
+- Modo VPS: funciona con agente (comportamiento anterior)
+- Modo Local: oculta sección del agente (URL, API key, descarga .exe, instrucciones)
+- PrintJobService: si printing_mode=local → RawPrinterService::sendToNetworkPrinter() con try-catch, no crea print_job
+- Polling eliminado de PosQR.vue: ahora usa WebSocket (handleOrderCreated + handleOrderUpdated)
+- Loading spinners agregados en PosProducts, PosUsers, PosCategories, PosAdmin, PosStatistics, PosLog, PosQR
+- MigrationAll.php: propagación automática de config printing_mode a empresas existentes
+- Nueva migración: 2026_05_21_000001_add_printing_mode_config.php
+- Build exitoso
+
+Archivos modificados:
+- resources/js/components/modules/pos/PosConfig.vue
+- resources/js/components/modules/pos/PosQR.vue
+- resources/js/components/modules/pos/PosProducts.vue
+- resources/js/components/modules/pos/PosUsers.vue
+- resources/js/components/modules/pos/PosCategories.vue
+- resources/js/components/modules/pos/PosAdmin.vue
+- resources/js/components/modules/pos/PosStatistics.vue
+- resources/js/components/modules/pos/PosLog.vue
+- app/Services/PrintJobService.php
+- app/Console/Commands/MigrationAll.php
+- app/Packages/Pos/Migrations/2026_05_21_000001_add_printing_mode_config.php
+- database/seeders/child/PosConfigSeeder.php
+- versiones.txt
+
+---

@@ -77,7 +77,7 @@ class PrintJobService
         }
 
         DB::connection('mysql_parent')->table('print_jobs')->insert([
-            'company_db' => $companyDb ?? 'erden',
+            'company_db' => $companyDb ?? config('database.connections.mysql.database', 'erden'),
             'order_id' => $order->id,
             'printer_ip' => $operator->printer_ip,
             'printer_port' => $operator->printer_port ?? 9100,

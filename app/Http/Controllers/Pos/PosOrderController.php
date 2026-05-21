@@ -77,13 +77,37 @@ class PosOrderController extends Controller
     private function createPrintJob($order, $detail, $operatorId)
     {
         try {
-            $company = session('company', []);
-            $companyDb = $company['db'] ?? session('company_db', 'erden');
+            $companyDb = $this->resolveCompanyDb();
+            if (!$companyDb) {
+                Log::warning('Cannot create print job: no valid company_db');
+                return;
+            }
             $printJobService = new PrintJobService();
             $printJobService->createFromOrder($order, $detail, $operatorId, $companyDb);
         } catch (\Exception $e) {
             Log::error('Error creating print job: ' . $e->getMessage());
         }
+    }
+
+    private function resolveCompanyDb(): ?string
+    {
+        $company = session('company', []);
+        if (!empty($company['db'])) {
+            return $company['db'];
+        }
+        $sessionDb = session('company_db');
+        if ($sessionDb) {
+            return $sessionDb;
+        }
+        $headerDb = request()->header('X-Company-Db');
+        if ($headerDb) {
+            return $headerDb;
+        }
+        $connectedDb = config('database.connections.mysql.database');
+        if ($connectedDb && $connectedDb !== 'erden') {
+            return $connectedDb;
+        }
+        return null;
     }
 
     public function show($id)
@@ -202,8 +226,13 @@ class PosOrderController extends Controller
         $detail = json_decode($order->detail, true) ?? [];
 
         try {
-            $company = session('company', []);
-            $companyDb = $company['db'] ?? session('company_db', 'erden');
+            $companyDb = $this->resolveCompanyDb();
+            if (!$companyDb) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'No se pudo determinar la compañía. Intente cerrar sesión y volver a iniciar.'
+                ], 401);
+            }
             $printJobService = new PrintJobService();
             $printJobService->createFromOrder($order, $detail, $order->operator_id, $companyDb);
             

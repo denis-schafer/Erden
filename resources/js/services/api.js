@@ -48,17 +48,24 @@ api.interceptors.request.use(config => {
 api.interceptors.response.use(
     response => response,
     error => {
-        if (error.response && error.response.status === 401) {
-            // Don't redirect if it's a login request or POS request - let the component handle the error
+        if (error.response && (error.response.status === 401 || error.response.status === 419)) {
             const url = error.config?.url || '';
             const isLoginRequest = url === '/login' || url === '/check-user';
             const isPosRequest = url.startsWith('/pos/');
             
-            if (!isLoginRequest && !isPosRequest) {
+            if (isPosRequest) {
+                // POS requests: dispatch a global event so components can react
+                window.dispatchEvent(new CustomEvent('session-expired'));
+                return Promise.reject(error);
+            }
+            
+            if (!isLoginRequest) {
                 localStorage.removeItem('token');
                 localStorage.removeItem('user');
                 localStorage.removeItem('permissions');
                 localStorage.removeItem('modules');
+                localStorage.removeItem('companyDb');
+                localStorage.removeItem('isParentDb');
                 window.location.href = '/login';
             }
         }

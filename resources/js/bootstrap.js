@@ -135,7 +135,6 @@ const initWebSockets = async () => {
             }));
         });
     } catch (e) {
-        console.warn('[WebSocket] Init error (non-critical):', e);
     }
 };
 

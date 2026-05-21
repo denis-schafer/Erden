@@ -40,7 +40,14 @@
                             </tr>
                         </thead>
                         <tbody>
-                            <tr v-for="product in products" :key="product.id">
+                            <tr v-if="loading">
+                                <td colspan="5" class="text-center py-4">
+                                    <div class="spinner-border text-primary" role="status">
+                                        <span class="visually-hidden">Cargando...</span>
+                                    </div>
+                                </td>
+                            </tr>
+                            <tr v-for="product in products" :key="product.id" v-else>
                                 <td>{{ product.name }}</td>
                                 <td>{{ product.category_name }}</td>
                                 <td>${{ Number(product.amount).toFixed(2) }}</td>
@@ -51,11 +58,13 @@
                                 </td>
                                 <td>
                                     <div class="d-flex gap-1">
-                                        <button class="btn btn-sm btn-primary" @click="editProduct(product)" title="Editar">
-                                            <i class="bi bi-pencil-fill"></i>
+                                        <button class="btn btn-sm btn-primary" :disabled="loadingActions['edit-product-' + product.id]" @click="editProduct(product)" title="Editar">
+                                            <span v-if="loadingActions['edit-product-' + product.id]" class="spinner-border spinner-border-sm"></span>
+                                            <i v-else class="bi bi-pencil-fill"></i>
                                         </button>
-                                        <button class="btn btn-sm btn-danger" @click="deleteProduct(product.id)" title="Eliminar">
-                                            <i class="bi bi-trash-fill"></i>
+                                        <button class="btn btn-sm btn-danger" :disabled="loadingActions['delete-product-' + product.id]" @click="deleteProduct(product.id)" title="Eliminar">
+                                            <span v-if="loadingActions['delete-product-' + product.id]" class="spinner-border spinner-border-sm"></span>
+                                            <i v-else class="bi bi-trash-fill"></i>
                                         </button>
                                     </div>
                                 </td>
@@ -84,7 +93,14 @@
                             </tr>
                         </thead>
                         <tbody>
-                            <tr v-for="category in categories" :key="category.id">
+                            <tr v-if="loading">
+                                <td colspan="4" class="text-center py-4">
+                                    <div class="spinner-border text-primary" role="status">
+                                        <span class="visually-hidden">Cargando...</span>
+                                    </div>
+                                </td>
+                            </tr>
+                            <tr v-for="category in categories" :key="category.id" v-else>
                                 <td>{{ category.name }}</td>
                                 <td>
                                     <span :class="category.default ? 'badge bg-primary' : 'badge bg-secondary'">
@@ -98,11 +114,13 @@
                                 </td>
                                 <td>
                                     <div class="d-flex gap-1">
-                                        <button class="btn btn-sm btn-primary" @click="editCategory(category)" title="Editar">
-                                            <i class="bi bi-pencil-fill"></i>
+                                        <button class="btn btn-sm btn-primary" :disabled="loadingActions['edit-category-' + category.id]" @click="editCategory(category)" title="Editar">
+                                            <span v-if="loadingActions['edit-category-' + category.id]" class="spinner-border spinner-border-sm"></span>
+                                            <i v-else class="bi bi-pencil-fill"></i>
                                         </button>
-                                        <button class="btn btn-sm btn-danger" @click="deleteCategory(category.id)" title="Eliminar">
-                                            <i class="bi bi-trash-fill"></i>
+                                        <button class="btn btn-sm btn-danger" :disabled="loadingActions['delete-category-' + category.id]" @click="deleteCategory(category.id)" title="Eliminar">
+                                            <span v-if="loadingActions['delete-category-' + category.id]" class="spinner-border spinner-border-sm"></span>
+                                            <i v-else class="bi bi-trash-fill"></i>
                                         </button>
                                     </div>
                                 </td>
@@ -132,7 +150,14 @@
                             </tr>
                         </thead>
                         <tbody>
-                            <tr v-for="u in users" :key="u.id">
+                            <tr v-if="loading">
+                                <td colspan="5" class="text-center py-4">
+                                    <div class="spinner-border text-primary" role="status">
+                                        <span class="visually-hidden">Cargando...</span>
+                                    </div>
+                                </td>
+                            </tr>
+                            <tr v-for="u in users" :key="u.id" v-else>
                                 <td>{{ u.name }}</td>
                                 <td>{{ u.username }}</td>
                                 <td>{{ u.role_name }}</td>
@@ -143,11 +168,13 @@
                                 </td>
                                 <td>
                                     <div class="d-flex gap-1">
-                                        <button class="btn btn-sm btn-primary" @click="editUser(u)" title="Editar">
-                                            <i class="bi bi-pencil-fill"></i>
+                                        <button class="btn btn-sm btn-primary" :disabled="loadingActions['edit-user-' + u.id]" @click="editUser(u)" title="Editar">
+                                            <span v-if="loadingActions['edit-user-' + u.id]" class="spinner-border spinner-border-sm"></span>
+                                            <i v-else class="bi bi-pencil-fill"></i>
                                         </button>
-                                        <button class="btn btn-sm btn-danger" @click="deleteUser(u.id)" title="Eliminar">
-                                            <i class="bi bi-trash-fill"></i>
+                                        <button class="btn btn-sm btn-danger" :disabled="loadingActions['delete-user-' + u.id]" @click="deleteUser(u.id)" title="Eliminar">
+                                            <span v-if="loadingActions['delete-user-' + u.id]" class="spinner-border spinner-border-sm"></span>
+                                            <i v-else class="bi bi-trash-fill"></i>
                                         </button>
                                     </div>
                                 </td>
@@ -193,7 +220,10 @@
                         </div>
                         <div class="modal-footer">
                             <button type="button" class="btn btn-sm btn-secondary" @click="closeProductModal">Cancelar</button>
-                            <button type="submit" class="btn btn-sm btn-primary">Guardar</button>
+                            <button type="submit" class="btn btn-sm btn-primary" :disabled="savingProduct">
+                                <span v-if="savingProduct" class="spinner-border spinner-border-sm me-1"></span>
+                                Guardar
+                            </button>
                         </div>
                     </form>
                 </div>
@@ -226,7 +256,10 @@
                         </div>
                         <div class="modal-footer">
                             <button type="button" class="btn btn-sm btn-secondary" @click="closeCategoryModal">Cancelar</button>
-                            <button type="submit" class="btn btn-sm btn-primary">Guardar</button>
+                            <button type="submit" class="btn btn-sm btn-primary" :disabled="savingCategory">
+                                <span v-if="savingCategory" class="spinner-border spinner-border-sm me-1"></span>
+                                Guardar
+                            </button>
                         </div>
                     </form>
                 </div>
@@ -269,7 +302,10 @@
                         </div>
                         <div class="modal-footer">
                             <button type="button" class="btn btn-sm btn-secondary" @click="closeUserModal">Cancelar</button>
-                            <button type="submit" class="btn btn-sm btn-primary">Guardar</button>
+                            <button type="submit" class="btn btn-sm btn-primary" :disabled="savingUser">
+                                <span v-if="savingUser" class="spinner-border spinner-border-sm me-1"></span>
+                                Guardar
+                            </button>
                         </div>
                     </form>
                 </div>
@@ -310,6 +346,20 @@ const roles = ref([]);
 const users = ref([]);
 const confirmDialog = inject('confirmDialog');
 const toastifyStore = useToastStore();
+const loading = ref(true);
+const savingProduct = ref(false);
+const savingCategory = ref(false);
+const savingUser = ref(false);
+const loadingActions = reactive({});
+
+const withLoading = async (key, cb) => {
+    loadingActions[key] = true;
+    try {
+        await cb();
+    } finally {
+        loadingActions[key] = false;
+    }
+};
 
 const showProductModal = ref(false);
 const showCategoryModal = ref(false);
@@ -341,6 +391,7 @@ const userForm = reactive({
 });
 
 const loadData = async () => {
+    loading.value = true;
     try {
         const [productsRes, categoriesRes, rolesRes, usersRes] = await Promise.all([
             api.get('/pos/products'),
@@ -353,6 +404,8 @@ const loadData = async () => {
         roles.value = rolesRes.data;
         users.value = usersRes.data;
     } catch (error) {
+    } finally {
+        loading.value = false;
     }
 };
 
@@ -377,6 +430,7 @@ const closeProductModal = () => {
 };
 
 const saveProduct = async () => {
+    savingProduct.value = true;
     try {
         if (editingProduct.value) {
             await api.put(`/pos/products/${editingProduct.value.id}`, productForm);
@@ -387,6 +441,8 @@ const saveProduct = async () => {
         loadData();
     } catch (error) {
         toastify.error('Error al guardar producto');
+    } finally {
+        savingProduct.value = false;
     }
 };
 
@@ -400,13 +456,15 @@ const deleteProduct = async (id) => {
     
     if (!confirmed) return;
     
-    try {
-        await api.delete(`/pos/products/${id}`);
-        loadData();
-        toastify.success('Producto eliminado');
-    } catch (error) {
-        toastify.error('Error al eliminar producto');
-    }
+    await withLoading('delete-product-' + id, async () => {
+        try {
+            await api.delete(`/pos/products/${id}`);
+            loadData();
+            toastify.success('Producto eliminado');
+        } catch (error) {
+            toastify.error('Error al eliminar producto');
+        }
+    });
 };
 
 const editCategory = (category) => {
@@ -426,6 +484,7 @@ const closeCategoryModal = () => {
 };
 
 const saveCategory = async () => {
+    savingCategory.value = true;
     try {
         if (editingCategory.value) {
             await api.put(`/pos/categories/${editingCategory.value.id}`, categoryForm);
@@ -436,6 +495,8 @@ const saveCategory = async () => {
         loadData();
     } catch (error) {
         toastify.error('Error al guardar categoría');
+    } finally {
+        savingCategory.value = false;
     }
 };
 
@@ -449,13 +510,15 @@ const deleteCategory = async (id) => {
     
     if (!confirmed) return;
     
-    try {
-        await api.delete(`/pos/categories/${id}`);
-        loadData();
-        toastify.success('Categoría eliminada');
-    } catch (error) {
-        toastify.error('Error al eliminar categoría');
-    }
+    await withLoading('delete-category-' + id, async () => {
+        try {
+            await api.delete(`/pos/categories/${id}`);
+            loadData();
+            toastify.success('Categoría eliminada');
+        } catch (error) {
+            toastify.error('Error al eliminar categoría');
+        }
+    });
 };
 
 const editUser = (user) => {
@@ -478,6 +541,7 @@ const closeUserModal = () => {
 };
 
 const saveUser = async () => {
+    savingUser.value = true;
     try {
         if (editingUser.value) {
             await api.put(`/pos/users/${editingUser.value.id}`, userForm);
@@ -489,6 +553,8 @@ const saveUser = async () => {
         toastify.success('Usuario guardado');
     } catch (error) {
         toastify.error('Error al guardar usuario');
+    } finally {
+        savingUser.value = false;
     }
 };
 
@@ -502,13 +568,15 @@ const deleteUser = async (id) => {
     
     if (!confirmed) return;
     
-    try {
-        await api.delete(`/pos/users/${id}`);
-        loadData();
-        toastify.success('Usuario eliminado');
-    } catch (error) {
-        toastify.error('Error al eliminar usuario');
-    }
+    await withLoading('delete-user-' + id, async () => {
+        try {
+            await api.delete(`/pos/users/${id}`);
+            loadData();
+            toastify.success('Usuario eliminado');
+        } catch (error) {
+            toastify.error('Error al eliminar usuario');
+        }
+    });
 };
 
 onMounted(loadData);

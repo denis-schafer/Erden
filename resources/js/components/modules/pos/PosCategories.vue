@@ -18,7 +18,14 @@
                     </tr>
                 </thead>
                 <tbody>
-                    <tr v-for="category in categories" :key="category.id">
+                    <tr v-if="loading">
+                        <td colspan="4" class="text-center py-4">
+                            <div class="spinner-border text-primary" role="status">
+                                <span class="visually-hidden">Cargando...</span>
+                            </div>
+                        </td>
+                    </tr>
+                    <tr v-for="category in categories" :key="category.id" v-else>
                         <td>{{ category.name }}</td>
                         <td>{{ category.default ? 'Sí' : 'No' }}</td>
                         <td>
@@ -27,17 +34,20 @@
                                     class="form-check-input" 
                                     type="checkbox" 
                                     :checked="category.enable === 1 || category.enable === true"
+                                    :disabled="loadingActions['toggle-' + category.id]"
                                     @change="toggleCategoryStatus(category.id, category.enable)"
                                 >
                             </div>
                         </td>
                         <td>
                             <div class="d-flex gap-1">
-                                <button class="btn btn-sm btn-primary" @click="editCategory(category)" title="Editar">
-                                    <i class="bi bi-pencil-fill"></i>
+                                <button class="btn btn-sm btn-primary" :disabled="loadingActions['edit-' + category.id]" @click="editCategory(category)" title="Editar">
+                                    <span v-if="loadingActions['edit-' + category.id]" class="spinner-border spinner-border-sm"></span>
+                                    <i v-else class="bi bi-pencil-fill"></i>
                                 </button>
-                                <button class="btn btn-sm btn-danger" @click="deleteCategory(category.id)" title="Eliminar">
-                                    <i class="bi bi-trash-fill"></i>
+                                <button class="btn btn-sm btn-danger" :disabled="loadingActions['delete-' + category.id]" @click="deleteCategory(category.id)" title="Eliminar">
+                                    <span v-if="loadingActions['delete-' + category.id]" class="spinner-border spinner-border-sm"></span>
+                                    <i v-else class="bi bi-trash-fill"></i>
                                 </button>
                             </div>
                         </td>
@@ -70,7 +80,10 @@
                         </div>
                         <div class="modal-footer">
                             <button @click="closeModal" type="button" class="btn btn-secondary">Cancelar</button>
-                            <button type="submit" class="btn btn-primary">Guardar</button>
+                            <button type="submit" class="btn btn-primary" :disabled="saving">
+                                <span v-if="saving" class="spinner-border spinner-border-sm me-1"></span>
+                                Guardar
+                            </button>
                         </div>
                     </form>
                 </div>
@@ -90,6 +103,18 @@ const categories = ref([]);
 const showModal = ref(false);
 const editingCategory = ref(null);
 const confirmModal = ref(null);
+const loading = ref(true);
+const saving = ref(false);
+const loadingActions = reactive({});
+
+const withLoading = async (key, cb) => {
+    loadingActions[key] = true;
+    try {
+        await cb();
+    } finally {
+        loadingActions[key] = false;
+    }
+};
 
 const form = reactive({
     name: '',
@@ -98,10 +123,13 @@ const form = reactive({
 });
 
 const loadData = async () => {
+    loading.value = true;
     try {
         const response = await api.get('/pos/categories');
         categories.value = response.data;
     } catch (error) {
+    } finally {
+        loading.value = false;
     }
 };
 
@@ -122,6 +150,7 @@ const closeModal = () => {
 };
 
 const saveCategory = async () => {
+    saving.value = true;
     try {
         if (editingCategory.value) {
             await api.put(`/pos/categories/${editingCategory.value.id}`, form);
@@ -131,6 +160,8 @@ const saveCategory = async () => {
         closeModal();
         loadData();
     } catch (error) {
+    } finally {
+        saving.value = false;
     }
 };
 
@@ -140,7 +171,7 @@ const deleteCategory = async (id) => {
         message: '¿Está seguro de eliminar esta categoría?',
         confirmText: 'Eliminar',
         type: 'danger',
-        onConfirm: async () => {
+        onConfirm: () => withLoading('delete-' + id, async () => {
             try {
                 await api.delete(`/pos/categories/${id}`);
                 loadData();
@@ -148,19 +179,21 @@ const deleteCategory = async (id) => {
             } catch (error) {
                 toastify.error('Error al eliminar categoría');
             }
-        }
+        })
     });
 };
 
 const toggleCategoryStatus = async (id, currentStatus) => {
-    try {
-        await api.post(`/pos/categories/${id}/toggle-status`);
-        loadData();
-        toastify.success(`Categoría ${currentStatus ? 'deshabilitada' : 'habilitada'} correctamente`);
-    } catch (error) {
-        loadData();
-        toastify.error('Error al cambiar estado de la categoría');
-    }
+    await withLoading('toggle-' + id, async () => {
+        try {
+            await api.post(`/pos/categories/${id}/toggle-status`);
+            loadData();
+            toastify.success(`Categoría ${currentStatus ? 'deshabilitada' : 'habilitada'} correctamente`);
+        } catch (error) {
+            loadData();
+            toastify.error('Error al cambiar estado de la categoría');
+        }
+    });
 };
 
 onMounted(loadData);

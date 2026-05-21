@@ -20,7 +20,14 @@
                     </tr>
                 </thead>
                 <tbody>
-                    <tr v-for="user in users" :key="user.id">
+                    <tr v-if="loading">
+                        <td colspan="6" class="text-center py-4">
+                            <div class="spinner-border text-primary" role="status">
+                                <span class="visually-hidden">Cargando...</span>
+                            </div>
+                        </td>
+                    </tr>
+                    <tr v-for="user in users" :key="user.id" v-else>
                         <td>{{ user.name }}</td>
                         <td>{{ user.username }}</td>
                         <td>{{ user.role_name }}</td>
@@ -36,17 +43,20 @@
                                     class="form-check-input" 
                                     type="checkbox" 
                                     :checked="user.enable === 1 || user.enable === true"
+                                    :disabled="loadingActions['toggle-' + user.id]"
                                     @change="toggleUserStatus(user.id, user)"
                                 >
                             </div>
                         </td>
                         <td>
                             <div class="d-flex gap-1">
-                                <button class="btn btn-sm btn-primary" @click="editUser(user)" title="Editar">
-                                    <i class="bi bi-pencil-fill"></i>
+                                <button class="btn btn-sm btn-primary" :disabled="loadingActions['edit-' + user.id]" @click="editUser(user)" title="Editar">
+                                    <span v-if="loadingActions['edit-' + user.id]" class="spinner-border spinner-border-sm"></span>
+                                    <i v-else class="bi bi-pencil-fill"></i>
                                 </button>
-                                <button class="btn btn-sm btn-danger" @click="deleteUser(user.id)" title="Eliminar">
-                                    <i class="bi bi-trash-fill"></i>
+                                <button class="btn btn-sm btn-danger" :disabled="loadingActions['delete-' + user.id]" @click="deleteUser(user.id)" title="Eliminar">
+                                    <span v-if="loadingActions['delete-' + user.id]" class="spinner-border spinner-border-sm"></span>
+                                    <i v-else class="bi bi-trash-fill"></i>
                                 </button>
                             </div>
                         </td>
@@ -149,7 +159,10 @@
                         </div>
                         <div class="modal-footer">
                             <button @click="closeModal" type="button" class="btn btn-secondary">Cancelar</button>
-                            <button type="submit" class="btn btn-primary">Guardar</button>
+                            <button type="submit" class="btn btn-primary" :disabled="saving">
+                                <span v-if="saving" class="spinner-border spinner-border-sm me-1"></span>
+                                Guardar
+                            </button>
                         </div>
                     </form>
                 </div>
@@ -170,6 +183,18 @@ const roles = ref([]);
 const showModal = ref(false);
 const editingUser = ref(null);
 const confirmModal = ref(null);
+const loading = ref(true);
+const saving = ref(false);
+const loadingActions = reactive({});
+
+const withLoading = async (key, cb) => {
+    loadingActions[key] = true;
+    try {
+        await cb();
+    } finally {
+        loadingActions[key] = false;
+    }
+};
 
 const form = reactive({
     name: '',
@@ -186,6 +211,7 @@ const form = reactive({
 });
 
 const loadData = async () => {
+    loading.value = true;
     try {
         const [usersRes, rolesRes] = await Promise.all([
             api.get('/pos/users'),
@@ -194,6 +220,8 @@ const loadData = async () => {
         users.value = usersRes.data;
         roles.value = rolesRes.data;
     } catch (error) {
+    } finally {
+        loading.value = false;
     }
 };
 
@@ -246,6 +274,7 @@ const closeModal = () => {
 };
 
 const saveUser = async () => {
+    saving.value = true;
     try {
         const data = {
             name: form.name,
@@ -274,18 +303,22 @@ const saveUser = async () => {
         toastify.success(editingUser.value ? 'Usuario actualizado correctamente' : 'Usuario creado correctamente');
     } catch (error) {
         toastify.error('Error al guardar usuario');
+    } finally {
+        saving.value = false;
     }
 };
 
 const toggleUserStatus = async (id, currentStatus) => {
-    try {
-        const response = await api.post(`/pos/users/${id}/toggle-status`);
-        loadData();
-        toastify.success(`Usuario ${currentStatus ? 'deshabilitado' : 'habilitado'} correctamente`);
-    } catch (error) {
-        loadData();
-        toastify.error('Error al cambiar estado del usuario');
-    }
+    await withLoading('toggle-' + id, async () => {
+        try {
+            const response = await api.post(`/pos/users/${id}/toggle-status`);
+            loadData();
+            toastify.success(`Usuario ${currentStatus ? 'deshabilitado' : 'habilitado'} correctamente`);
+        } catch (error) {
+            loadData();
+            toastify.error('Error al cambiar estado del usuario');
+        }
+    });
 };
 
 const deleteUser = async (id) => {
@@ -294,7 +327,7 @@ const deleteUser = async (id) => {
         message: '¿Está seguro de eliminar este usuario?',
         confirmText: 'Eliminar',
         type: 'danger',
-        onConfirm: async () => {
+        onConfirm: () => withLoading('delete-' + id, async () => {
             try {
                 await api.delete(`/pos/users/${id}`);
                 loadData();
@@ -302,7 +335,7 @@ const deleteUser = async (id) => {
             } catch (error) {
                 toastify.error('Error al eliminar usuario');
             }
-        }
+        })
     });
 };
 

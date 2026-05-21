@@ -7,13 +7,14 @@
             </h5>
             <div class="d-flex gap-2 align-items-center">
                 <!-- User selector for admin -->
-                <div v-if="isAdmin">
-                    <select v-model="selectedUsername" @change="loadOrder" class="form-select form-select-sm">
+                <div v-if="isAdmin" class="d-flex align-items-center gap-1">
+                    <select v-model="selectedUsername" @change="loadOrder" class="form-select form-select-sm" :disabled="usersLoading">
                         <option value="">Seleccionar usuario</option>
                         <option v-for="user in users" :key="user.username" :value="user.username">
                             {{ user.name || user.username }}
                         </option>
                     </select>
+                    <span v-if="usersLoading" class="spinner-border spinner-border-sm text-light"></span>
                 </div>
                 <!-- Fullscreen button -->
                 <button class="btn btn-sm btn-outline-light" @click="toggleBrowserFullscreen" :title="isBrowserFullscreen ? 'Salir de pantalla completa' : 'Pantalla completa'">
@@ -262,6 +263,7 @@ const loadLogo = async () => {
 const order = ref(null);
 const orders = ref([]);
 const users = ref([]);
+const usersLoading = ref(false);
 const loading = ref(true);
 const error = ref(null);
 const isFullscreen = ref(false);
@@ -344,11 +346,14 @@ window.addEventListener('resize', () => {
 });
 
 const loadUsers = async () => {
+    usersLoading.value = true;
     try {
         const response = await api.get('/pos/users');
         users.value = response.data.users || [];
     } catch (err) {
 
+    } finally {
+        usersLoading.value = false;
     }
 };
 

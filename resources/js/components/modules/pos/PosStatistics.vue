@@ -18,11 +18,13 @@
                 </select>
                 <input type="date" v-model="startDate" class="form-control form-control-sm" style="width: 140px;" @change="loadData">
                 <input type="date" v-model="endDate" class="form-control form-control-sm" style="width: 140px;" @change="loadData">
-                <button class="btn btn-sm btn-primary" @click="loadData">
-                    <i class="bi bi-calculator me-1"></i>Calcular
+                <button class="btn btn-sm btn-primary" :disabled="loading" @click="loadData">
+                    <span v-if="loading" class="spinner-border spinner-border-sm me-1"></span>
+                    <i v-else class="bi bi-calculator me-1"></i>Calcular
                 </button>
-                <button class="btn btn-sm btn-success" @click="exportData">
-                    <i class="bi bi-download me-1"></i>Descargar Excel
+                <button class="btn btn-sm btn-success" :disabled="exporting" @click="exportData">
+                    <span v-if="exporting" class="spinner-border spinner-border-sm me-1"></span>
+                    <i v-else class="bi bi-download me-1"></i>Descargar Excel
                 </button>
             </div>
         </div>
@@ -198,6 +200,7 @@ const isAdmin = computed(() => {
 ChartJS.register(CategoryScale, LinearScale, BarElement, PointElement, LineElement, Title, Tooltip, Legend, ArcElement, Filler);
 
 const loading = ref(true);
+const exporting = ref(false);
 const stats = ref({});
 const salesChartData = ref({ labels: [], datasets: [] });
 const topProducts = ref({});
@@ -479,6 +482,7 @@ selectedProducts.value = intervalRes.data.products.map(p => p.name);
 };
 
 const exportData = async () => {
+    exporting.value = true;
     try {
         const params = {
             start_date: startDate.value,
@@ -505,6 +509,8 @@ const exportData = async () => {
         toastify.success('Archivo Excel generado');
     } catch (error) {
         toastify.error('Error al exportar');
+    } finally {
+        exporting.value = false;
     }
 };
 

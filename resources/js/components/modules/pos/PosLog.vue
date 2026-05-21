@@ -38,8 +38,9 @@
                         <input type="date" v-model="tempEndDate" class="form-control form-control-sm">
                     </div>
                     <div class="col-md-2">
-                        <button class="btn btn-sm btn-primary w-100" @click="applyFilter">
-                            <i class="bi bi-filter me-1"></i>Filtrar
+                        <button class="btn btn-sm btn-primary w-100" :disabled="loading" @click="applyFilter">
+                            <span v-if="loading" class="spinner-border spinner-border-sm me-1"></span>
+                            <i v-else class="bi bi-filter me-1"></i>Filtrar
                         </button>
                     </div>
                 </div>

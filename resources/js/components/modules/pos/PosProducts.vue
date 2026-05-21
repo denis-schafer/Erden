@@ -19,46 +19,56 @@
             </button>
         </div>
 
-        <div class="pos-products-list">
-            <div 
-                v-for="(product, index) in filteredProducts" 
-                :key="product.id"
-                class="product-item"
-                draggable="true"
-                @dragstart="dragStart(index)"
-                @dragover.prevent
-                @drop="drop(index)"
-                @dragend="dragEnd"
-            >
-                <div class="product-drag-handle">
-                    <i class="bi bi-grip-vertical"></i>
+        <div class="pos-products-list" style="position: relative;">
+            <div v-if="loading" class="text-center py-5">
+                <div class="spinner-border text-primary" role="status">
+                    <span class="visually-hidden">Cargando...</span>
                 </div>
-                <div class="product-info">
-                    <div class="product-name">{{ product.name }}</div>
-                    <div class="product-price">${{ Number(product.amount).toFixed(2) }}</div>
-                </div>
-                <div class="product-status">
-                    <div class="form-check form-switch">
-                        <input 
-                            class="form-check-input" 
-                            type="checkbox" 
-                            :checked="product.enable === 1 || product.enable === true"
-                            @change="toggleProductStatus(product.id, product.enable)"
-                        >
+            </div>
+            <template v-else>
+                <div 
+                    v-for="(product, index) in filteredProducts" 
+                    :key="product.id"
+                    class="product-item"
+                    draggable="true"
+                    @dragstart="dragStart(index)"
+                    @dragover.prevent
+                    @drop="drop(index)"
+                    @dragend="dragEnd"
+                >
+                    <div class="product-drag-handle">
+                        <i class="bi bi-grip-vertical"></i>
+                    </div>
+                    <div class="product-info">
+                        <div class="product-name">{{ product.name }}</div>
+                        <div class="product-price">${{ Number(product.amount).toFixed(2) }}</div>
+                    </div>
+                    <div class="product-status">
+                        <div class="form-check form-switch">
+                            <input 
+                                class="form-check-input" 
+                                type="checkbox" 
+                                :checked="product.enable === 1 || product.enable === true"
+                                :disabled="loadingActions['toggle-' + product.id]"
+                                @change="toggleProductStatus(product.id, product.enable)"
+                            >
+                        </div>
+                    </div>
+                    <div class="product-actions d-flex gap-1">
+                        <button class="btn btn-sm btn-primary" :disabled="loadingActions['edit-' + product.id]" @click="editProduct(product)" title="Editar">
+                            <span v-if="loadingActions['edit-' + product.id]" class="spinner-border spinner-border-sm"></span>
+                            <i v-else class="bi bi-pencil-fill"></i>
+                        </button>
+                        <button class="btn btn-sm btn-danger" :disabled="loadingActions['delete-' + product.id]" @click="deleteProduct(product.id)" title="Eliminar">
+                            <span v-if="loadingActions['delete-' + product.id]" class="spinner-border spinner-border-sm"></span>
+                            <i v-else class="bi bi-trash-fill"></i>
+                        </button>
                     </div>
                 </div>
-                <div class="product-actions d-flex gap-1">
-                    <button class="btn btn-sm btn-primary" @click="editProduct(product)" title="Editar">
-                        <i class="bi bi-pencil-fill"></i>
-                    </button>
-                    <button class="btn btn-sm btn-danger" @click="deleteProduct(product.id)" title="Eliminar">
-                        <i class="bi bi-trash-fill"></i>
-                    </button>
+                <div v-if="filteredProducts.length === 0" class="text-center text-muted py-4">
+                    No hay productos en esta categoría
                 </div>
-            </div>
-            <div v-if="filteredProducts.length === 0" class="text-center text-muted py-4">
-                No hay productos en esta categoría
-            </div>
+            </template>
         </div>
 
         <ConfirmModal ref="confirmModal" />
@@ -96,7 +106,10 @@
                         </div>
                         <div class="modal-footer">
                             <button @click="closeModal" type="button" class="btn btn-secondary">Cancelar</button>
-                            <button type="submit" class="btn btn-primary">Guardar</button>
+                            <button type="submit" class="btn btn-primary" :disabled="saving">
+                                <span v-if="saving" class="spinner-border spinner-border-sm me-1"></span>
+                                Guardar
+                            </button>
                         </div>
                     </form>
                 </div>
@@ -118,6 +131,18 @@ const selectedCategory = ref(null);
 const showModal = ref(false);
 const editingProduct = ref(null);
 const confirmModal = ref(null);
+const loading = ref(true);
+const saving = ref(false);
+const loadingActions = reactive({});
+
+const withLoading = async (key, cb) => {
+    loadingActions[key] = true;
+    try {
+        await cb();
+    } finally {
+        loadingActions[key] = false;
+    }
+};
 
 const draggedIndex = ref(null);
 
@@ -137,6 +162,7 @@ const filteredProducts = computed(() => {
 });
 
 const loadData = async () => {
+    loading.value = true;
     try {
         const [productsRes, categoriesRes] = await Promise.all([
             api.get('/pos/products'),
@@ -150,6 +176,8 @@ const loadData = async () => {
             selectedCategory.value = defaultCategory ? defaultCategory.id : categories.value[0].id;
         }
     } catch (error) {
+    } finally {
+        loading.value = false;
     }
 };
 
@@ -184,6 +212,7 @@ const closeModal = () => {
 };
 
 const saveProduct = async () => {
+    saving.value = true;
     try {
         if (editingProduct.value) {
             await api.put(`/pos/products/${editingProduct.value.id}`, form);
@@ -194,6 +223,8 @@ const saveProduct = async () => {
         closeModal();
         loadData();
     } catch (error) {
+    } finally {
+        saving.value = false;
     }
 };
 
@@ -203,7 +234,7 @@ const deleteProduct = async (id) => {
         message: '¿Está seguro de eliminar este producto?',
         confirmText: 'Eliminar',
         type: 'danger',
-        onConfirm: async () => {
+        onConfirm: () => withLoading('delete-' + id, async () => {
             try {
                 await api.delete(`/pos/products/${id}`);
                 loadData();
@@ -211,19 +242,21 @@ const deleteProduct = async (id) => {
             } catch (error) {
                 toastify.error('Error al eliminar producto');
             }
-        }
+        })
     });
 };
 
 const toggleProductStatus = async (id, currentStatus) => {
-    try {
-        await api.post(`/pos/products/${id}/toggle-status`);
-        loadData();
-        toastify.success(`Producto ${currentStatus ? 'deshabilitado' : 'habilitado'} correctamente`);
-    } catch (error) {
-        loadData();
-        toastify.error('Error al cambiar estado del producto');
-    }
+    await withLoading('toggle-' + id, async () => {
+        try {
+            await api.post(`/pos/products/${id}/toggle-status`);
+            loadData();
+            toastify.success(`Producto ${currentStatus ? 'deshabilitado' : 'habilitado'} correctamente`);
+        } catch (error) {
+            loadData();
+            toastify.error('Error al cambiar estado del producto');
+        }
+    });
 };
 
 const dragStart = (index) => {

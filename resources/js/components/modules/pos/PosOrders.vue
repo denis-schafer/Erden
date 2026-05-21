@@ -3,7 +3,7 @@
         <div class="d-flex justify-content-between align-items-center mb-3">
             <h5 class="mb-0">Órdenes</h5>
             <div class="d-flex gap-2">
-                <select v-model="statusFilter" class="form-select form-select-sm" style="width: auto;">
+                <select v-model="statusFilter" class="form-select form-select-sm" style="width: auto;" @change="goToPage(1)">
                     <option value="">Todos</option>
                     <option value="1">Pendiente</option>
                     <option value="2">En Proceso</option>
@@ -13,7 +13,12 @@
             </div>
         </div>
 
-        <div class="table-responsive">
+        <div class="table-responsive position-relative">
+            <div v-if="loading" class="loading-overlay">
+                <div class="spinner-border text-primary" role="status">
+                    <span class="visually-hidden">Cargando...</span>
+                </div>
+            </div>
             <table class="table table-sm table-hover">
                 <thead>
                     <tr>
@@ -25,7 +30,7 @@
                     </tr>
                 </thead>
                 <tbody>
-                    <tr v-for="order in filteredByUser" :key="order.id" :class="{ 'table-row-inactive': order.status_id === 2 }">
+                    <tr v-for="order in orders" :key="order.id" :class="{ 'table-row-inactive': order.status_id === 2 }">
                         <td>#{{ order.id }}</td>
                         <td>{{ order.operator_name }}</td>
                         <td>
@@ -36,24 +41,30 @@
                         <td>{{ formatDate(order.created_at) }}</td>
                         <td>
                             <div class="d-flex gap-1" v-if="order.status_id !== 2">
-                                <button class="btn btn-sm btn-primary" @click="viewOrderDetail(order)" title="Ver">
-                                    <i class="bi bi-eye-fill"></i>
+                                <button class="btn btn-sm btn-primary" :disabled="loadingActions[order.id + '_view']" @click="viewOrderDetail(order)" title="Ver">
+                                    <span v-if="loadingActions[order.id + '_view']" class="spinner-border spinner-border-sm me-1"></span>
+                                    <i v-else class="bi bi-eye-fill"></i>
                                 </button>
                                 <button v-if="order.status_id !== 2 && (isAdmin || !order.paid)"
                                     class="btn btn-sm"
                                     :class="order.paid ? 'btn-warning' : 'btn-success'"
+                                    :disabled="loadingActions[order.id + '_togglePaid']"
                                     @click="togglePaid(order)"
                                     :title="order.paid ? 'Desmarcar como pagado' : 'Marcar como Pagado'">
-                                    <i class="bi" :class="order.paid ? 'bi-arrow-counterclockwise' : 'bi-cash'"></i>
+                                    <span v-if="loadingActions[order.id + '_togglePaid']" class="spinner-border spinner-border-sm"></span>
+                                    <i v-else class="bi" :class="order.paid ? 'bi-arrow-counterclockwise' : 'bi-cash'"></i>
                                 </button>
-                                <button class="btn btn-sm btn-secondary" @click="reprintOrder(order)" title="Reimprimir">
-                                    <i class="bi bi-printer-fill"></i>
+                                <button class="btn btn-sm btn-secondary" :disabled="loadingActions[order.id + '_reprint']" @click="reprintOrder(order)" title="Reimprimir">
+                                    <span v-if="loadingActions[order.id + '_reprint']" class="spinner-border spinner-border-sm"></span>
+                                    <i v-else class="bi bi-printer-fill"></i>
                                 </button>
-                                <button v-if="hasMercadoQr" class="btn btn-sm btn-success" @click="viewOrderQR(order)" title="Ver QR" :disabled="order.paid || order.status_id === 3">
-                                    <i class="bi bi-qr-code"></i>
+                                <button v-if="hasMercadoQr" class="btn btn-sm btn-success" :disabled="loadingActions[order.id + '_qr'] || order.paid || order.status_id === 3" @click="viewOrderQR(order)" title="Ver QR">
+                                    <span v-if="loadingActions[order.id + '_qr']" class="spinner-border spinner-border-sm"></span>
+                                    <i v-else class="bi bi-qr-code"></i>
                                 </button>
-                                <button class="btn btn-sm btn-danger" @click="deleteOrder(order)" title="Eliminar">
-                                    <i class="bi bi-trash-fill"></i>
+                                <button class="btn btn-sm btn-danger" :disabled="loadingActions[order.id + '_delete']" @click="deleteOrder(order)" title="Eliminar">
+                                    <span v-if="loadingActions[order.id + '_delete']" class="spinner-border spinner-border-sm"></span>
+                                    <i v-else class="bi bi-trash-fill"></i>
                                 </button>
                             </div>
                             <span v-else class="text-muted">Anulado</span>
@@ -61,10 +72,32 @@
                     </tr>
                 </tbody>
             </table>
+            <div v-if="orders.length === 0 && !loading" class="text-center text-muted py-4">
+                No hay órdenes
+            </div>
         </div>
-        
-        <div v-if="orders.length === 0" class="text-center text-muted py-4">
-            No hay órdenes
+
+        <div v-if="lastPage > 1" class="d-flex justify-content-between align-items-center mt-2">
+            <small class="text-muted">{{ total }} órdenes</small>
+            <nav>
+                <ul class="pagination pagination-sm mb-0">
+                    <li class="page-item" :class="{ disabled: page === 1 }">
+                        <button class="page-link" @click="goToPage(1)" :disabled="page === 1">&laquo;</button>
+                    </li>
+                    <li class="page-item" :class="{ disabled: page === 1 }">
+                        <button class="page-link" @click="goToPage(page - 1)" :disabled="page === 1">&lsaquo;</button>
+                    </li>
+                    <li v-for="p in visiblePages" :key="p" class="page-item" :class="{ active: p === page }">
+                        <button class="page-link" @click="goToPage(p)">{{ p }}</button>
+                    </li>
+                    <li class="page-item" :class="{ disabled: page === lastPage }">
+                        <button class="page-link" @click="goToPage(page + 1)" :disabled="page === lastPage">&rsaquo;</button>
+                    </li>
+                    <li class="page-item" :class="{ disabled: page === lastPage }">
+                        <button class="page-link" @click="goToPage(lastPage)" :disabled="page === lastPage">&raquo;</button>
+                    </li>
+                </ul>
+            </nav>
         </div>
 
         <!-- Order Detail Modal - always on top -->
@@ -129,6 +162,59 @@ const confirmModal = ref(null);
 const orderItems = ref([]);
 const showOrderDetail = ref(false);
 
+const page = ref(1);
+const lastPage = ref(1);
+const total = ref(0);
+const loading = ref(false);
+const loadingActions = ref({});
+
+const visiblePages = computed(() => {
+    const pages = [];
+    const start = Math.max(1, page.value - 2);
+    const end = Math.min(lastPage.value, page.value + 2);
+    for (let i = start; i <= end; i++) {
+        pages.push(i);
+    }
+    return pages;
+});
+
+const loadData = async () => {
+    loading.value = true;
+    try {
+        const params = { page: page.value, per_page: 10 };
+        if (statusFilter.value) {
+            params.status = statusFilter.value;
+        }
+        if (isCashier.value) {
+            params.operator_id = currentUserId.value;
+        }
+        const response = await api.get('/pos/orders', { params });
+        orders.value = response.data.data;
+        page.value = response.data.current_page;
+        lastPage.value = response.data.last_page;
+        total.value = response.data.total;
+    } catch (error) {
+    } finally {
+        loading.value = false;
+    }
+};
+
+const goToPage = (p) => {
+    if (p < 1 || p > lastPage.value || loading.value) return;
+    page.value = p;
+    loadData();
+};
+
+const withLoading = async (orderId, action, cb) => {
+    const key = orderId + '_' + action;
+    loadingActions.value = { ...loadingActions.value, [key]: true };
+    try {
+        await cb();
+    } finally {
+        loadingActions.value = { ...loadingActions.value, [key]: false };
+    }
+};
+
 // WebSocket listener for OrderPaid - refresh orders automatically
 let orderPaidHandler = null;
 const setupOrderPaidListener = () => {
@@ -136,7 +222,6 @@ const setupOrderPaidListener = () => {
     
     const operatorId = authStore.user.id;
     
-    // Clean up previous listener if exists
     if (window.Echo.leaveChannel) {
         window.Echo.leaveChannel(`user.${operatorId}`);
     }
@@ -155,29 +240,11 @@ const hasMercadoQr = computed(() => {
     return authStore.user?.mercadopago_qr_enabled;
 });
 
-const filteredOrders = computed(() => {
-    if (!statusFilter.value) return orders.value;
-    return orders.value.filter(o => o.status_id == statusFilter.value);
-});
-
 const isAdmin = computed(() => authStore.isGlobalAdmin || authStore.user?.role_id === 1);
 const currentUserId = computed(() => authStore.user?.id);
 const isCashier = computed(() => {
     return !authStore.isGlobalAdmin && !authStore.permissions?.includes('pos-users_read') && !authStore.permissions?.includes('pos-categories_read');
 });
-
-const filteredByUser = computed(() => {
-    if (!isCashier.value) return filteredOrders.value;
-    return filteredOrders.value.filter(o => o.operator_id === currentUserId.value);
-});
-
-const loadData = async () => {
-    try {
-        const response = await api.get('/pos/orders');
-        orders.value = response.data;
-    } catch (error) {
-    }
-};
 
 const formatDate = (date) => {
     return new Date(date).toLocaleDateString();
@@ -208,12 +275,14 @@ const closeDetail = () => {
 };
 
 const reprintOrder = async (order) => {
-    try {
-        await api.post(`/pos/orders/${order.id}/reprint`);
-        toastify.success('Ticket reimpreso exitosamente');
-    } catch (error) {
-        toastify.error('Error al reimprimir: ' + (error.response?.data?.message || 'Error desconocido'));
-    }
+    await withLoading(order.id, 'reprint', async () => {
+        try {
+            await api.post(`/pos/orders/${order.id}/reprint`);
+            toastify.success('Ticket reimpreso exitosamente');
+        } catch (error) {
+            toastify.error('Error al reimprimir: ' + (error.response?.data?.message || 'Error desconocido'));
+        }
+    });
 };
 
 const deleteOrder = (order) => {
@@ -223,13 +292,15 @@ const deleteOrder = (order) => {
         confirmText: 'Eliminar',
         type: 'danger',
         onConfirm: async () => {
-            try {
-                await api.delete(`/pos/orders/${order.id}`);
-                await loadData();
-                toastify.success('Pedido eliminado');
-            } catch (error) {
-                toastify.error('Error al eliminar pedido: ' + (error.response?.data?.message || 'Error desconocido'));
-            }
+            await withLoading(order.id, 'delete', async () => {
+                try {
+                    await api.delete(`/pos/orders/${order.id}`);
+                    await loadData();
+                    toastify.success('Pedido eliminado');
+                } catch (error) {
+                    toastify.error('Error al eliminar pedido: ' + (error.response?.data?.message || 'Error desconocido'));
+                }
+            });
         }
     });
 };
@@ -249,42 +320,46 @@ const togglePaid = (order) => {
         confirmText: 'Confirmar',
         type: order.paid ? 'warning' : 'success',
         onConfirm: async () => {
-            try {
-                await api.post(`/pos/orders/${order.id}/toggle-paid`);
-                await loadData();
-                toastify.success(order.paid ? 'Pago desmarcado' : 'Pedido marcado como pagado');
-            } catch (error) {
-                toastify.error('Error: ' + (error.response?.data?.message || 'Error desconocido'));
-            }
+            await withLoading(order.id, 'togglePaid', async () => {
+                try {
+                    await api.post(`/pos/orders/${order.id}/toggle-paid`);
+                    await loadData();
+                    toastify.success(order.paid ? 'Pago desmarcado' : 'Pedido marcado como pagado');
+                } catch (error) {
+                    toastify.error('Error: ' + (error.response?.data?.message || 'Error desconocido'));
+                }
+            });
         }
     });
 };
 
 const viewOrderQR = async (order) => {
-    const targetUserId = order.operator_id;
-    const targetUsername = order.operator_username;
-    
-    try {
-        await api.post('/pos/request-qr-order', {
-            order_id: order.id,
-            username: targetUsername,
-            total: order.total,
-            target_user_id: targetUserId
-        });
+    await withLoading(order.id, 'qr', async () => {
+        const targetUserId = order.operator_id;
+        const targetUsername = order.operator_username;
         
-        window.dispatchEvent(new CustomEvent('open-pos-qr-order', {
-            detail: {
-                orderId: order.id,
+        try {
+            await api.post('/pos/request-qr-order', {
+                order_id: order.id,
                 username: targetUsername,
                 total: order.total,
                 target_user_id: targetUserId
-            }
-        }));
-        
-        toastify.success('QR generado');
-    } catch (error) {
-        toastify.error('Error al generar QR');
-    }
+            });
+            
+            window.dispatchEvent(new CustomEvent('open-pos-qr-order', {
+                detail: {
+                    orderId: order.id,
+                    username: targetUsername,
+                    total: order.total,
+                    target_user_id: targetUserId
+                }
+            }));
+            
+            toastify.success('QR generado');
+        } catch (error) {
+            toastify.error('Error al generar QR');
+        }
+    });
 };
 
 onMounted(() => {
@@ -292,7 +367,6 @@ onMounted(() => {
     window.addEventListener('pos-order-created', handleOrderCreated);
     window.addEventListener('pos-order-updated', handleOrderUpdated);
     window.addEventListener('pos-order-deleted', handleOrderDeleted);
-    // Setup WebSocket listener for OrderPaid events
     setTimeout(setupOrderPaidListener, 1000);
 });
 
@@ -312,6 +386,19 @@ onUnmounted(() => {
     padding: 1rem;
     overflow: auto;
     position: relative;
+}
+
+.loading-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(255,255,255,0.7);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 10;
 }
 
 .order-detail-modal {
@@ -341,5 +428,13 @@ onUnmounted(() => {
 .table-row-inactive {
     background-color: #f8d7da !important;
     opacity: 0.7;
+}
+
+.pagination {
+    gap: 0;
+}
+
+.page-link {
+    cursor: pointer;
 }
 </style>

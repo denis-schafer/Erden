@@ -265,7 +265,12 @@
                         <button type="button" class="btn-close" @click="showOrdersModal = false"></button>
                     </div>
                     <div class="modal-body">
-                        <div class="table-responsive">
+                        <div class="table-responsive position-relative">
+                            <div v-if="loadingOrders" class="loading-overlay">
+                                <div class="spinner-border text-primary" role="status">
+                                    <span class="visually-hidden">Cargando...</span>
+                                </div>
+                            </div>
                             <table class="table table-hover table-striped">
                                 <thead>
                                     <tr>
@@ -278,7 +283,7 @@
                                     </tr>
                                 </thead>
                                 <tbody>
-                                    <tr v-for="order in filteredOrders" :key="order.id" :class="{ 'table-row-inactive': order.status_id === 2 }">
+                                    <tr v-for="order in orders" :key="order.id" :class="{ 'table-row-inactive': order.status_id === 2 }">
                                         <td>#{{ order.id }}</td>
                                         <td>${{ Number(order.total).toFixed(2) }}</td>
                                         <td>
@@ -292,32 +297,39 @@
                                         <td>{{ formatDate(order.created_at) }}</td>
                                         <td>
                                             <div class="d-flex gap-1" v-if="order.status_id !== 2">
-                                                <button class="btn btn-sm btn-primary" @click="viewOrderDetail(order)" title="Ver">
-                                                    <i class="bi bi-eye-fill"></i>
+                                                <button class="btn btn-sm btn-primary" :disabled="loadingActions[order.id + '_view']" @click="viewOrderDetail(order)" title="Ver">
+                                                    <span v-if="loadingActions[order.id + '_view']" class="spinner-border spinner-border-sm me-1"></span>
+                                                    <i v-else class="bi bi-eye-fill"></i>
                                                 </button>
                                                 <button v-if="order.status_id !== 2 && (isAdmin || !order.paid)"
                                                     class="btn btn-sm"
                                                     :class="order.paid ? 'btn-warning' : 'btn-success'"
+                                                    :disabled="loadingActions[order.id + '_togglePaid']"
                                                     @click="togglePaid(order)"
                                                     :title="order.paid ? 'Desmarcar como pagado' : 'Marcar como Pagado'">
-                                                    <i class="bi" :class="order.paid ? 'bi-arrow-counterclockwise' : 'bi-cash'"></i>
+                                                    <span v-if="loadingActions[order.id + '_togglePaid']" class="spinner-border spinner-border-sm"></span>
+                                                    <i v-else class="bi" :class="order.paid ? 'bi-arrow-counterclockwise' : 'bi-cash'"></i>
                                                 </button>
-                                                <button class="btn btn-sm btn-secondary" @click="reprintOrder(order)" title="Reimprimir">
-                                                    <i class="bi bi-printer-fill"></i>
+                                                <button class="btn btn-sm btn-secondary" :disabled="loadingActions[order.id + '_reprint']" @click="reprintOrder(order)" title="Reimprimir">
+                                                    <span v-if="loadingActions[order.id + '_reprint']" class="spinner-border spinner-border-sm"></span>
+                                                    <i v-else class="bi bi-printer-fill"></i>
                                                 </button>
                                                 <button 
                                                     v-if="canViewQR"
                                                     class="btn btn-sm btn-success" 
+                                                    :disabled="loadingActions[order.id + '_qr'] || order.paid || order.status_id === 3"
                                                     @click="viewOrderQRFromCaja(order)"
-                                                    title="Ver QR"
-                                                    :disabled="order.paid || order.status_id === 3">
-                                                    <i class="bi bi-qr-code"></i>
+                                                    title="Ver QR">
+                                                    <span v-if="loadingActions[order.id + '_qr']" class="spinner-border spinner-border-sm"></span>
+                                                    <i v-else class="bi bi-qr-code"></i>
                                                 </button>
                                                 <button 
                                                     class="btn btn-sm btn-danger" 
+                                                    :disabled="loadingActions[order.id + '_delete']"
                                                     @click="deleteOrder(order)"
                                                     title="Eliminar">
-                                                    <i class="bi bi-trash-fill"></i>
+                                                    <span v-if="loadingActions[order.id + '_delete']" class="spinner-border spinner-border-sm"></span>
+                                                    <i v-else class="bi bi-trash-fill"></i>
                                                 </button>
                                             </div>
                                             <span v-else class="text-muted">Anulado</span>
@@ -326,8 +338,30 @@
                                 </tbody>
                             </table>
                         </div>
-                        <div v-if="filteredOrders.length === 0" class="text-center text-muted py-4">
+                        <div v-if="orders.length === 0 && !loadingOrders" class="text-center text-muted py-4">
                             No hay órdenes
+                        </div>
+                        <div v-if="ordersLastPage > 1" class="d-flex justify-content-between align-items-center mt-2">
+                            <small class="text-muted">{{ ordersTotal }} órdenes</small>
+                            <nav>
+                                <ul class="pagination pagination-sm mb-0">
+                                    <li class="page-item" :class="{ disabled: ordersPage === 1 }">
+                                        <button class="page-link" @click="goToOrdersPage(1)" :disabled="ordersPage === 1">&laquo;</button>
+                                    </li>
+                                    <li class="page-item" :class="{ disabled: ordersPage === 1 }">
+                                        <button class="page-link" @click="goToOrdersPage(ordersPage - 1)" :disabled="ordersPage === 1">&lsaquo;</button>
+                                    </li>
+                                    <li v-for="p in visibleOrdersPages" :key="p" class="page-item" :class="{ active: p === ordersPage }">
+                                        <button class="page-link" @click="goToOrdersPage(p)">{{ p }}</button>
+                                    </li>
+                                    <li class="page-item" :class="{ disabled: ordersPage === ordersLastPage }">
+                                        <button class="page-link" @click="goToOrdersPage(ordersPage + 1)" :disabled="ordersPage === ordersLastPage">&rsaquo;</button>
+                                    </li>
+                                    <li class="page-item" :class="{ disabled: ordersPage === ordersLastPage }">
+                                        <button class="page-link" @click="goToOrdersPage(ordersLastPage)" :disabled="ordersPage === ordersLastPage">&raquo;</button>
+                                    </li>
+                                </ul>
+                            </nav>
                         </div>
                     </div>
                 </div>
@@ -446,10 +480,15 @@ const canViewQR = computed(() => {
 const isAdmin = computed(() => authStore.isGlobalAdmin || authStore.user?.role_id === 1);
 const currentUserId = computed(() => authStore.user?.id);
 
-const filteredOrders = computed(() => {
-    if (isAdmin.value) return orders.value;
-    return orders.value.filter(o => o.operator_id === currentUserId.value);
-});
+const withLoading = async (orderId, action, cb) => {
+    const key = orderId + '_' + action;
+    loadingActions.value = { ...loadingActions.value, [key]: true };
+    try {
+        await cb();
+    } finally {
+        loadingActions.value = { ...loadingActions.value, [key]: false };
+    }
+};
 
 // Config
 const enablePrint = ref(false);
@@ -490,6 +529,21 @@ const productsGridStyle = computed(() => {
 const orders = ref([]);
 const selectedOrder = ref(null);
 const orderItems = ref([]);
+const ordersPage = ref(1);
+const ordersLastPage = ref(1);
+const ordersTotal = ref(0);
+const loadingOrders = ref(false);
+const loadingActions = ref({});
+
+const visibleOrdersPages = computed(() => {
+    const pages = [];
+    const start = Math.max(1, ordersPage.value - 2);
+    const end = Math.min(ordersLastPage.value, ordersPage.value + 2);
+    for (let i = start; i <= end; i++) {
+        pages.push(i);
+    }
+    return pages;
+});
 
 const handleResize = () => {
     isMobile.value = window.innerWidth < 768;
@@ -744,11 +798,27 @@ window.addEventListener('pos-product-reordered', () => {
     loadProducts();
 });
 
+const goToOrdersPage = (p) => {
+    if (p < 1 || p > ordersLastPage.value || loadingOrders.value) return;
+    ordersPage.value = p;
+    loadOrders();
+};
+
 const loadOrders = async () => {
+    loadingOrders.value = true;
     try {
-        const response = await api.get('/pos/orders');
-        orders.value = response.data;
+        const params = { page: ordersPage.value, per_page: 10 };
+        if (!isAdmin.value) {
+            params.operator_id = currentUserId.value;
+        }
+        const response = await api.get('/pos/orders', { params });
+        orders.value = response.data.data;
+        ordersPage.value = response.data.current_page;
+        ordersLastPage.value = response.data.last_page;
+        ordersTotal.value = response.data.total;
     } catch (error) {
+    } finally {
+        loadingOrders.value = false;
     }
 };
 
@@ -772,45 +842,54 @@ const viewOrderDetail = (order) => {
 };
 
 const reprintOrder = async (order = null) => {
-    try {
-        const orderToPrint = order || selectedOrder.value;
-        if (!orderToPrint) {
-            toastify.error('No hay orden para reimprimir');
-            return;
-        }
+    const orderToPrint = order || selectedOrder.value;
+    if (!orderToPrint) {
+        toastify.error('No hay orden para reimprimir');
+        return;
+    }
+    const doReprint = async () => {
         await api.post(`/pos/orders/${orderToPrint.id}/reprint`);
         toastify.success('Ticket reimpreso exitosamente');
         showOrderDetail.value = false;
-    } catch (error) {
-        toastify.error('Error al reimprimir: ' + (error.response?.data?.message || 'Error desconocido'));
+    };
+    if (order) {
+        await withLoading(order.id, 'reprint', doReprint);
+    } else {
+        try {
+            await doReprint();
+        } catch (error) {
+            toastify.error('Error al reimprimir: ' + (error.response?.data?.message || 'Error desconocido'));
+        }
     }
 };
 
 const viewOrderQRFromCaja = async (order) => {
-    const targetUserId = order.operator_id;
-    const targetUsername = order.operator_username;
-    
-    try {
-        await api.post('/pos/request-qr-order', {
-            order_id: order.id,
-            username: targetUsername,
-            total: order.total,
-            target_user_id: targetUserId
-        });
+    await withLoading(order.id, 'qr', async () => {
+        const targetUserId = order.operator_id;
+        const targetUsername = order.operator_username;
         
-        window.dispatchEvent(new CustomEvent('open-pos-qr-order', {
-            detail: {
-                orderId: order.id,
+        try {
+            await api.post('/pos/request-qr-order', {
+                order_id: order.id,
                 username: targetUsername,
                 total: order.total,
                 target_user_id: targetUserId
-            }
-        }));
-        
-        toastify.success('QR generado');
-    } catch (error) {
-        toastify.error('Error al generar QR');
-    }
+            });
+            
+            window.dispatchEvent(new CustomEvent('open-pos-qr-order', {
+                detail: {
+                    orderId: order.id,
+                    username: targetUsername,
+                    total: order.total,
+                    target_user_id: targetUserId
+                }
+            }));
+            
+            toastify.success('QR generado');
+        } catch (error) {
+            toastify.error('Error al generar QR');
+        }
+    });
 };
 
 const deleteOrder = (order) => {
@@ -820,14 +899,16 @@ const deleteOrder = (order) => {
         confirmText: 'Eliminar',
         type: 'danger',
         onConfirm: async () => {
-            try {
-                await api.delete(`/pos/orders/${order.id}`);
-                await loadOrders();
-                toastify.success('Pedido eliminado');
-                window.dispatchEvent(new CustomEvent('pos-order-deleted'));
-            } catch (error) {
-                toastify.error('Error al eliminar pedido: ' + (error.response?.data?.message || 'Error desconocido'));
-            }
+            await withLoading(order.id, 'delete', async () => {
+                try {
+                    await api.delete(`/pos/orders/${order.id}`);
+                    await loadOrders();
+                    toastify.success('Pedido eliminado');
+                    window.dispatchEvent(new CustomEvent('pos-order-deleted'));
+                } catch (error) {
+                    toastify.error('Error al eliminar pedido: ' + (error.response?.data?.message || 'Error desconocido'));
+                }
+            });
         }
     });
 };
@@ -847,14 +928,16 @@ const togglePaid = (order) => {
         confirmText: 'Confirmar',
         type: order.paid ? 'warning' : 'success',
         onConfirm: async () => {
-            try {
-                await api.post(`/pos/orders/${order.id}/toggle-paid`);
-                await loadOrders();
-                toastify.success(order.paid ? 'Pago desmarcado' : 'Pedido marcado como pagado');
-                window.dispatchEvent(new CustomEvent('pos-order-updated'));
-            } catch (error) {
-                toastify.error('Error: ' + (error.response?.data?.message || 'Error desconocido'));
-            }
+            await withLoading(order.id, 'togglePaid', async () => {
+                try {
+                    await api.post(`/pos/orders/${order.id}/toggle-paid`);
+                    await loadOrders();
+                    toastify.success(order.paid ? 'Pago desmarcado' : 'Pedido marcado como pagado');
+                    window.dispatchEvent(new CustomEvent('pos-order-updated'));
+                } catch (error) {
+                    toastify.error('Error: ' + (error.response?.data?.message || 'Error desconocido'));
+                }
+            });
         }
     });
 };
@@ -925,6 +1008,23 @@ defineExpose({ openFullscreen });
 
 .category-tab:hover {
     background: #e9ecef;
+}
+
+.loading-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(255,255,255,0.7);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 10;
+}
+
+.page-link {
+    cursor: pointer;
 }
 
 .category-tab.active {

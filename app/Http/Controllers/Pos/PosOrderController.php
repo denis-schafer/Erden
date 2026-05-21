@@ -21,7 +21,7 @@ class PosOrderController extends Controller
             ->join('status_orders', 'orders.status_id', '=', 'status_orders.id')
             ->orderBy('orders.created_at', 'desc');
 
-        if ($request->has('status')) {
+        if ($request->has('status') && $request->status !== '') {
             $query->where('orders.status_id', $request->status);
         }
 
@@ -29,7 +29,12 @@ class PosOrderController extends Controller
             $query->whereDate('orders.created_at', $request->date);
         }
 
-        $orders = $query->get();
+        if ($request->has('operator_id')) {
+            $query->where('orders.operator_id', $request->operator_id);
+        }
+
+        $perPage = $request->input('per_page', 10);
+        $orders = $query->paginate($perPage);
 
         return response()->json($orders);
     }

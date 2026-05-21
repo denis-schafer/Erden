@@ -357,9 +357,6 @@ const loadUsers = async () => {
     }
 };
 
-let lastOrderId = null;
-let pollInterval = null;
-
 const loadOrder = async () => {
     loading.value = true;
     error.value = null;
@@ -375,7 +372,6 @@ const loadOrder = async () => {
         
         // Solo generar QR si la orden está en status pending (status_id = 1)
         if (order.value && order.value.id) {
-            lastOrderId = order.value.id;
             if (order.value.status_id === 1) {
                 generateQR();
             } else {
@@ -387,46 +383,6 @@ const loadOrder = async () => {
         error.value = err.response?.data?.error || 'Error al cargar pedido';
     } finally {
         loading.value = false;
-    }
-};
-
-const startPolling = () => {
-    if (pollInterval) clearInterval(pollInterval);
-    
-    // Polling solo para carga manual, no carga automáticamente al iniciar
-    pollInterval = setInterval(async () => {
-        if (!username.value || closedOrderId.value) return;
-        
-        try {
-            const response = await api.get(`/pos/order-display/${username.value}`);
-            const newOrder = response.data.order;
-            
-            // Detectar cambio de status: si la orden actual pasó de pending(1) a paid(3)
-            if (order.value && newOrder && order.value.id === newOrder.id && order.value.status_id === 1 && newOrder.status_id === 3) {
-                stopPolling(); // Detener polling para evitar interferencia
-                
-                // Usar la función centralizada
-                showPaymentSuccess();
-                return;
-            }
-            
-            // Solo actualizar si hay una nueva orden y el usuario la seleccionada manualmente
-            // (lastOrderId indica que el usuario ya eligió ver una orden)
-            if (newOrder && newOrder.id !== lastOrderId && lastOrderId !== null) {
-                lastOrderId = newOrder.id;
-                order.value = newOrder;
-                if (newOrder.status_id === 1) generateQR();
-            }
-        } catch (err) {
-            // Ignore polling errors
-        }
-    }, 5000); // Check every 5 seconds
-};
-
-const stopPolling = () => {
-    if (pollInterval) {
-        clearInterval(pollInterval);
-        pollInterval = null;
     }
 };
 
@@ -469,7 +425,6 @@ const toggleFullscreen = () => {
 const closeOrder = () => {
     order.value = null;
     qrCode.value = null;
-    lastOrderId = null;
     closedOrderId.value = null;
     paymentSuccess.value = false;
 };
@@ -477,10 +432,6 @@ const closeOrder = () => {
 const showPaymentSuccess = () => {
     const currentOrderId = order.value?.id;
     
-    // Detener polling INMEDIATAMENTE
-    stopPolling();
-    
-    // Cambiar estados
     paymentSuccess.value = true;
     qrCode.value = null;
     closedOrderId.value = currentOrderId;
@@ -496,12 +447,6 @@ const showPaymentSuccess = () => {
         paymentSuccess.value = false;
         closeOrder();
     }, 3000);
-};
-
-// Función que el polling llama cuando detecta cambio de status
-const handlePaymentDetected = (updatedOrder) => {
-    order.value = updatedOrder;
-    showPaymentSuccess();
 };
 
 // Listen for when admin disables QR for user - close the order and show advertisement
@@ -543,14 +488,30 @@ const getItemValue = (item, field) => {
     return null;
 };
 
-// WebSocket events - solo actualizan si ya hay una orden cargada, no cargan automáticamente
 const handleOrderCreated = (event) => {
-    // No cargar automáticamente - solo avisa que hay nueva orden
+    if (closedOrderId.value) return;
+    const { operator_id } = event.detail;
+    if (!operator_id) return;
+
+    const currentOperatorId = order.value?.operator_id || authStore.user?.id;
+    if (!currentOperatorId || operator_id !== currentOperatorId) return;
+
+    loadOrder();
 };
 
 const handleOrderUpdated = (event) => {
-    // Solo actualizar si ya hay una orden cargada y es la misma
-    if (order.value && event.detail.order?.id === order.value.id) {
+    if (!order.value || !event.detail) return;
+    const updated = event.detail;
+
+    // Si es un pago directo (toggle manual desde caja/admin sin pasar por MP)
+    if (updated.status_id === 3 && updated.paid && updated.id === order.value.id) {
+        order.value = { ...order.value, ...updated };
+        showPaymentSuccess();
+        return;
+    }
+
+    // Otros cambios - recargar si es la misma orden
+    if (updated.id === order.value.id) {
         loadOrder();
     }
 };
@@ -606,8 +567,7 @@ onMounted(() => {
     // Cargar logo para publicidad
     loadLogo();
     // No cargar orden por defecto - mostrar publicidad
-    // startPolling() disponible para carga manual
-    startPolling();
+    // Las órdenes se cargan automáticamente vía WebSocket (pos-order-created)
     
     document.addEventListener('fullscreenchange', handleFullscreenChange);
     document.addEventListener('webkitfullscreenchange', handleFullscreenChange);
@@ -657,7 +617,6 @@ onMounted(() => {
 onUnmounted(() => {
     document.removeEventListener('fullscreenchange', handleFullscreenChange);
     document.removeEventListener('webkitfullscreenchange', handleFullscreenChange);
-    stopPolling();
     window.removeEventListener('resize', () => {
         isMobile.value = window.innerWidth < 768;
     });
@@ -682,7 +641,6 @@ onUnmounted(() => {
 onUnmounted(() => {
     document.removeEventListener('fullscreenchange', handleFullscreenChange);
     document.removeEventListener('webkitfullscreenchange', handleFullscreenChange);
-    stopPolling();
     window.removeEventListener('resize', () => {
         isMobile.value = window.innerWidth < 768;
     });

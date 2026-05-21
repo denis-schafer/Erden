@@ -409,7 +409,6 @@ selectedProducts.value = intervalRes.data.products.map(p => p.name);
         };
 
     } catch (error) {
-        console.error('Error loading statistics:', error);
         toastify.error('Error al cargar estadísticas');
     } finally {
         loading.value = false;
@@ -425,7 +424,6 @@ const loadUsers = async () => {
         const response = await api.get('/pos/users');
         users.value = response.data;
     } catch (error) {
-        console.error('Error loading users:', error);
     }
 };
 
@@ -477,7 +475,6 @@ selectedProducts.value = intervalRes.data.products.map(p => p.name);
             }]
         };
     } catch (error) {
-        console.error('Error refreshing statistics:', error);
     }
 };
 
@@ -507,7 +504,6 @@ const exportData = async () => {
 
         toastify.success('Archivo Excel generado');
     } catch (error) {
-        console.error('Error exporting:', error);
         toastify.error('Error al exportar');
     }
 };

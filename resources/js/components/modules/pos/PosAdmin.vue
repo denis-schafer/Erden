@@ -353,7 +353,6 @@ const loadData = async () => {
         roles.value = rolesRes.data;
         users.value = usersRes.data;
     } catch (error) {
-        console.error('Error loading data:', error);
     }
 };
 

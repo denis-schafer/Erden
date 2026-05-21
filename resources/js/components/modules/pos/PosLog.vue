@@ -138,8 +138,6 @@ const loadLogs = async () => {
             availableActions.value = [];
         }
         
-    } catch (error) {
-        console.error('Error loading logs:', error);
     } finally {
         loading.value = false;
     }

@@ -135,7 +135,6 @@ const setupOrderPaidListener = () => {
     if (!window.Echo || !authStore.user?.id) return;
     
     const operatorId = authStore.user.id;
-    console.log('[PosOrders] Setting up OrderPaid listener for user.' + operatorId);
     
     // Clean up previous listener if exists
     if (window.Echo.leaveChannel) {
@@ -144,7 +143,6 @@ const setupOrderPaidListener = () => {
     
     window.Echo.channel(`user.${operatorId}`)
         .listen('.OrderPaid', (data) => {
-            console.log('[PosOrders] OrderPaid received, reloading orders...', data);
             loadData();
         });
 };
@@ -178,7 +176,6 @@ const loadData = async () => {
         const response = await api.get('/pos/orders');
         orders.value = response.data;
     } catch (error) {
-        console.error('Error loading orders:', error);
     }
 };
 
@@ -286,7 +283,6 @@ const viewOrderQR = async (order) => {
         
         toastify.success('QR generado');
     } catch (error) {
-        console.error('Error requesting QR:', error);
         toastify.error('Error al generar QR');
     }
 };

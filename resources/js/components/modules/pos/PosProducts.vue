@@ -150,7 +150,6 @@ const loadData = async () => {
             selectedCategory.value = defaultCategory ? defaultCategory.id : categories.value[0].id;
         }
     } catch (error) {
-        console.error('Error loading data:', error);
     }
 };
 
@@ -195,7 +194,6 @@ const saveProduct = async () => {
         closeModal();
         loadData();
     } catch (error) {
-        console.error('Error saving product:', error);
     }
 };
 
@@ -249,7 +247,6 @@ const drop = async (dropIndex) => {
     try {
         await api.post('/pos/products/reorder', { orders: reorderData });
     } catch (error) {
-        console.error('Error saving order:', error);
         loadData();
     }
     

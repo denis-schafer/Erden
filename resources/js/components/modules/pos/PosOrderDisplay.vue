@@ -119,7 +119,6 @@ const loadOrder = async () => {
         orders.value = response.data.orders || [];
     } catch (err) {
         error.value = err.response?.data?.error || err.message;
-        console.error('Error loading order:', err);
     } finally {
         loading.value = false;
     }

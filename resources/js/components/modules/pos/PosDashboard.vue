@@ -238,8 +238,6 @@ const loadData = async () => {
             }]
         };
 
-    } catch (error) {
-        console.error('Error loading dashboard:', error);
     } finally {
         loading.value = false;
     }
@@ -251,7 +249,6 @@ const loadCashiers = async () => {
             const res = await api.get('/pos/dashboard/cashiers');
             cashiers.value = res.data;
         } catch (error) {
-            console.error('Error loading cashiers:', error);
         }
     }
 };
@@ -309,7 +306,6 @@ const refreshStats = async () => {
             }]
         };
     } catch (error) {
-        console.error('Error refreshing dashboard:', error);
     }
 };
 

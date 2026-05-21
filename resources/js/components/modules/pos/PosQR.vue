@@ -255,7 +255,7 @@ const loadLogo = async () => {
         const text = await response.text();
         logoSvg.value = text;
     } catch (e) {
-        console.error('Error loading logo:', e);
+
     }
 };
 
@@ -301,9 +301,7 @@ const toggleBrowserFullscreen = async () => {
             if ('wakeLock' in navigator) {
                 try {
                     wakeLock.value = await navigator.wakeLock.request('screen');
-                    console.log('Screen Wake Lock activado');
                 } catch (err) {
-                    console.log('Wake Lock no soportado:', err);
                 }
             }
         } else {
@@ -321,7 +319,7 @@ const toggleBrowserFullscreen = async () => {
             }
         }
     } catch (err) {
-        console.error('Error en fullscreen:', err);
+
     }
 };
 
@@ -350,7 +348,7 @@ const loadUsers = async () => {
         const response = await api.get('/pos/users');
         users.value = response.data.users || [];
     } catch (err) {
-        console.error('Error loading users:', err);
+
     }
 };
 
@@ -382,7 +380,6 @@ const loadOrder = async () => {
         }
     } catch (err) {
         error.value = err.response?.data?.error || 'Error al cargar pedido';
-        console.error('Error loading order:', err);
     } finally {
         loading.value = false;
     }
@@ -401,7 +398,6 @@ const startPolling = () => {
             
             // Detectar cambio de status: si la orden actual pasó de pending(1) a paid(3)
             if (order.value && newOrder && order.value.id === newOrder.id && order.value.status_id === 1 && newOrder.status_id === 3) {
-                console.log('[Payment] Detected via polling:', newOrder.id);
                 stopPolling(); // Detener polling para evitar interferencia
                 
                 // Usar la función centralizada
@@ -412,7 +408,6 @@ const startPolling = () => {
             // Solo actualizar si hay una nueva orden y el usuario la seleccionada manualmente
             // (lastOrderId indica que el usuario ya eligió ver una orden)
             if (newOrder && newOrder.id !== lastOrderId && lastOrderId !== null) {
-                console.log('New order detected via polling:', newOrder.id);
                 lastOrderId = newOrder.id;
                 order.value = newOrder;
                 if (newOrder.status_id === 1) generateQR();
@@ -456,7 +451,7 @@ const generateQR = async () => {
         }
     } catch (err) {
         qrError.value = err.response?.data?.message || 'Error al generar QR';
-        console.error('Error generating QR:', err);
+
     } finally {
         qrLoading.value = false;
     }
@@ -476,7 +471,6 @@ const closeOrder = () => {
 
 const showPaymentSuccess = () => {
     const currentOrderId = order.value?.id;
-    console.log('[Payment] Showing success view for order:', currentOrderId);
     
     // Detener polling INMEDIATAMENTE
     stopPolling();
@@ -491,23 +485,16 @@ const showPaymentSuccess = () => {
     
     // Notificar a otros módulos que la orden fue actualizada (pagada)
     window.dispatchEvent(new CustomEvent('pos-order-updated'));
-    console.log('[Payment] Dispatched pos-order-updated event');
-    
-    console.log('[Payment] State after set - paymentSuccess:', paymentSuccess.value, 'order:', order.value?.id);
     
     // Cerrar después de 3 segundos
-    console.log('[Payment] Setting timeout for 3 seconds...');
     setTimeout(() => {
-        console.log('[Payment] 3 seconds PASSED! Closing order:', currentOrderId);
         paymentSuccess.value = false;
         closeOrder();
-        console.log('[Payment] After closeOrder - paymentSuccess:', paymentSuccess.value);
     }, 3000);
 };
 
 // Función que el polling llama cuando detecta cambio de status
 const handlePaymentDetected = (updatedOrder) => {
-    console.log('[Payment] Detected via polling/webocket:', updatedOrder.id);
     order.value = updatedOrder;
     showPaymentSuccess();
 };
@@ -545,7 +532,6 @@ const getStatusClass = (status) => {
 };
 
 const getItemValue = (item, field) => {
-    console.log('Item:', item, 'Field:', field);
     if (item && typeof item === 'object') {
         return item[field] ?? null;
     }
@@ -555,7 +541,6 @@ const getItemValue = (item, field) => {
 // WebSocket events - solo actualizan si ya hay una orden cargada, no cargan automáticamente
 const handleOrderCreated = (event) => {
     // No cargar automáticamente - solo avisa que hay nueva orden
-    console.log('Nueva orden creada:', event.detail);
 };
 
 const handleOrderUpdated = (event) => {
@@ -570,7 +555,6 @@ const handleOpenFullscreen = () => {
 
 const handleOpenSpecificOrder = async (event) => {
     const { orderId, username: targetUsername, total } = event.detail;
-    console.log('[QR] handleOpenSpecificOrder:', { orderId, targetUsername, total });
     loading.value = true;
     error.value = null;
     qrCode.value = null;
@@ -579,21 +563,16 @@ const handleOpenSpecificOrder = async (event) => {
     
     try {
         const response = await api.get(`/pos/order-display/${targetUsername}/${orderId}`);
-        console.log('[QR] order loaded:', response.data.order?.id, 'status:', response.data.order?.status_id);
         order.value = response.data.order;
         
         // Solo generar QR si la orden está en status pending (status_id = 1)
         if (order.value && order.value.id && order.value.status_id === 1) {
             generateQR();
         } else if (order.value && order.value.status_id !== 1) {
-            console.log('[QR] order not pending (status:' + order.value.status_id + '), skipping QR');
             qrCode.value = null;
             error.value = null;
-        } else {
-            console.log('[QR] no order data received');
         }
     } catch (err) {
-        console.error('[QR] Error loading order:', err);
         error.value = err.response?.data?.error || 'Error al cargar pedido';
     } finally {
         loading.value = false;
@@ -603,7 +582,6 @@ const handleOpenSpecificOrder = async (event) => {
 const handleQRUpdated = (event) => {
     const currentUserId = authStore.user?.id;
     const { target_user_id, order_id, username, total } = event.detail;
-    console.log('[QR] handleQRUpdated:', { currentUserId, target_user_id, order_id, username, total, match: target_user_id === currentUserId });
     
     if (target_user_id === currentUserId) {
         handleOpenSpecificOrder({
@@ -613,8 +591,6 @@ const handleQRUpdated = (event) => {
                 total: total
             }
         });
-    } else {
-        console.log('[QR] target_user_id != currentUserId, ignorando');
     }
 };
 
@@ -642,7 +618,6 @@ onMounted(() => {
     // Esto funciona igual que en PosCaja - suscripción directa
     const setupWebSocket = () => {
         if (!window.Echo) {
-            console.log('[WebSocket] Echo not ready, retrying...');
             setTimeout(setupWebSocket, 500);
             return;
         }
@@ -650,24 +625,19 @@ onMounted(() => {
         // Usar el operator_id de la orden actual, o del usuario autenticado
         const operatorId = order.value?.operator_id || authStore.user?.id;
         if (!operatorId) {
-            console.log('[WebSocket] No operator_id available yet');
             return;
         }
         
-        console.log('[WebSocket] Subscribing to: user.' + operatorId);
         // Limpiar suscripción anterior si existe
         window.Echo.leaveChannel(`user.${operatorId}`);
         window.Echo.channel(`user.${operatorId}`)
             .listen('.OrderPaid', (data) => {
-                console.log('[WebSocket] .OrderPaid received:', data);
                 // Evitar procesar si la orden ya se cerró o es una orden diferente
                 if (!data.order || closedOrderId.value === data.order.id) {
-                    console.log('[WebSocket] Order already closed or invalid, skipping');
                     return;
                 }
                 // Call showPaymentSuccess directly - order is already updated
                 if (data.order?.id === order.value?.id) {
-                    console.log('[WebSocket] Payment confirmed for order #' + data.order?.id);
                     order.value = data.order;
                     // Call showPaymentSuccess IMMEDIATELY (don't wait for polling)
                     showPaymentSuccess();

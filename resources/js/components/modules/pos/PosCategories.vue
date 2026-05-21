@@ -102,7 +102,6 @@ const loadData = async () => {
         const response = await api.get('/pos/categories');
         categories.value = response.data;
     } catch (error) {
-        console.error('Error loading categories:', error);
     }
 };
 
@@ -132,7 +131,6 @@ const saveCategory = async () => {
         closeModal();
         loadData();
     } catch (error) {
-        console.error('Error saving category:', error);
     }
 };
 

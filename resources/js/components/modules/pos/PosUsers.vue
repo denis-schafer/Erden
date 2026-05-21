@@ -194,7 +194,6 @@ const loadData = async () => {
         users.value = usersRes.data;
         roles.value = rolesRes.data;
     } catch (error) {
-        console.error('Error loading data:', error);
     }
 };
 
@@ -274,7 +273,6 @@ const saveUser = async () => {
         loadData();
         toastify.success(editingUser.value ? 'Usuario actualizado correctamente' : 'Usuario creado correctamente');
     } catch (error) {
-        console.error('Error saving user:', error);
         toastify.error('Error al guardar usuario');
     }
 };

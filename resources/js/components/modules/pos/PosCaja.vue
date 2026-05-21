@@ -414,7 +414,6 @@ const setupOrderPaidListener = () => {
     if (orderPaidListenerSetup || !window.Echo || !authStore.user?.id) return;
     
     const operatorId = authStore.user.id;
-    console.log('[PosCaja] Setting up OrderPaid listener for user.' + operatorId);
     
     // Clean up previous listener if exists
     if (window.Echo.leaveChannel) {
@@ -423,7 +422,6 @@ const setupOrderPaidListener = () => {
     
     window.Echo.channel(`user.${operatorId}`)
         .listen('.OrderPaid', (data) => {
-            console.log('[PosCaja] OrderPaid received, reloading orders if modal open...', data);
             if (showOrdersModal.value) {
                 loadOrders();
             }
@@ -534,11 +532,9 @@ onMounted(() => {
     window.addEventListener('pos-user-disabled', (e) => handleUserDisabled(e.detail));
     window.addEventListener('pos-user-settings-updated', (e) => handleUserSettingsUpdated(e.detail));
     window.addEventListener('open-order-detail', () => {
-        console.log('Closing orders modal');
         showOrdersModal.value = false;
     });
     window.closeOrdersModal = () => {
-        console.log('Closing orders modal via closeOrdersModal');
         showOrdersModal.value = false;
     };
     loadData();
@@ -705,12 +701,8 @@ const loadProducts = async () => {
 const removeDisabledProductsFromCart = () => {
     const disabledProducts = products.value.filter(p => !p.enable);
     const disabledProductIds = disabledProducts.map(p => p.id);
-    console.log('[PosCaja] Disabled products:', disabledProducts);
-    console.log('[PosCaja] Disabled IDs:', disabledProductIds);
-    console.log('[PosCaja] Cart before:', cart.value);
     const initialCount = cart.value.length;
     cart.value = cart.value.filter(item => !disabledProductIds.includes(item.id));
-    console.log('[PosCaja] Cart after:', cart.value);
     return initialCount - cart.value.length;
 };
 
@@ -739,7 +731,6 @@ window.addEventListener('pos-category-changed', () => {
 });
 
 window.addEventListener('pos-product-changed', async (event) => {
-    console.log('[PosCaja] Product changed event received:', event.detail);
     await loadProducts();
     setTimeout(() => {
         const removedCount = removeDisabledProductsFromCart();
@@ -758,7 +749,6 @@ const loadOrders = async () => {
         const response = await api.get('/pos/orders');
         orders.value = response.data;
     } catch (error) {
-        console.error('Error loading orders:', error);
     }
 };
 

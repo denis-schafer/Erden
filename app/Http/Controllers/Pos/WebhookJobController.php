@@ -10,11 +10,16 @@ class WebhookJobController extends Controller
 {
     public function pending(Request $request)
     {
-        $companyDb = $request->_company['db'] ?? 'erden';
+        $company = $request->_company;
+        $webhookCode = $company['webhook_code'] ?? null;
+
+        if (empty($webhookCode)) {
+            return response()->json([]);
+        }
 
         $jobs = DB::connection('mysql_parent')
             ->table('webhooks_jobs')
-            ->where('company_db', $companyDb)
+            ->where('webhook_code', $webhookCode)
             ->where('status', 'pending')
             ->orderBy('created_at')
             ->limit(10)
@@ -33,11 +38,16 @@ class WebhookJobController extends Controller
 
     public function ack(Request $request, $id)
     {
-        $companyDb = $request->_company['db'] ?? 'erden';
+        $company = $request->_company;
+        $webhookCode = $company['webhook_code'] ?? null;
+
+        if (empty($webhookCode)) {
+            return response()->json(['error' => 'Webhook jobs not available for this company'], 404);
+        }
 
         $job = DB::connection('mysql_parent')
             ->table('webhooks_jobs')
-            ->where('company_db', $companyDb)
+            ->where('webhook_code', $webhookCode)
             ->where('id', $id)
             ->first();
 

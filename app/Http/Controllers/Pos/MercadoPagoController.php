@@ -358,10 +358,12 @@ class MercadoPagoController extends Controller
         
         // Early payment/order ID extraction for dedup (VPS mode)
         $topic = $payload['topic'] ?? $request->query('topic');
+        $action = $payload['action'] ?? null;
         $data = $payload['data'] ?? [];
         $extractedId = null;
         
-        if (in_array($topic, ['payment', 'payment.created'])) {
+        $isPaymentTopic = in_array($topic, ['payment', 'payment.created']) || $action === 'payment.created';
+        if ($isPaymentTopic) {
             if (isset($data['id'])) {
                 $extractedId = $data['id'];
             } elseif (isset($payload['resource'])) {

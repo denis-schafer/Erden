@@ -170,7 +170,7 @@
         </div>
 
         <!-- Webhook Code Section -->
-        <div class="mt-4" v-if="showAgentSection">
+        <div class="mt-4">
             <div class="setting-card">
                 <div class="setting-header">
                     <h6 class="setting-title">

@@ -54,12 +54,7 @@ class PrintJobController extends Controller
         DB::connection('mysql_parent')
             ->table('print_jobs')
             ->where('id', $id)
-            ->update([
-                'status' => $request->status,
-                'error_message' => $request->error_message,
-                'processed_at' => now(),
-                'attempts' => $job->attempts + 1,
-            ]);
+            ->delete();
 
         return response()->json(['success' => true]);
     }

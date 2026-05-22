@@ -48,10 +48,7 @@ class WebhookJobController extends Controller
         DB::connection('mysql_parent')
             ->table('webhooks_jobs')
             ->where('id', $id)
-            ->update([
-                'status' => 'forwarded',
-                'forwarded_at' => now(),
-            ]);
+            ->delete();
 
         return response()->json(['success' => true]);
     }

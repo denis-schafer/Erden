@@ -356,22 +356,55 @@ class MercadoPagoController extends Controller
         $whc = $request->query('whc');
         $companyDb = $request->query('company_db');
         
+        // Early payment/order ID extraction for dedup (VPS mode)
+        $topic = $payload['topic'] ?? $request->query('topic');
+        $data = $payload['data'] ?? [];
+        $extractedId = null;
+        
+        if (in_array($topic, ['payment', 'payment.created'])) {
+            if (isset($data['id'])) {
+                $extractedId = $data['id'];
+            } elseif (isset($payload['resource'])) {
+                $resource = $payload['resource'];
+                $extractedId = is_numeric($resource) ? $resource : (preg_match('/\/(\d+)$/', $resource, $m) ? $m[1] : null);
+            }
+        }
+        if ($topic === 'merchant_order') {
+            if (isset($payload['resource'])) {
+                $resource = $payload['resource'];
+                $extractedId = is_numeric($resource) ? $resource : (preg_match('/\/(\d+)$/', $resource, $m) ? $m[1] : null);
+            }
+            if (!$extractedId && isset($payload['id'])) {
+                $extractedId = $payload['id'];
+            }
+        }
+        
         // If webhook_code (whc) is present
         if (!empty($whc)) {
-            // If company_db is present -> VPS mode: store in webhooks_jobs (agent will forward)
-            // If company_db is absent -> Local mode: look up company_db and process
             if (!empty($companyDb)) {
                 // VPS mode: store for agent relay with dedup
                 Log::info('[MP Webhook] whc=' . $whc . ' detected (VPS mode), storing for agent relay');
                 
                 try {
-                    // Dedup: skip if same raw_payload already pending for this webhook_code
-                    $existing = DB::connection('mysql_parent')
-                        ->table('webhooks_jobs')
-                        ->where('webhook_code', $whc)
-                        ->where('raw_payload', $rawPayload)
-                        ->where('status', 'pending')
-                        ->exists();
+                    // Dedup by (webhook_code, topic, payment_id) if ID extracted,
+                    // otherwise fallback to raw_payload (across all statuses)
+                    $existing = false;
+                    if (!empty($extractedId)) {
+                        $existing = DB::connection('mysql_parent')
+                            ->table('webhooks_jobs')
+                            ->where('webhook_code', $whc)
+                            ->where('topic', $topic)
+                            ->where('payment_id', $extractedId)
+                            ->exists();
+                    }
+                    
+                    if (!$existing) {
+                        $existing = DB::connection('mysql_parent')
+                            ->table('webhooks_jobs')
+                            ->where('webhook_code', $whc)
+                            ->where('raw_payload', $rawPayload)
+                            ->exists();
+                    }
                     
                     if (!$existing) {
                         DB::connection('mysql_parent')
@@ -380,8 +413,8 @@ class MercadoPagoController extends Controller
                                 'webhook_code' => $whc,
                                 'company_db' => $companyDb,
                                 'raw_payload' => $rawPayload,
-                                'topic' => $payload['topic'] ?? $request->query('topic'),
-                                'payment_id' => null,
+                                'topic' => $topic,
+                                'payment_id' => $extractedId,
                                 'status' => 'pending',
                                 'created_at' => now(),
                             ]);

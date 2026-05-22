@@ -388,27 +388,36 @@ class MercadoPagoController extends Controller
                 Log::info('[MP Webhook] whc=' . $whc . ' detected (VPS mode), storing for agent relay');
                 
                 try {
-                    // Dedup by (webhook_code, topic, payment_id) if ID extracted,
-                    // otherwise fallback to raw_payload (across all statuses)
-                    $existing = false;
+                    $existing = null;
                     if (!empty($extractedId)) {
                         $existing = DB::connection('mysql_parent')
                             ->table('webhooks_jobs')
                             ->where('webhook_code', $whc)
-                            ->where('topic', $topic)
                             ->where('payment_id', $extractedId)
-                            ->exists();
+                            ->first();
                     }
-                    
+
                     if (!$existing) {
                         $existing = DB::connection('mysql_parent')
                             ->table('webhooks_jobs')
                             ->where('webhook_code', $whc)
                             ->where('raw_payload', $rawPayload)
-                            ->exists();
+                            ->first();
                     }
-                    
-                    if (!$existing) {
+
+                    if ($existing) {
+                        DB::connection('mysql_parent')
+                            ->table('webhooks_jobs')
+                            ->where('id', $existing->id)
+                            ->update([
+                                'raw_payload' => $rawPayload,
+                                'topic' => $topic,
+                                'status' => 'pending',
+                                'created_at' => now(),
+                            ]);
+
+                        Log::info('[MP Webhook] Updated existing webhook_job #' . $existing->id . ' for payment ' . ($extractedId ?? 'unknown'));
+                    } else {
                         DB::connection('mysql_parent')
                             ->table('webhooks_jobs')
                             ->insert([
@@ -420,10 +429,8 @@ class MercadoPagoController extends Controller
                                 'status' => 'pending',
                                 'created_at' => now(),
                             ]);
-                        
+
                         Log::info('[MP Webhook] Stored in webhooks_jobs for agent relay');
-                    } else {
-                        Log::info('[MP Webhook] Duplicate webhook, skipping');
                     }
                 } catch (\Exception $e) {
                     Log::error('[MP Webhook] Error storing webhook job: ' . $e->getMessage());

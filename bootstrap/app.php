@@ -22,6 +22,7 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->prepend(\App\Http\Middleware\ForceDynamicAssetUrl::class);
         $middleware->validateCsrfTokens(except: [
             'pos/print-jobs/*',
+            'pos/webhooks-jobs/*',
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {

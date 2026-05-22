@@ -74,7 +74,13 @@ def request_config():
         print("[!] La clave API no puede estar vacia.")
         sys.exit(1)
 
-    return {"vps_url": url, "api_key": api_key, "poll_interval": 1}
+    local_url = input("URL del servidor local para webhooks (default: http://localhost:8000): ").strip().rstrip("/")
+    if not local_url:
+        local_url = "http://localhost:8000"
+    elif not local_url.startswith("http://") and not local_url.startswith("https://"):
+        local_url = "http://" + local_url
+
+    return {"vps_url": url, "api_key": api_key, "poll_interval": 1, "local_server_url": local_url}
 
 
 def test_connection(config):
@@ -126,7 +132,12 @@ def poll_loop(config):
     headers = {"X-Print-Agent-Key": config["api_key"]}
     poll_url = "{}/pos/print-jobs/pending".format(config["vps_url"])
     ack_url = config["vps_url"] + "/pos/print-jobs/{}/ack"
+    webhook_poll_url = "{}/pos/webhooks-jobs/pending".format(config["vps_url"])
+    webhook_ack_url = config["vps_url"] + "/pos/webhooks-jobs/{}/ack"
     interval = 1
+
+    # Configuracion local del servidor para forwardear webhooks
+    local_server_url = config.get("local_server_url", "http://localhost:8000")
 
     print("[*] Iniciando ciclo de polling cada {} segundos...".format(interval))
     print("[*] Presiona Ctrl+C para detener.")
@@ -134,6 +145,7 @@ def poll_loop(config):
 
     while True:
         try:
+            # === Print Jobs ===
             r = requests.get(poll_url, headers=headers, timeout=15)
 
             if r.status_code != 200:
@@ -144,7 +156,7 @@ def poll_loop(config):
             jobs = r.json()
 
             if jobs:
-                print("[{}] {} trabajo(s) pendiente(s)".format(
+                print("[{}] {} trabajo(s) de impresion pendiente(s)".format(
                     time.strftime("%H:%M:%S"), len(jobs)
                 ))
 
@@ -187,6 +199,66 @@ def poll_loop(config):
                     print("    -> Error al confirmar trabajo #{}: {}".format(
                         job.get("id", "?"), e
                     ))
+
+            # === Webhook Jobs ===
+            try:
+                wh_r = requests.get(webhook_poll_url, headers=headers, timeout=15)
+                if wh_r.status_code == 200:
+                    webhooks = wh_r.json()
+                    if webhooks:
+                        print("[{}] {} webhook(s) pendiente(s)".format(
+                            time.strftime("%H:%M:%S"), len(webhooks)
+                        ))
+
+                    for wh_job in webhooks:
+                        try:
+                            print("    -> Webhook #{} forwardeando a localhost... ".format(
+                                wh_job["id"]
+                            ), end="", flush=True)
+
+                            # Parse the raw payload and forward to local server
+                            try:
+                                payload_data = json.loads(wh_job["raw_payload"])
+                            except (json.JSONDecodeError, TypeError):
+                                payload_data = wh_job["raw_payload"]
+
+                            # Forward to local server (same endpoint path)
+                            forward_headers = {"Content-Type": "application/json"}
+                            forward_url = "{}/mp/webhook".format(local_server_url)
+
+                            r_forward = requests.post(
+                                forward_url,
+                                json=payload_data,
+                                headers=forward_headers,
+                                timeout=10,
+                            )
+
+                            if r_forward.status_code == 200:
+                                print("OK")
+                            else:
+                                print("ERROR: Servidor respondio {}".format(r_forward.status_code))
+
+                            # Always ACK the job to avoid reprocessing
+                            requests.post(
+                                webhook_ack_url.format(wh_job["id"]),
+                                headers=headers,
+                                timeout=10,
+                            )
+
+                        except Exception as e:
+                            print("ERROR: {}".format(e))
+                            # Try to ACK anyway
+                            try:
+                                requests.post(
+                                    webhook_ack_url.format(wh_job["id"]),
+                                    headers=headers,
+                                    timeout=10,
+                                )
+                            except Exception:
+                                pass
+            except Exception as e:
+                # Webhook polling errors are not critical
+                pass
 
         except KeyboardInterrupt:
             print()

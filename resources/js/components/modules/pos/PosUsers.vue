@@ -101,7 +101,7 @@
                                     </div>
                                 </div>
                                 
-                                <div class="col-md-6">
+                                <div class="col-md-6" v-if="form.role_id != 3">
                                     <h6 class="border-bottom pb-2 mb-3">
                                         <i class="bi bi-printer"></i> Configuración de Impresora
                                     </h6>
@@ -281,13 +281,16 @@ const saveUser = async () => {
             username: form.username,
             role_id: form.role_id,
             enable: form.enable,
-            printer_ip: form.printer_ip || null,
-            printer_port: form.printer_port || 9100,
-            printer_type: form.printer_type || 'raw',
-            printer_width: parseInt(form.printer_width) || 80,
-            enable_print: form.enable_print ? '1' : '0',
-            mercadopago_qr_enabled: form.mercadopago_qr_enabled ? '1' : '0',
         };
+
+        if (form.role_id != 3) {
+            data.printer_ip = form.printer_ip || null;
+            data.printer_port = form.printer_port || 9100;
+            data.printer_type = form.printer_type || 'raw';
+            data.printer_width = parseInt(form.printer_width) || 80;
+            data.enable_print = form.enable_print ? '1' : '0';
+            data.mercadopago_qr_enabled = form.mercadopago_qr_enabled ? '1' : '0';
+        }
         
         if (editingUser.value) {
             if (form.password) {

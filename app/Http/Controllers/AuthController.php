@@ -79,6 +79,8 @@ class AuthController extends Controller
                     return response()->json(['message' => 'Usuario deshabilitado'], 401);
                 }
                 
+                $this->ensureQrPermission();
+                
                 $role = DB::table('roles')->find($user->role_id);
                 $permissions = $this->getPermissionsFromRole($role);
                 
@@ -521,6 +523,37 @@ private function getCompanyStatusMessage($statusId)
         return response()->json(['message' => $message], 401);
     }
     
+    private function ensureQrPermission()
+    {
+        $qrPerm = DB::table('permissions')->where('slug', 'pos-qr_read')->first();
+        if (!$qrPerm) {
+            $qrPermId = DB::table('permissions')->insertGetId([
+                'name' => 'Ver QR',
+                'slug' => 'pos-qr_read',
+                'module' => 'pos-qr',
+                'action' => 'read',
+                'created_at' => now(),
+                'updated_at' => now()
+            ]);
+        } else {
+            $qrPermId = $qrPerm->id;
+        }
+
+        $cashierRole = DB::table('roles')->where('name', 'cashier')->first();
+        if ($cashierRole) {
+            $exists = DB::table('role_permission')
+                ->where('role_id', $cashierRole->id)
+                ->where('permission_id', $qrPermId)
+                ->exists();
+            if (!$exists) {
+                DB::table('role_permission')->insert([
+                    'role_id' => $cashierRole->id,
+                    'permission_id' => $qrPermId
+                ]);
+            }
+        }
+    }
+
     private function ensurePosPermissions()
     {
         try {
@@ -537,6 +570,7 @@ private function getCompanyStatusMessage($statusId)
                 ['name' => 'Ver Usuarios POS', 'slug' => 'pos-users_read', 'module' => 'pos-users', 'action' => 'read'],
                 ['name' => 'Ver Configuración', 'slug' => 'pos-config_read', 'module' => 'pos-config', 'action' => 'read'],
                 ['name' => 'Ver QR', 'slug' => 'pos-qr_read', 'module' => 'pos-qr', 'action' => 'read'],
+                ['name' => 'Ver Dashboard', 'slug' => 'pos-dashboard_read', 'module' => 'pos-dashboard', 'action' => 'read'],
             ];
             
             // Insert POS permissions if they don't exist
@@ -562,6 +596,7 @@ private function getCompanyStatusMessage($statusId)
                     'pos-orders_read',
                     'pos-orders_create',
                     'pos-qr_read',
+                    'pos-dashboard_read',
                     'pos-categories_read',
                     'pos-products_read',
                     'pos-users_read',

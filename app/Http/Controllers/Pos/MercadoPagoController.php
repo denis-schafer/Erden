@@ -228,6 +228,13 @@ class MercadoPagoController extends Controller
             
             $paymentUrl = 'https://api.mercadopago.com/checkout/preferences';
             
+            // Build notification URL
+            $webhookCode = $configMap['webhook_code'] ?? '';
+            $notificationUrl = rtrim(preg_replace('/\/mp\/callback$/', '', $configMap['redirect_uri'] ?? config('app.url')), '/') . '/mp/webhook?company_db=' . $companyDb;
+            if (!empty($webhookCode)) {
+                $notificationUrl .= '&whc=' . urlencode($webhookCode);
+            }
+            
             $response = Http::withToken($accessToken)->post($paymentUrl, [
                 'items' => [
                     [
@@ -242,7 +249,7 @@ class MercadoPagoController extends Controller
                 'external_reference' => $externalReference,
                 // Usar redirect_uri de configs como base para notification_url
                 // redirect_uri tiene formato: https://tunnel-url/mp/callback, hay que quitar /mp/callback
-                'notification_url' => rtrim(preg_replace('/\/mp\/callback$/', '', $configMap['redirect_uri'] ?? config('app.url')), '/') . '/mp/webhook?company_db=' . $companyDb,
+                'notification_url' => $notificationUrl,
             ]);
             
             if ($response->failed()) {
@@ -344,6 +351,35 @@ class MercadoPagoController extends Controller
         Log::info('[MP Webhook] Query params:', $request->query->all());
         
         $payload = $request->all();
+        $rawPayload = $request->getContent();
+        $whc = $request->query('whc');
+        $companyDb = $request->query('company_db');
+        
+        // If webhook_code (whc) is present, this is a local mode webhook
+        // Store in webhooks_jobs and return OK (agent will forward to local server)
+        if (!empty($whc)) {
+            Log::info('[MP Webhook] whc=' . $whc . ' detected, storing for agent relay');
+            
+            try {
+                DB::connection('mysql_parent')
+                    ->table('webhooks_jobs')
+                    ->insert([
+                        'webhook_code' => $whc,
+                        'company_db' => $companyDb,
+                        'raw_payload' => $rawPayload,
+                        'topic' => $payload['topic'] ?? $request->query('topic'),
+                        'payment_id' => null,
+                        'status' => 'pending',
+                        'created_at' => now(),
+                    ]);
+                
+                Log::info('[MP Webhook] Stored in webhooks_jobs for agent relay');
+            } catch (\Exception $e) {
+                Log::error('[MP Webhook] Error storing webhook job: ' . $e->getMessage());
+            }
+            
+            return response()->json(['status' => 'ok']);
+        }
         
         try {
             // Obtener payment_id del webhook
@@ -382,7 +418,6 @@ class MercadoPagoController extends Controller
                 
                 if ($merchantOrderId) {
                     // Obtener access token primero para consultar el merchant_order
-                    $companyDb = $request->query('company_db');
                     if (!empty($companyDb)) {
                         Config::set('database.connections.mysql.database', $companyDb);
                         DB::purge('mysql');
@@ -409,8 +444,6 @@ class MercadoPagoController extends Controller
                 return response()->json(['status' => 'ok']);
             }
             
-            // Obtener company_db de la URL
-            $companyDb = $request->query('company_db');
             Log::info('[MP Webhook] company_db from URL: ' . ($companyDb ?? 'NULL'));
             
             if (empty($companyDb)) {

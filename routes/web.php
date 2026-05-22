@@ -187,11 +187,23 @@ Route::middleware(['web', 'setDatabase'])->group(function () {
         Route::post('/{id}/ack', [App\Http\Controllers\Pos\PrintJobController::class, 'ack']);
     });
 
+    // Webhook Agent API (autenticado por API key, no por sesión)
+    Route::prefix('webhooks-jobs')->middleware('printAgentAuth')->group(function () {
+        Route::get('/pending', [App\Http\Controllers\Pos\WebhookJobController::class, 'pending']);
+        Route::post('/{id}/ack', [App\Http\Controllers\Pos\WebhookJobController::class, 'ack']);
+    });
+
     // Print Agent info (autenticado por sesión normal)
     Route::prefix('print-agent')->group(function () {
         Route::get('/info', [App\Http\Controllers\Pos\PosConfigController::class, 'printAgentInfo']);
         Route::post('/regenerate', [App\Http\Controllers\Pos\PosConfigController::class, 'regeneratePrintAgentKey']);
         Route::get('/download', [App\Http\Controllers\Pos\PosConfigController::class, 'downloadAgent']);
+    });
+
+    // Webhook Code (autenticado por sesión normal)
+    Route::prefix('webhook-code')->group(function () {
+        Route::get('/', [App\Http\Controllers\Pos\PosConfigController::class, 'webhookCode']);
+        Route::put('/', [App\Http\Controllers\Pos\PosConfigController::class, 'updateWebhookCode']);
     });
 });
 

@@ -27,6 +27,7 @@ class PrintAgentAuth
         }
 
         $this->ensurePrintJobsTable();
+        $this->ensureWebhooksJobsTable();
 
         config(['database.connections.mysql.database' => $company->db]);
         DB::purge('mysql');
@@ -60,6 +61,42 @@ class PrintAgentAuth
                 $table->string('company_db')->after('id');
                 $table->index(['company_db', 'status']);
             });
+        }
+    }
+
+    private function ensureWebhooksJobsTable(): void
+    {
+        if (!Schema::connection('mysql_parent')->hasTable('webhooks_jobs')) {
+            Schema::connection('mysql_parent')->create('webhooks_jobs', function ($table) {
+                $table->id();
+                $table->string('webhook_code', 50)->nullable();
+                $table->string('company_db', 100)->nullable();
+                $table->longText('raw_payload');
+                $table->string('topic', 50)->nullable();
+                $table->string('payment_id', 50)->nullable();
+                $table->enum('status', ['pending', 'processed', 'forwarded'])->default('pending');
+                $table->timestamp('created_at')->useCurrent();
+                $table->timestamp('forwarded_at')->nullable();
+                $table->index(['webhook_code', 'status']);
+                $table->index(['company_db', 'status']);
+            });
+            $this->addCompanyDbIndexIfNeeded();
+        } elseif (!Schema::connection('mysql_parent')->hasColumn('webhooks_jobs', 'company_db')) {
+            Schema::connection('mysql_parent')->table('webhooks_jobs', function ($table) {
+                $table->string('company_db', 100)->nullable()->after('webhook_code');
+                $table->index(['company_db', 'status']);
+            });
+        }
+    }
+
+    private function addCompanyDbIndexIfNeeded(): void
+    {
+        try {
+            Schema::connection('mysql_parent')->table('webhooks_jobs', function ($table) {
+                $table->index(['company_db', 'status']);
+            });
+        } catch (\Exception $e) {
+            // Index may already exist
         }
     }
 }

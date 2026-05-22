@@ -109,6 +109,8 @@ class MigrationAll extends Command
             'database/migrations/2026_04_16_000003_rename_mp_configs.php',
             'database/migrations/2026_05_17_000001_add_print_agent_key_to_companies_table.php',
             'database/migrations/2026_05_18_122141_create_print_jobs_table_on_parent.php',
+            'database/migrations/2026_05_22_000002_add_webhook_code_to_companies_table.php',
+            'database/migrations/2026_05_22_000003_create_webhooks_jobs_table.php',
         ];
 
         foreach ($parentMigrations as $path) {
@@ -330,6 +332,13 @@ class MigrationAll extends Command
             $this->ensureTestModeConfig();
         } catch (\Exception $e) {
             $this->warn('Could not ensure test mode setup: ' . $e->getMessage());
+        }
+
+        // Step 10: Sync webhook_code from child config to parent companies table
+        try {
+            $this->syncWebhookCode($company);
+        } catch (\Exception $e) {
+            $this->warn('Could not sync webhook code: ' . $e->getMessage());
         }
 
         $this->info("Company {$company->name} completed.");
@@ -953,6 +962,41 @@ class MigrationAll extends Command
             $this->info('test_mode config created with default: 0');
         } else {
             $this->info('test_mode config already exists.');
+        }
+    }
+
+    protected function syncWebhookCode(object $company): void
+    {
+        $this->info('Sincronizando webhook_code...');
+
+        // Ensure we're on parent DB
+        config(['database.connections.mysql.database' => 'erden']);
+        DB::purge('mysql');
+        DB::reconnect('mysql');
+
+        // Ensure webhook_code column exists in companies table
+        try {
+            if (!Schema::hasColumn('companies', 'webhook_code')) {
+                DB::statement("ALTER TABLE companies ADD COLUMN webhook_code VARCHAR(50) NULL AFTER print_agent_key");
+                $this->info('webhook_code column added to companies table.');
+            }
+        } catch (\Exception $e) {
+            $this->warn('Could not verify webhook_code column: ' . $e->getMessage());
+        }
+
+        // Sync from child config to parent if child config exists
+        try {
+            $childConfig = DB::table('configs')->where('name', 'webhook_code')->first();
+            if ($childConfig && !empty($childConfig->value)) {
+                DB::table('companies')
+                    ->where('id', $company->id)
+                    ->update(['webhook_code' => $childConfig->value]);
+                $this->info("webhook_code synced from child config: {$childConfig->value}");
+            } else {
+                $this->info('No webhook_code config found in child DB or value is empty.');
+            }
+        } catch (\Exception $e) {
+            $this->warn('Could not sync webhook_code from child config: ' . $e->getMessage());
         }
     }
 }

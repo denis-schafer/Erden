@@ -112,4 +112,59 @@ class PosConfigController extends Controller
 
         return Storage::download($filePath, 'ErdenPrintAgent.exe');
     }
+
+    public function webhookCode(Request $request)
+    {
+        $sessionUser = $request->session()->get('user');
+        $company = $request->session()->get('company');
+
+        if (!$sessionUser || !$company) {
+            return response()->json(['error' => 'No autenticado'], 401);
+        }
+
+        $config = DB::table('configs')->where('name', 'webhook_code')->first();
+        return response()->json([
+            'webhook_code' => $config->value ?? '',
+        ]);
+    }
+
+    public function updateWebhookCode(Request $request)
+    {
+        $sessionUser = $request->session()->get('user');
+        $company = $request->session()->get('company');
+
+        if (!$sessionUser || !$company) {
+            return response()->json(['error' => 'No autenticado'], 401);
+        }
+
+        $isAdmin = $sessionUser['role_id'] == 1 || $request->session()->get('is_global_admin', false);
+        if (!$isAdmin) {
+            return response()->json(['error' => 'Solo administradores pueden modificar esta configuracion'], 403);
+        }
+
+        $validated = $request->validate([
+            'webhook_code' => 'nullable|string|max:50',
+        ]);
+
+        $webhookCode = $validated['webhook_code'] ?? '';
+
+        // Update child DB config
+        DB::table('configs')->updateOrInsert(
+            ['name' => 'webhook_code'],
+            ['value' => $webhookCode, 'type' => 'string', 'updated_at' => now(), 'created_at' => now()]
+        );
+
+        // Update parent DB companies table
+        DB::connection('mysql_parent')
+            ->table('companies')
+            ->where('db', $company['db'])
+            ->update(['webhook_code' => $webhookCode]);
+
+        Log::info("Webhook code updated for company DB: {$company['db']} = {$webhookCode}");
+
+        return response()->json([
+            'success' => true,
+            'webhook_code' => $webhookCode,
+        ]);
+    }
 }

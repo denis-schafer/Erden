@@ -169,6 +169,49 @@
             </div>
         </div>
 
+        <!-- Webhook Code Section -->
+        <div class="mt-4" v-if="showAgentSection">
+            <div class="setting-card">
+                <div class="setting-header">
+                    <h6 class="setting-title">
+                        <i class="bi bi-link-45deg me-1"></i>
+                        Código de Webhooks (Local Dev)
+                    </h6>
+                </div>
+                <div class="setting-description">
+                    <small class="text-muted">
+                        Código único para identificar esta empresa al usar webhooks en entorno local.
+                        Déjalo vacío si el VPS procesa los webhooks directamente.
+                    </small>
+                </div>
+                <div class="mt-3">
+                    <div class="input-group input-group-sm">
+                        <input type="text" 
+                               class="form-control font-monospace" 
+                               v-model="webhookCodeValue"
+                               placeholder="ej: mi-negocio-abc123"
+                               maxlength="50">
+                        <button class="btn btn-outline-primary" @click="saveWebhookCode" :disabled="savingWebhookCode">
+                            <span v-if="savingWebhookCode" class="spinner-border spinner-border-sm"></span>
+                            <i v-else class="bi bi-check-lg"></i>
+                            Guardar
+                        </button>
+                    </div>
+                    <div v-if="webhookCodeSaved" class="text-success small mt-1">
+                        <i class="bi bi-check-circle me-1"></i>
+                        Código guardado correctamente.
+                    </div>
+                    <div class="alert alert-info py-2 mb-0 mt-2">
+                        <small>
+                            <i class="bi bi-info-circle me-1"></i>
+                            Configura este mismo código en tu servidor local para que el agente forwardee los webhooks.
+                            Si está vacío, el VPS procesa los pagos normalmente.
+                        </small>
+                    </div>
+                </div>
+            </div>
+        </div>
+
         <!-- Test Mode Section -->
         <div class="mt-4">
             <div class="setting-card" :class="{ 'border-warning': testModeEnabled }">
@@ -239,6 +282,9 @@ const downloadAvailable = ref(false);
 const showBuildInstructions = ref(false);
 const testModeEnabled = ref(false);
 const confirmModal = ref(null);
+const webhookCodeValue = ref('');
+const savingWebhookCode = ref(false);
+const webhookCodeSaved = ref(false);
 
 const showAgentSection = computed(() => {
     const mode = settings.value.find(s => s.name === 'printing_mode');
@@ -397,6 +443,9 @@ const loadSettings = async () => {
 
         // Load print agent info
         await loadPrintAgentInfo();
+
+        // Load webhook code
+        await loadWebhookCode();
     } catch (error) {
         
     } finally {
@@ -449,6 +498,30 @@ const loadPrintAgentInfo = async () => {
         downloadAvailable.value = response.data?.download_available || false;
     } catch (error) {
         // Silently fail - agent info may not be configured yet
+    }
+};
+
+const loadWebhookCode = async () => {
+    try {
+        const response = await api.get('/pos/webhook-code');
+        webhookCodeValue.value = response.data?.webhook_code || '';
+    } catch (error) {
+        // Silently fail
+    }
+};
+
+const saveWebhookCode = async () => {
+    savingWebhookCode.value = true;
+    webhookCodeSaved.value = false;
+    try {
+        const response = await api.put('/pos/webhook-code', { webhook_code: webhookCodeValue.value });
+        webhookCodeValue.value = response.data?.webhook_code || '';
+        webhookCodeSaved.value = true;
+        setTimeout(() => { webhookCodeSaved.value = false; }, 3000);
+    } catch (error) {
+        // Silently fail
+    } finally {
+        savingWebhookCode.value = false;
     }
 };
 

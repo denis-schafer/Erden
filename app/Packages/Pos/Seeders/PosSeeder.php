@@ -53,6 +53,7 @@ class PosSeeder extends Seeder
             ['name' => 'Ver Estadísticas', 'slug' => 'pos-statistics_read', 'module' => 'pos-statistics', 'action' => 'read'],
             ['name' => 'Exportar Estadísticas', 'slug' => 'pos-statistics_export', 'module' => 'pos-statistics', 'action' => 'export'],
             ['name' => 'Ver Log', 'slug' => 'pos-log_read', 'module' => 'pos-log', 'action' => 'read'],
+            ['name' => 'Ver QR', 'slug' => 'pos-qr_read', 'module' => 'pos-qr', 'action' => 'read'],
         ];
 
         foreach ($permissions as $permission) {

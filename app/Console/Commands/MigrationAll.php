@@ -324,6 +324,14 @@ class MigrationAll extends Command
             $this->warn('Could not ensure stats role: ' . $e->getMessage());
         }
 
+        // Step 9: Ensure test_mode columns and config exist
+        try {
+            $this->ensureTestModeColumns();
+            $this->ensureTestModeConfig();
+        } catch (\Exception $e) {
+            $this->warn('Could not ensure test mode setup: ' . $e->getMessage());
+        }
+
         $this->info("Company {$company->name} completed.");
     }
 
@@ -907,6 +915,44 @@ class MigrationAll extends Command
             $this->info("print_agent_key generada: {$key}");
         } else {
             $this->info('print_agent_key ya existe.');
+        }
+    }
+
+    protected function ensureTestModeColumns(): void
+    {
+        $this->info('Verificando columnas test mode...');
+
+        $tables = ['orders', 'products', 'categories', 'users'];
+        foreach ($tables as $table) {
+            if (!Schema::hasTable($table)) {
+                $this->warn("Table {$table} does not exist, skipping.");
+                continue;
+            }
+            if (!Schema::hasColumn($table, 'test')) {
+                DB::statement("ALTER TABLE `{$table}` ADD COLUMN test TINYINT(1) NOT NULL DEFAULT 0");
+                $this->info("Column test added to {$table}.");
+            } else {
+                $this->info("Column test already exists in {$table}.");
+            }
+        }
+    }
+
+    protected function ensureTestModeConfig(): void
+    {
+        $this->info('Verificando test_mode config...');
+
+        $exists = DB::table('configs')->where('name', 'test_mode')->exists();
+        if (!$exists) {
+            DB::table('configs')->insert([
+                'name' => 'test_mode',
+                'value' => '0',
+                'type' => 'string',
+                'created_at' => now(),
+                'updated_at' => now(),
+            ]);
+            $this->info('test_mode config created with default: 0');
+        } else {
+            $this->info('test_mode config already exists.');
         }
     }
 }

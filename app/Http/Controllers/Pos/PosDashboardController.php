@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Pos;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use App\Http\Controllers\Controller;
+use App\Packages\Pos\Helpers\TestModeHelper;
 
 class PosDashboardController extends Controller
 {
@@ -61,6 +62,8 @@ class PosDashboardController extends Controller
         $baseQuery = DB::table('orders')
             ->whereBetween('created_at', [$startDate . ' 00:00:00', $endDate . ' 23:59:59'])
             ->where('status_id', '!=', 2);
+
+        TestModeHelper::applyFilter($baseQuery, 'orders');
         
         if ($userIdFilter) {
             $baseQuery->where('operator_id', $userIdFilter);
@@ -74,6 +77,7 @@ class PosDashboardController extends Controller
         $canceledQuery = DB::table('orders')
             ->whereBetween('created_at', [$startDate . ' 00:00:00', $endDate . ' 23:59:59'])
             ->where('status_id', 2);
+        TestModeHelper::applyFilter($canceledQuery, 'orders');
         if ($userIdFilter) {
             $canceledQuery->where('operator_id', $userIdFilter);
         }
@@ -113,11 +117,13 @@ class PosDashboardController extends Controller
             ->whereBetween('created_at', [$startDate . ' 00:00:00', $endDate . ' 23:59:59'])
             ->where('paid', 1)
             ->where('status_id', '!=', 2);
+        TestModeHelper::applyFilter($paidQuery, 'orders');
         
         $unpaidQuery = DB::table('orders')
             ->whereBetween('created_at', [$startDate . ' 00:00:00', $endDate . ' 23:59:59'])
             ->where('paid', 0)
             ->where('status_id', '!=', 2);
+        TestModeHelper::applyFilter($unpaidQuery, 'orders');
         
         if ($userIdFilter) {
             $paidQuery->where('operator_id', $userIdFilter);
@@ -155,6 +161,7 @@ class PosDashboardController extends Controller
             ->select('orders.detail')
             ->whereBetween('orders.created_at', [$startDate . ' 00:00:00', $endDate . ' 23:59:59'])
             ->where('status_id', '!=', 2);
+        TestModeHelper::applyFilter($query, 'orders');
         
         if ($userIdFilter) {
             $query->where('orders.operator_id', $userIdFilter);
@@ -202,6 +209,7 @@ class PosDashboardController extends Controller
             ->select(DB::raw('DATE(created_at) as date'), DB::raw('COUNT(*) as orders'), DB::raw('COALESCE(SUM(total), 0) as total'))
             ->whereBetween('created_at', [$startDate . ' 00:00:00', $endDate . ' 23:59:59'])
             ->where('status_id', '!=', 2);
+        TestModeHelper::applyFilter($query, 'orders');
         
         if ($userIdFilter) {
             $query->where('operator_id', $userIdFilter);
@@ -216,12 +224,13 @@ class PosDashboardController extends Controller
 
     public function cashiers(Request $request)
     {
-        $cashiers = DB::table('users')
+        $cashiersQuery = DB::table('users')
             ->select('id', 'name', 'username')
             ->where('role_id', 2)
             ->where('enable', true)
-            ->orderBy('name')
-            ->get();
+            ->orderBy('name');
+        TestModeHelper::applyFilter($cashiersQuery, 'users');
+        $cashiers = $cashiersQuery->get();
         
         return response()->json($cashiers);
     }

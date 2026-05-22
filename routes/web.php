@@ -152,6 +152,11 @@ Route::middleware(['web', 'setDatabase'])->group(function () {
         
         Route::get('/configs', [App\Http\Controllers\Pos\PosConfigController::class, 'index']);
         Route::put('/configs/{id}', [App\Http\Controllers\Pos\PosConfigController::class, 'update']);
+
+        // Test mode
+        Route::get('/test-mode/status', [App\Http\Controllers\Pos\PosTestModeController::class, 'status']);
+        Route::post('/test-mode/enable', [App\Http\Controllers\Pos\PosTestModeController::class, 'enable']);
+        Route::post('/test-mode/disable', [App\Http\Controllers\Pos\PosTestModeController::class, 'disable']);
         
         Route::get('/roles', [App\Http\Controllers\Pos\PosRoleController::class, 'index']);
         

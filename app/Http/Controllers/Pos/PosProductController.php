@@ -9,29 +9,34 @@ use App\Events\ProductUpdated;
 use App\Events\ProductDisabled;
 use App\Events\ProductEnabled;
 use App\Events\ProductReordered;
+use App\Packages\Pos\Helpers\TestModeHelper;
 
 class PosProductController extends Controller
 {
     public function index()
     {
-        $products = DB::table('products')
+        $query = DB::table('products')
             ->select('products.*', 'categories.name as category_name')
             ->join('categories', 'products.category_id', '=', 'categories.id')
             ->orderBy('products.order')
-            ->orderBy('products.name')
-            ->get();
+            ->orderBy('products.name');
+
+        TestModeHelper::applyFilter($query, 'products');
+        $products = $query->get();
         
         return response()->json($products);
     }
 
     public function byCategory($categoryId)
     {
-        $products = DB::table('products')
+        $query = DB::table('products')
             ->where('category_id', $categoryId)
             ->where('enable', true)
             ->orderBy('order')
-            ->orderBy('name')
-            ->get();
+            ->orderBy('name');
+
+        TestModeHelper::applyFilter($query, 'products');
+        $products = $query->get();
         
         return response()->json($products);
     }
@@ -48,7 +53,8 @@ class PosProductController extends Controller
             'order' => 'integer|min:0',
         ]);
 
-        $id = DB::table('products')->insertGetId($validated + ['created_at' => now(), 'updated_at' => now()]);
+        $productData = TestModeHelper::setTestFlag($validated + ['created_at' => now(), 'updated_at' => now()]);
+        $id = DB::table('products')->insertGetId($productData);
 
         $product = DB::table('products')->find($id);
         event(new ProductUpdated((array) $product));
@@ -68,7 +74,8 @@ class PosProductController extends Controller
             'order' => 'integer|min:0',
         ]);
 
-        DB::table('products')->where('id', $id)->update($validated + ['updated_at' => now()]);
+        $updateData = TestModeHelper::setTestFlag($validated + ['updated_at' => now()]);
+        DB::table('products')->where('id', $id)->update($updateData);
 
         $product = DB::table('products')->find($id);
         event(new ProductUpdated((array) $product));
@@ -82,7 +89,8 @@ class PosProductController extends Controller
             'enable' => 'required|boolean',
         ]);
 
-        DB::table('products')->where('id', $id)->update($validated + ['updated_at' => now()]);
+        $updateData = TestModeHelper::setTestFlag($validated + ['updated_at' => now()]);
+        DB::table('products')->where('id', $id)->update($updateData);
 
         $product = DB::table('products')->where('id', $id)->first();
         event(new ProductUpdated((array) $product));
@@ -110,10 +118,11 @@ class PosProductController extends Controller
 
         $newStatus = !$product->enable;
         
-        DB::table('products')->where('id', $id)->update([
+        $updateData = TestModeHelper::setTestFlag([
             'enable' => $newStatus,
             'updated_at' => now(),
         ]);
+        DB::table('products')->where('id', $id)->update($updateData);
 
         if (!$newStatus) {
             event(new ProductDisabled($id));
@@ -147,9 +156,10 @@ class PosProductController extends Controller
         ]);
         
         foreach ($orderData['orders'] as $item) {
+            $reorderData = TestModeHelper::setTestFlag(['order' => $item['order'], 'updated_at' => now()]);
             DB::table('products')
                 ->where('id', $item['id'])
-                ->update(['order' => $item['order'], 'updated_at' => now()]);
+                ->update($reorderData);
         }
         
         event(new ProductReordered($orderData['orders']));

@@ -9,6 +9,10 @@
                 aria-label="Close"
             ></button>
         </div>
+        <div v-if="testModeEnabled" class="test-mode-banner">
+            <i class="bi bi-bug-fill me-1"></i>
+            MODO TEST
+        </div>
         <nav class="sidebar-nav">
             <template v-for="module in visibleModules" :key="module.id">
                 <div 
@@ -46,6 +50,7 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue';
 import { useAuthStore } from '../../stores/auth';
+import api from '../../services/api';
 
 const props = defineProps({
     isOpen: {
@@ -67,6 +72,16 @@ const emit = defineEmits(['navigate', 'close']);
 const authStore = useAuthStore();
 const expandedGroups = ref([]);
 const sidebarLogoSvg = ref('');
+const testModeEnabled = ref(false);
+
+const loadTestModeStatus = async () => {
+    try {
+        const response = await api.get('/pos/test-mode/status');
+        testModeEnabled.value = response.data?.enabled || false;
+    } catch {
+        testModeEnabled.value = false;
+    }
+};
 
 const loadSidebarLogo = async () => {
     try {
@@ -80,6 +95,7 @@ const loadSidebarLogo = async () => {
 
 onMounted(() => {
     loadSidebarLogo();
+    loadTestModeStatus();
 });
 
 const isVisible = computed(() => {
@@ -181,7 +197,19 @@ onMounted(() => {
             }
         }
     });
+
+    // Listen for test mode changes via WebSocket
+    if (window.Echo) {
+        window.Echo.channel('configs')
+            .listen('.ConfigUpdated', (data) => {
+                if (data?.name === 'test_mode') {
+                    testModeEnabled.value = data.value === '1';
+                }
+            });
+    }
 });
+
+
 </script>
 
 <style scoped>
@@ -235,6 +263,17 @@ onMounted(() => {
     display: flex;
     justify-content: space-between;
     align-items: center;
+}
+
+.test-mode-banner {
+    background-color: #ffc107;
+    color: #212529;
+    text-align: center;
+    padding: 4px 8px;
+    font-size: 0.75rem;
+    font-weight: 700;
+    letter-spacing: 1px;
+    text-transform: uppercase;
 }
 
 @media (min-width: 992px) {

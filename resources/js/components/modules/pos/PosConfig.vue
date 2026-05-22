@@ -168,13 +168,62 @@
                 </div>
             </div>
         </div>
+
+        <!-- Test Mode Section -->
+        <div class="mt-4">
+            <div class="setting-card" :class="{ 'border-warning': testModeEnabled }">
+                <div class="setting-header">
+                    <h6 class="setting-title">
+                        <i class="bi" :class="testModeEnabled ? 'bi-bug-fill text-warning' : 'bi-shield-check text-success'"></i>
+                        Modo de Operación
+                    </h6>
+                </div>
+                <div class="setting-description">
+                    <small class="text-muted">
+                        En modo Test puedes crear datos de prueba sin afectar la producción.
+                        Al volver a Producción se eliminarán automáticamente.
+                    </small>
+                </div>
+                <div class="mt-3">
+                    <div class="d-flex gap-3">
+                        <button 
+                            class="btn flex-fill" 
+                            :class="testModeEnabled ? 'btn-outline-success' : 'btn-success'"
+                            @click="setTestMode(false)"
+                            :disabled="!testModeEnabled"
+                        >
+                            <i class="bi bi-shield-check me-1"></i>
+                            Producción
+                        </button>
+                        <button 
+                            class="btn flex-fill" 
+                            :class="testModeEnabled ? 'btn-warning' : 'btn-outline-warning'"
+                            @click="confirmTestMode"
+                            :disabled="testModeEnabled"
+                        >
+                            <i class="bi bi-bug me-1"></i>
+                            Test
+                        </button>
+                    </div>
+                    <div v-if="testModeEnabled" class="alert alert-warning mt-3 mb-0 py-2">
+                        <small>
+                            <i class="bi bi-exclamation-triangle me-1"></i>
+                            Estás en <strong>Modo Test</strong>. Los datos creados se eliminarán al volver a Producción.
+                        </small>
+                    </div>
+                </div>
+            </div>
+        </div>
     </div>
+
+    <ConfirmModal ref="confirmModal" />
 </template>
 
 <script setup>
 import { ref, computed, onMounted, onUnmounted } from 'vue';
 import api from '../../../services/api';
 import { useAuthStore } from '../../../stores/auth';
+import ConfirmModal from '../../../components/ConfirmModal.vue';
 
 const settings = ref([]);
 const loading = ref(false);
@@ -188,6 +237,8 @@ const serverUrl = ref('');
 const regenerating = ref(false);
 const downloadAvailable = ref(false);
 const showBuildInstructions = ref(false);
+const testModeEnabled = ref(false);
+const confirmModal = ref(null);
 
 const showAgentSection = computed(() => {
     const mode = settings.value.find(s => s.name === 'printing_mode');
@@ -341,12 +392,52 @@ const loadSettings = async () => {
         const allowedSettings = ['business_name', 'business_address', 'business_phone', 'business_nit', 'ticket_title', 'redirect_uri', 'mp_access_token', 'printing_mode'];
         settings.value = allSettings.filter(s => allowedSettings.includes(s.name));
 
+        // Load test mode status
+        await loadTestModeStatus();
+
         // Load print agent info
         await loadPrintAgentInfo();
     } catch (error) {
         
     } finally {
         loading.value = false;
+    }
+};
+
+const loadTestModeStatus = async () => {
+    try {
+        const response = await api.get('/pos/test-mode/status');
+        testModeEnabled.value = response.data?.enabled || false;
+    } catch (error) {
+        testModeEnabled.value = false;
+    }
+};
+
+const confirmTestMode = () => {
+    confirmModal.value.open({
+        title: 'Activar Modo Test',
+        message: 'Podrás crear datos de prueba sin afectar la producción.',
+        confirmText: 'Activar',
+        type: 'warning',
+        onConfirm: async () => {
+            await api.post('/pos/test-mode/enable');
+            testModeEnabled.value = true;
+        }
+    });
+};
+
+const setTestMode = async (enabled) => {
+    if (!enabled && testModeEnabled.value) {
+        confirmModal.value.open({
+            title: 'Volver a Producción',
+            message: 'Se eliminarán TODOS los datos de prueba (órdenes, productos, categorías, usuarios) creados en modo Test.',
+            confirmText: 'Volver a Producción',
+            type: 'danger',
+            onConfirm: async () => {
+                await api.post('/pos/test-mode/disable');
+                testModeEnabled.value = false;
+            }
+        });
     }
 };
 

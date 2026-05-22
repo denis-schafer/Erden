@@ -399,3 +399,42 @@ Archivos modificados:
 - versiones.txt
 
 ---
+
+[Modo Test - POS]
+Fecha: 2026-05-22
+Estado: Completado
+
+Cambios realizados:
+- Nueva migración: 2026_05_22_000001_add_test_mode.php (ADD COLUMN test a orders, products, categories, users + config test_mode)
+- TestModeHelper: isTestMode(), applyFilter(), setTestFlag(), purgeTestData()
+- PosTestModeController: enable/disable/status endpoints
+- Controladores modificados: PosOrderController, PosProductController, PosCategoryController, PosUserController, PosDashboardController, PosStatisticsController (filtran WHERE test=0 en producción, setean test=1 en modo test)
+- PosLogService: salta escritura de logs en modo test
+- MigrationAll.php: ensureTestModeColumns() + ensureTestModeConfig() en processCompany()
+- ConfigSeeder: semilla test_mode=0
+- PosConfig.vue: toggle Producción/Test con modal de confirmación (ConfirmModal)
+- Sidebar.vue: banner "MODO TEST" visible en sidebar + actualización vía WebSocket (canal configs, evento ConfigUpdated)
+- Rutas: /pos/test-mode/{status|enable|disable}
+- Build exitoso
+
+Archivos nuevos:
+- app/Packages/Pos/Migrations/2026_05_22_000001_add_test_mode.php
+- app/Packages/Pos/Helpers/TestModeHelper.php
+- app/Http/Controllers/Pos/PosTestModeController.php
+
+Archivos modificados:
+- routes/web.php
+- app/Http/Controllers/Pos/PosOrderController.php
+- app/Http/Controllers/Pos/PosProductController.php
+- app/Http/Controllers/Pos/PosCategoryController.php
+- app/Http/Controllers/Pos/PosUserController.php
+- app/Http/Controllers/Pos/PosDashboardController.php
+- app/Http/Controllers/Pos/PosStatisticsController.php
+- app/Services/PosLogService.php
+- app/Packages/Pos/Seeders/ConfigSeeder.php
+- app/Console/Commands/MigrationAll.php
+- resources/js/components/modules/pos/PosConfig.vue
+- resources/js/components/layout/Sidebar.vue
+- versiones.txt
+
+---

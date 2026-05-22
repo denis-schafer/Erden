@@ -21,6 +21,9 @@ class ConfigSeeder extends Seeder
             ['name' => 'redirect_uri', 'value' => '', 'type' => 'text'],
             ['name' => 'mp_access_token', 'value' => '', 'type' => 'text'],
             ['name' => 'mp_token_expires_at', 'value' => '', 'type' => 'text'],
+            
+            // Test mode
+            ['name' => 'test_mode', 'value' => '0', 'type' => 'string'],
         ];
 
         foreach ($configs as $config) {

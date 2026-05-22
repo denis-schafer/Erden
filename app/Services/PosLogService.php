@@ -2,10 +2,16 @@
 
 namespace App\Services;
 
+use App\Packages\Pos\Helpers\TestModeHelper;
+
 class PosLogService
 {
     public static function writeLog(string $module, string $action, string $details, ?int $userId = null): void
     {
+        if (TestModeHelper::isTestMode()) {
+            return;
+        }
+
         try {
             $databaseName = self::getDatabaseName();
             $logDir = storage_path('logs/' . $databaseName);

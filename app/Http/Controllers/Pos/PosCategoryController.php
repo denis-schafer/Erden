@@ -8,14 +8,17 @@ use App\Http\Controllers\Controller;
 use App\Events\CategoryDisabled;
 use App\Events\CategoryEnabled;
 use App\Events\CategoryUpdated;
+use App\Packages\Pos\Helpers\TestModeHelper;
 
 class PosCategoryController extends Controller
 {
     public function index()
     {
-        $categories = DB::table('categories')
-            ->orderBy('name')
-            ->get();
+        $query = DB::table('categories')
+            ->orderBy('name');
+
+        TestModeHelper::applyFilter($query, 'categories');
+        $categories = $query->get();
         
         return response()->json($categories);
     }
@@ -28,7 +31,8 @@ class PosCategoryController extends Controller
             'enable' => 'boolean',
         ]);
 
-        $id = DB::table('categories')->insertGetId($validated + ['created_at' => now(), 'updated_at' => now()]);
+        $categoryData = TestModeHelper::setTestFlag($validated + ['created_at' => now(), 'updated_at' => now()]);
+        $id = DB::table('categories')->insertGetId($categoryData);
 
         if (!empty($validated['default'])) {
             DB::table('categories')->where('id', '!=', $id)->update(['default' => 0]);
@@ -47,7 +51,8 @@ class PosCategoryController extends Controller
             'enable' => 'boolean',
         ]);
 
-        DB::table('categories')->where('id', $id)->update($validated + ['updated_at' => now()]);
+        $updateData = TestModeHelper::setTestFlag($validated + ['updated_at' => now()]);
+        DB::table('categories')->where('id', $id)->update($updateData);
 
         if (!empty($validated['default'])) {
             DB::table('categories')->where('id', '!=', $id)->update(['default' => 0]);
@@ -75,10 +80,11 @@ class PosCategoryController extends Controller
 
         $newStatus = !$category->enable;
         
-        DB::table('categories')->where('id', $id)->update([
+        $statusUpdateData = TestModeHelper::setTestFlag([
             'enable' => $newStatus,
             'updated_at' => now(),
         ]);
+        DB::table('categories')->where('id', $id)->update($statusUpdateData);
 
         if (!$newStatus) {
             event(new CategoryDisabled($id));

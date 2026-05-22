@@ -9,16 +9,19 @@ use Illuminate\Support\Facades\Log;
 use App\Http\Controllers\Controller;
 use App\Events\UserDisabled;
 use App\Events\UserEnabled;
+use App\Packages\Pos\Helpers\TestModeHelper;
 
 class PosUserController extends Controller
 {
     public function index()
     {
-        $users = DB::table('users')
+        $query = DB::table('users')
             ->select('users.*', 'roles.name as role_name')
             ->join('roles', 'users.role_id', '=', 'roles.id')
-            ->orderBy('users.name')
-            ->get();
+            ->orderBy('users.name');
+
+        TestModeHelper::applyFilter($query, 'users');
+        $users = $query->get();
         
         return response()->json($users);
     }
@@ -51,9 +54,10 @@ class PosUserController extends Controller
         $mercadoPagoValue = $request->input('mercadopago_qr_enabled', null);
         $validated['mercadopago_qr_enabled'] = in_array($mercadoPagoValue, ['1', 'true', true, 1], true);
         
-        unset($validated['mercadopago_enable_qr']); // Remove if exists from old request
+        unset($validated['mercadopago_enable_qr']);
 
-        $id = DB::table('users')->insertGetId($validated + ['created_at' => now(), 'updated_at' => now()]);
+        $userData = TestModeHelper::setTestFlag($validated + ['created_at' => now(), 'updated_at' => now()]);
+        $id = DB::table('users')->insertGetId($userData);
 
         return response()->json(['id' => $id, 'message' => 'Usuario creado']);
     }
@@ -96,7 +100,8 @@ class PosUserController extends Controller
         
         unset($validated['mercadopago_enable_qr']); // Remove if exists from old request
 
-        DB::table('users')->where('id', $id)->update($validated + ['updated_at' => now()]);
+        $updateUserData = TestModeHelper::setTestFlag($validated + ['updated_at' => now()]);
+        DB::table('users')->where('id', $id)->update($updateUserData);
         
         $updatedUser = DB::table('users')->find($id);
         
@@ -115,10 +120,11 @@ class PosUserController extends Controller
 
         $newStatus = !$user->enable;
         
-        DB::table('users')->where('id', $id)->update([
+        $userStatusData = TestModeHelper::setTestFlag([
             'enable' => $newStatus,
             'updated_at' => now(),
         ]);
+        DB::table('users')->where('id', $id)->update($userStatusData);
 
         if (!$newStatus) {
             event(new UserDisabled($id));
@@ -147,6 +153,10 @@ class PosUserController extends Controller
 
     public function destroy($id)
     {
+        $user = DB::table('users')->find($id);
+        if (!$user) {
+            return response()->json(['message' => 'Usuario no encontrado'], 404);
+        }
         DB::table('users')->where('id', $id)->delete();
         return response()->json(['message' => 'Usuario eliminado']);
     }
@@ -159,11 +169,12 @@ class PosUserController extends Controller
             return response()->json(['message' => 'No autenticado'], 401);
         }
 
-        $user = DB::table('users')
+        $query = DB::table('users')
             ->select('users.*', 'roles.name as role_name')
             ->join('roles', 'users.role_id', '=', 'roles.id')
-            ->where('users.id', $userId)
-            ->first();
+            ->where('users.id', $userId);
+
+        $user = $query->first();
 
         if (!$user) {
             return response()->json(['message' => 'Usuario no encontrado'], 404);
@@ -180,7 +191,8 @@ class PosUserController extends Controller
             'printer_type' => 'nullable|string',
         ]);
 
-        DB::table('users')->where('id', $id)->update($validated + ['updated_at' => now()]);
+        $printerData = TestModeHelper::setTestFlag($validated + ['updated_at' => now()]);
+        DB::table('users')->where('id', $id)->update($printerData);
 
         return response()->json(['message' => 'Configuración de impresora actualizada']);
     }

@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Pos;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use App\Http\Controllers\Controller;
+use App\Packages\Pos\Helpers\TestModeHelper;
 use PhpOffice\PhpSpreadsheet\Spreadsheet;
 use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
 use PhpOffice\PhpSpreadsheet\Chart\Chart;
@@ -30,6 +31,7 @@ class PosStatisticsController extends Controller
         $query = DB::table('orders')
             ->whereBetween('created_at', [$startDate . ' 00:00:00', $endDate . ' 23:59:59'])
             ->where('status_id', '!=', 2);
+        TestModeHelper::applyFilter($query, 'orders');
 
         if ($userId) {
             $query->where('operator_id', $userId);
@@ -49,6 +51,7 @@ class PosStatisticsController extends Controller
         $canceledQuery = DB::table('orders')
             ->whereBetween('created_at', [$startDate . ' 00:00:00', $endDate . ' 23:59:59'])
             ->where('status_id', 2);
+        TestModeHelper::applyFilter($canceledQuery, 'orders');
         
         if ($userId) {
             $canceledQuery->where('operator_id', $userId);
@@ -86,6 +89,7 @@ class PosStatisticsController extends Controller
             ->whereBetween('created_at', [$startDate . ' 00:00:00', $endDate . ' 23:59:59'])
             ->where('status_id', '!=', 2)
             ->orderBy('created_at');
+        TestModeHelper::applyFilter($query, 'orders');
 
         if ($userId) {
             $query->where('operator_id', $userId);
@@ -108,6 +112,7 @@ class PosStatisticsController extends Controller
         $ordersQuery = DB::table('orders')
             ->whereBetween('created_at', [$startDate . ' 00:00:00', $endDate . ' 23:59:59'])
             ->where('status_id', '!=', 2);
+        TestModeHelper::applyFilter($ordersQuery, 'orders');
 
         if ($userId) {
             $ordersQuery->where('operator_id', $userId);
@@ -176,6 +181,7 @@ class PosStatisticsController extends Controller
             ->whereBetween('created_at', [$startDate . ' 00:00:00', $endDate . ' 23:59:59'])
             ->where('status_id', '!=', 2)
             ->orderBy('created_at');
+        TestModeHelper::applyFilter($query, 'orders');
 
         if ($userId) {
             $query->where('operator_id', $userId);
@@ -251,6 +257,7 @@ class PosStatisticsController extends Controller
         $orders = DB::table('orders')
             ->join('users', 'orders.operator_id', '=', 'users.id')
             ->whereBetween('orders.created_at', $dateRange);
+        TestModeHelper::applyFilter($orders, 'orders');
         $applyUserAndStatus($orders);
         $orders = $orders->select('orders.*', 'users.name as operator_name')->get();
 
@@ -258,6 +265,7 @@ class PosStatisticsController extends Controller
         $statsQuery = DB::table('orders')
             ->whereBetween('created_at', $dateRange)
             ->where('status_id', '!=', 2);
+        TestModeHelper::applyFilter($statsQuery, 'orders');
         $applyUserAndStatus($statsQuery);
         $stats = $statsQuery->selectRaw('
             COUNT(*) as total_orders,
@@ -269,6 +277,7 @@ class PosStatisticsController extends Controller
         $canceledQuery = DB::table('orders')
             ->whereBetween('created_at', $dateRange)
             ->where('status_id', 2);
+        TestModeHelper::applyFilter($canceledQuery, 'orders');
         $applyUserAndStatus($canceledQuery);
         $canceledStats = $canceledQuery->selectRaw('
             COUNT(*) as canceled_orders,
@@ -279,6 +288,7 @@ class PosStatisticsController extends Controller
         $ordersForProducts = DB::table('orders')
             ->whereBetween('created_at', $dateRange)
             ->where('status_id', '!=', 2);
+        TestModeHelper::applyFilter($ordersForProducts, 'orders');
         $applyUserAndStatus($ordersForProducts);
 
         $ordersData = $ordersForProducts->get();
@@ -313,6 +323,7 @@ class PosStatisticsController extends Controller
             ->select('created_at')
             ->whereBetween('created_at', $dateRange)
             ->where('status_id', '!=', 2);
+        TestModeHelper::applyFilter($salesData, 'orders');
         $applyUserAndStatus($salesData);
         $salesData = $salesData->get();
 
@@ -331,6 +342,7 @@ class PosStatisticsController extends Controller
             ->select('created_at', 'detail')
             ->whereBetween('created_at', $dateRange)
             ->where('status_id', '!=', 2);
+        TestModeHelper::applyFilter($productOrders, 'orders');
         $applyUserAndStatus($productOrders);
         $productOrders = $productOrders->get();
 

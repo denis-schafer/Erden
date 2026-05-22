@@ -9,6 +9,7 @@ use App\Http\Controllers\Controller;
 use App\Events\OrderCreated;
 use App\Events\OrderUpdated;
 use App\Events\OrderDeleted;
+use App\Packages\Pos\Helpers\TestModeHelper;
 use App\Services\PrintJobService;
 
 class PosOrderController extends Controller
@@ -20,6 +21,8 @@ class PosOrderController extends Controller
             ->join('users', 'orders.operator_id', '=', 'users.id')
             ->join('status_orders', 'orders.status_id', '=', 'status_orders.id')
             ->orderBy('orders.created_at', 'desc');
+
+        TestModeHelper::applyFilter($query, 'orders');
 
         if ($request->has('status') && $request->status !== '') {
             $query->where('orders.status_id', $request->status);
@@ -50,7 +53,7 @@ class PosOrderController extends Controller
             'paid' => 'boolean',
         ]);
 
-        $id = DB::table('orders')->insertGetId([
+        $orderData = TestModeHelper::setTestFlag([
             'dni' => $validated['dni'] ?? null,
             'detail' => json_encode($validated['detail']),
             'total' => $validated['total'],
@@ -60,6 +63,8 @@ class PosOrderController extends Controller
             'created_at' => now(),
             'updated_at' => now(),
         ]);
+
+        $id = DB::table('orders')->insertGetId($orderData);
 
         $order = DB::table('orders')->where('id', $id)->first();
 

@@ -356,30 +356,68 @@ class MercadoPagoController extends Controller
         $whc = $request->query('whc');
         $companyDb = $request->query('company_db');
         
-        // If webhook_code (whc) is present, this is a local mode webhook
-        // Store in webhooks_jobs and return OK (agent will forward to local server)
+        // If webhook_code (whc) is present
         if (!empty($whc)) {
-            Log::info('[MP Webhook] whc=' . $whc . ' detected, storing for agent relay');
-            
-            try {
-                DB::connection('mysql_parent')
-                    ->table('webhooks_jobs')
-                    ->insert([
-                        'webhook_code' => $whc,
-                        'company_db' => $companyDb,
-                        'raw_payload' => $rawPayload,
-                        'topic' => $payload['topic'] ?? $request->query('topic'),
-                        'payment_id' => null,
-                        'status' => 'pending',
-                        'created_at' => now(),
-                    ]);
+            // If company_db is present -> VPS mode: store in webhooks_jobs (agent will forward)
+            // If company_db is absent -> Local mode: look up company_db and process
+            if (!empty($companyDb)) {
+                // VPS mode: store for agent relay with dedup
+                Log::info('[MP Webhook] whc=' . $whc . ' detected (VPS mode), storing for agent relay');
                 
-                Log::info('[MP Webhook] Stored in webhooks_jobs for agent relay');
-            } catch (\Exception $e) {
-                Log::error('[MP Webhook] Error storing webhook job: ' . $e->getMessage());
+                try {
+                    // Dedup: skip if same raw_payload already pending for this webhook_code
+                    $existing = DB::connection('mysql_parent')
+                        ->table('webhooks_jobs')
+                        ->where('webhook_code', $whc)
+                        ->where('raw_payload', $rawPayload)
+                        ->where('status', 'pending')
+                        ->exists();
+                    
+                    if (!$existing) {
+                        DB::connection('mysql_parent')
+                            ->table('webhooks_jobs')
+                            ->insert([
+                                'webhook_code' => $whc,
+                                'company_db' => $companyDb,
+                                'raw_payload' => $rawPayload,
+                                'topic' => $payload['topic'] ?? $request->query('topic'),
+                                'payment_id' => null,
+                                'status' => 'pending',
+                                'created_at' => now(),
+                            ]);
+                        
+                        Log::info('[MP Webhook] Stored in webhooks_jobs for agent relay');
+                    } else {
+                        Log::info('[MP Webhook] Duplicate webhook, skipping');
+                    }
+                } catch (\Exception $e) {
+                    Log::error('[MP Webhook] Error storing webhook job: ' . $e->getMessage());
+                }
+                
+                return response()->json(['status' => 'ok']);
             }
             
-            return response()->json(['status' => 'ok']);
+            // Local mode: whc present, company_db absent (forwarded by agent)
+            // Look up company_db from parent companies table using webhook_code
+            Log::info('[MP Webhook] whc=' . $whc . ' detected (local mode), looking up company');
+            
+            try {
+                $company = DB::connection('mysql_parent')
+                    ->table('companies')
+                    ->where('webhook_code', $whc)
+                    ->first();
+                
+                if (!$company || empty($company->db)) {
+                    Log::warning('[MP Webhook] No company found for webhook_code: ' . $whc);
+                    return response()->json(['status' => 'ok']);
+                }
+                
+                $companyDb = $company->db;
+                Log::info('[MP Webhook] Resolved company_db=' . $companyDb . ' from whc=' . $whc);
+            } catch (\Exception $e) {
+                Log::error('[MP Webhook] Error looking up company: ' . $e->getMessage());
+                return response()->json(['status' => 'ok']);
+            }
         }
         
         try {

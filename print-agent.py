@@ -212,8 +212,9 @@ def poll_loop(config):
 
                     for wh_job in webhooks:
                         try:
-                            print("    -> Webhook #{} forwardeando a localhost... ".format(
-                                wh_job["id"]
+                            wh_code = wh_job.get("webhook_code", "")
+                            print("    -> Webhook #{} ({}) forwardeando a localhost... ".format(
+                                wh_job["id"], wh_code
                             ), end="", flush=True)
 
                             # Parse the raw payload and forward to local server
@@ -222,9 +223,10 @@ def poll_loop(config):
                             except (json.JSONDecodeError, TypeError):
                                 payload_data = wh_job["raw_payload"]
 
-                            # Forward to local server (same endpoint path)
+                            # Forward to local server with whc parameter
+                            # Local server will look up company_db from companies.webhook_code
                             forward_headers = {"Content-Type": "application/json"}
-                            forward_url = "{}/mp/webhook".format(local_server_url)
+                            forward_url = "{}/mp/webhook?whc={}".format(local_server_url, wh_code)
 
                             r_forward = requests.post(
                                 forward_url,

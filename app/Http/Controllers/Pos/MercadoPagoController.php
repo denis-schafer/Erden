@@ -341,6 +341,7 @@ class MercadoPagoController extends Controller
     
     public function webhook(Request $request)
     {
+        error_log('[MP WEBHOOK ENTRY] ' . $request->method() . ' ' . $request->fullUrl());
         // Log EXTENSIVO para debugging
         Log::info('[MP Webhook] === NUEVO REQUEST ===');
         Log::info('[MP Webhook] Method: ' . $request->method());

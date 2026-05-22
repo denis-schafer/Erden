@@ -228,6 +228,7 @@ const setupOrderPaidListener = () => {
     
     window.Echo.channel(`user.${operatorId}`)
         .listen('.OrderPaid', (data) => {
+            console.log('[PosOrders] OrderPaid received:', JSON.stringify({ orderId: data.order?.id }));
             loadData();
         });
 };

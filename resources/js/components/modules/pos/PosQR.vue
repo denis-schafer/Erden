@@ -430,6 +430,7 @@ const closeOrder = () => {
 };
 
 const showPaymentSuccess = () => {
+    console.log('[PosQR] showPaymentSuccess called, orderId:', order.value?.id);
     const currentOrderId = order.value?.id;
     
     paymentSuccess.value = true;
@@ -582,7 +583,9 @@ onMounted(() => {
     // Suscribirse al canal del operador cuando se monte el componente
     // Esto funciona igual que en PosCaja - suscripción directa
     const setupWebSocket = () => {
+        console.log('[PosQR] setupWebSocket called, Echo:', !!window.Echo, 'order:', order.value?.id, 'authStore.user:', authStore.user?.id);
         if (!window.Echo) {
+            console.log('[PosQR] Echo not ready, retrying in 500ms');
             setTimeout(setupWebSocket, 500);
             return;
         }
@@ -590,22 +593,28 @@ onMounted(() => {
         // Usar el operator_id de la orden actual, o del usuario autenticado
         const operatorId = order.value?.operator_id || authStore.user?.id;
         if (!operatorId) {
+            console.log('[PosQR] No operatorId available, skipping subscription');
             return;
         }
         
+        console.log('[PosQR] Subscribing to user.' + operatorId);
         // Limpiar suscripción anterior si existe
         window.Echo.leaveChannel(`user.${operatorId}`);
         window.Echo.channel(`user.${operatorId}`)
             .listen('.OrderPaid', (data) => {
+                console.log('[PosQR] OrderPaid received:', JSON.stringify({ orderId: data.order?.id, currentOrderId: order.value?.id, closedOrderId: closedOrderId.value }));
                 // Evitar procesar si la orden ya se cerró o es una orden diferente
                 if (!data.order || closedOrderId.value === data.order.id) {
+                    console.log('[PosQR] Ignoring OrderPaid - order already closed or different', { hasOrder: !!data.order, closedMatch: closedOrderId.value === data.order?.id });
                     return;
                 }
                 // Call showPaymentSuccess directly - order is already updated
                 if (data.order?.id === order.value?.id) {
                     order.value = data.order;
-                    // Call showPaymentSuccess IMMEDIATELY (don't wait for polling)
+                    console.log('[PosQR] Calling showPaymentSuccess');
                     showPaymentSuccess();
+                } else {
+                    console.log('[PosQR] Order ID mismatch', { eventOrderId: data.order?.id, currentOrderId: order.value?.id });
                 }
             });
     };

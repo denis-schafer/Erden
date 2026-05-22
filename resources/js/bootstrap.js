@@ -36,8 +36,10 @@ const initWebSockets = async () => {
         });
         
         window.Echo = echo;
+        console.log('[Echo] Initialized, host:', wsHost, 'port:', defaultPort);
         
         const usersChannel = window.Echo.channel('users');
+        console.log('[Echo] Subscribed to users channel');
         
         usersChannel.listen('.UserSettingsUpdated', (event) => {
             window.dispatchEvent(new CustomEvent('pos-user-settings-updated', {
@@ -64,9 +66,11 @@ const initWebSockets = async () => {
         });
 
         usersChannel.listen('.OrderPaid', (event) => {
+            console.log('[Echo] OrderPaid received on users channel:', JSON.stringify(event));
             window.dispatchEvent(new CustomEvent('order-paid', {
                 detail: { ...event }
             }));
+            console.log('[Echo] Dispatched order-paid custom event');
         });
 
         window.Echo.channel('configs').listen('.ConfigUpdated', (event) => {

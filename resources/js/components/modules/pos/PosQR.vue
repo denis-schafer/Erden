@@ -598,8 +598,6 @@ onMounted(() => {
         }
         
         console.log('[PosQR] Subscribing to user.' + operatorId);
-        // Limpiar suscripción anterior si existe
-        window.Echo.leaveChannel(`user.${operatorId}`);
         window.Echo.channel(`user.${operatorId}`)
             .listen('.OrderPaid', (data) => {
                 console.log('[PosQR] OrderPaid received:', JSON.stringify({ orderId: data.order?.id, currentOrderId: order.value?.id, closedOrderId: closedOrderId.value }));

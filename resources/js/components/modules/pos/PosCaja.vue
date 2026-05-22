@@ -449,11 +449,6 @@ const setupOrderPaidListener = () => {
     
     const operatorId = authStore.user.id;
     
-    // Clean up previous listener if exists
-    if (window.Echo.leaveChannel) {
-        window.Echo.leaveChannel(`user.${operatorId}`);
-    }
-    
     window.Echo.channel(`user.${operatorId}`)
         .listen('.OrderPaid', (data) => {
             if (showOrdersModal.value) {

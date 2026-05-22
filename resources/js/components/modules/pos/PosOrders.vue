@@ -222,10 +222,6 @@ const setupOrderPaidListener = () => {
     
     const operatorId = authStore.user.id;
     
-    if (window.Echo.leaveChannel) {
-        window.Echo.leaveChannel(`user.${operatorId}`);
-    }
-    
     window.Echo.channel(`user.${operatorId}`)
         .listen('.OrderPaid', (data) => {
             console.log('[PosOrders] OrderPaid received:', JSON.stringify({ orderId: data.order?.id }));

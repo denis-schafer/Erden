@@ -241,21 +241,25 @@ def poll_loop(config):
                                 print("ERROR: Servidor respondio {}".format(r_forward.status_code))
 
                             # Always ACK the job to avoid reprocessing
-                            requests.post(
+                            r_ack = requests.post(
                                 webhook_ack_url.format(wh_job["id"]),
                                 headers=headers,
                                 timeout=10,
                             )
+                            if r_ack.status_code != 200:
+                                print("    -> ACK falló: {} {}".format(r_ack.status_code, r_ack.text))
 
                         except Exception as e:
                             print("ERROR: {}".format(e))
                             # Try to ACK anyway
                             try:
-                                requests.post(
+                                r_ack = requests.post(
                                     webhook_ack_url.format(wh_job["id"]),
                                     headers=headers,
                                     timeout=10,
                                 )
+                                if r_ack.status_code != 200:
+                                    print("    -> ACK falló: {} {}".format(r_ack.status_code, r_ack.text))
                             except Exception:
                                 pass
             except Exception as e:

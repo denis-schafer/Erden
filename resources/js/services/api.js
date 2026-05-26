@@ -66,7 +66,7 @@ api.interceptors.response.use(
                 localStorage.removeItem('modules');
                 localStorage.removeItem('companyDb');
                 localStorage.removeItem('isParentDb');
-                window.location.href = '/login';
+                window.location.href = '/';
             }
         }
         return Promise.reject(error);

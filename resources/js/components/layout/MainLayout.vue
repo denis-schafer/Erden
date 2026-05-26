@@ -45,7 +45,7 @@ const handleLogout = () => {
     toastify.warning('Tu sesión ha sido deshabilitada. Serás redirigido al login.', 8000);
     setTimeout(() => {
         localStorage.clear();
-        window.location.href = '/login';
+        window.location.href = '/';
     }, 2000);
 };
 
@@ -107,7 +107,7 @@ onMounted(() => {
             toastify.warning('Tu sesión ha sido deshabilitada. Serás redirigido al login.', 8000);
             setTimeout(() => {
                 localStorage.clear();
-                window.location.href = '/login';
+                window.location.href = '/';
             }, 2000);
         }
     });
@@ -116,7 +116,7 @@ onMounted(() => {
         toastify.warning('Tu sesión ha expirado. Serás redirigido al login.', 8000);
         setTimeout(() => {
             localStorage.clear();
-            window.location.href = '/login';
+            window.location.href = '/';
         }, 2000);
     });
 });

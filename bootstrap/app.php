@@ -26,5 +26,9 @@ return Application::configure(basePath: dirname(__DIR__))
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
-        //
+        $exceptions->render(function (\Illuminate\Session\TokenMismatchException $e, $request) {
+            return response()->json([
+                'message' => __('Tu sesión ha expirado. Por favor, inicia sesión nuevamente.'),
+            ], 419);
+        });
     })->create();

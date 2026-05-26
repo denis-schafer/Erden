@@ -297,7 +297,10 @@ class MigrationAll extends Command
             $this->warn('Could not ensure printing_mode config: ' . $e->getMessage());
         }
 
-        // Step 8: Ensure stats role exists (for existing companies running migration_all)
+        // Step 8: Ensure soft delete columns exist
+        $this->verifySoftDeleteColumns();
+
+        // Step 9: Ensure stats role exists (for existing companies running migration_all)
         try {
             $statsRole = DB::table('roles')->where('name', 'stats')->first();
             if (!$statsRole) {
@@ -513,6 +516,34 @@ class MigrationAll extends Command
         }
     }
 
+    protected function verifySoftDeleteColumns(): void
+    {
+        $this->info('Verifying soft delete columns...');
+
+        $tables = ['users', 'products', 'categories', 'status_orders'];
+
+        foreach ($tables as $table) {
+            try {
+                if (!Schema::hasTable($table)) {
+                    $this->warn("Table {$table} does not exist yet. Skipping.");
+                    continue;
+                }
+
+                $columns = DB::getSchemaBuilder()->getColumnListing($table);
+
+                if (!in_array('deleted_at', $columns)) {
+                    $this->info("Adding deleted_at column to {$table}...");
+                    DB::statement("ALTER TABLE {$table} ADD COLUMN deleted_at TIMESTAMP NULL DEFAULT NULL AFTER updated_at");
+                    $this->info("deleted_at column added to {$table}.");
+                } else {
+                    $this->info("deleted_at column already exists in {$table}.");
+                }
+            } catch (\Exception $e) {
+                $this->warn("Error verifying {$table} soft delete column: " . $e->getMessage());
+            }
+        }
+    }
+
     protected function createDatabaseIfNotExists(string $dbName): void
     {
         config(['database.connections.mysql.database' => 'erden']);
@@ -635,6 +666,7 @@ class MigrationAll extends Command
                 $table->id();
                 $table->string('name', 100);
                 $table->timestamps();
+                $table->softDeletes();
             });
             $this->info('Table status_orders created.');
         }
@@ -709,6 +741,7 @@ class MigrationAll extends Command
                 $table->integer('order')->default(0);
                 $table->boolean('enable')->default(true);
                 $table->timestamps();
+                $table->softDeletes();
             });
             $this->info('Table categories created.');
         }
@@ -725,6 +758,7 @@ class MigrationAll extends Command
                 $table->boolean('enable')->default(true);
                 $table->integer('order')->default(0);
                 $table->timestamps();
+                $table->softDeletes();
                 
                 $table->foreign('category_id')->references('id')->on('categories')->onDelete('cascade');
 });

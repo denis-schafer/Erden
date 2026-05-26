@@ -23,6 +23,7 @@ class UserController extends Controller
             $users = DB::table('users')
                 ->select('users.id', 'users.username', 'users.name', 'users.role_id', 'roles.name as role_name')
                 ->leftJoin('roles', 'users.role_id', '=', 'roles.id')
+                ->whereNull('users.deleted_at')
                 ->get();
         } elseif ($isParentDb) {
             $users = DB::connection('mysql_parent')->table('global_users')
@@ -33,6 +34,7 @@ class UserController extends Controller
             $users = DB::table('users')
                 ->select('users.id', 'users.username', 'users.name', 'users.role_id', 'roles.name as role_name')
                 ->leftJoin('roles', 'users.role_id', '=', 'roles.id')
+                ->whereNull('users.deleted_at')
                 ->get();
         }
         
@@ -143,7 +145,8 @@ class UserController extends Controller
             DB::connection('mysql_parent')->table('global_users')->where('id', $id)->delete();
             return response()->json(['message' => 'Usuario global eliminado']);
         } else {
-            DB::table('users')->where('id', $id)->delete();
+            $now = now();
+            DB::table('users')->where('id', $id)->update(['deleted_at' => $now, 'updated_at' => $now]);
             return response()->json(['message' => 'Usuario eliminado']);
         }
     }

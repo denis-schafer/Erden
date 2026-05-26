@@ -50,7 +50,7 @@ class PosOrderDisplayController extends Controller
             DB::reconnect('mysql');
             
             // Query local users table in child DB
-            $localUser = DB::table('users')->where('username', $username)->first();
+            $localUser = DB::table('users')->where('username', $username)->whereNull('deleted_at')->first();
             
             if ($localUser) {
                 // Get the role info

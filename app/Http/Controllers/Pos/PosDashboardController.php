@@ -228,6 +228,7 @@ class PosDashboardController extends Controller
             ->select('id', 'name', 'username')
             ->where('role_id', 2)
             ->where('enable', true)
+            ->whereNull('deleted_at')
             ->orderBy('name');
         TestModeHelper::applyFilter($cashiersQuery, 'users');
         $cashiers = $cashiersQuery->get();

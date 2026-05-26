@@ -18,6 +18,7 @@ class PosUserController extends Controller
         $query = DB::table('users')
             ->select('users.*', 'roles.name as role_name')
             ->join('roles', 'users.role_id', '=', 'roles.id')
+            ->whereNull('users.deleted_at')
             ->orderBy('users.name');
 
         TestModeHelper::applyFilter($query, 'users');
@@ -153,11 +154,12 @@ class PosUserController extends Controller
 
     public function destroy($id)
     {
+        $now = now();
         $user = DB::table('users')->find($id);
         if (!$user) {
             return response()->json(['message' => 'Usuario no encontrado'], 404);
         }
-        DB::table('users')->where('id', $id)->delete();
+        DB::table('users')->where('id', $id)->update(['deleted_at' => $now, 'updated_at' => $now]);
         return response()->json(['message' => 'Usuario eliminado']);
     }
 

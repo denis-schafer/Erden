@@ -18,6 +18,7 @@ class PosProductController extends Controller
         $query = DB::table('products')
             ->select('products.*', 'categories.name as category_name')
             ->join('categories', 'products.category_id', '=', 'categories.id')
+            ->whereNull('products.deleted_at')
             ->orderBy('products.order')
             ->orderBy('products.name');
 
@@ -32,6 +33,7 @@ class PosProductController extends Controller
         $query = DB::table('products')
             ->where('category_id', $categoryId)
             ->where('enable', true)
+            ->whereNull('deleted_at')
             ->orderBy('order')
             ->orderBy('name');
 
@@ -100,11 +102,12 @@ class PosProductController extends Controller
 
     public function destroy($id)
     {
+        $now = now();
         $product = DB::table('products')->find($id);
         if ($product) {
             event(new ProductUpdated((array) $product));
         }
-        DB::table('products')->where('id', $id)->delete();
+        DB::table('products')->where('id', $id)->update(['deleted_at' => $now, 'updated_at' => $now]);
         return response()->json(['message' => 'Producto eliminado']);
     }
 

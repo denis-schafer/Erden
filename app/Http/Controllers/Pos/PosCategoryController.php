@@ -15,6 +15,7 @@ class PosCategoryController extends Controller
     public function index()
     {
         $query = DB::table('categories')
+            ->whereNull('deleted_at')
             ->orderBy('name');
 
         TestModeHelper::applyFilter($query, 'categories');
@@ -35,12 +36,12 @@ class PosCategoryController extends Controller
         $id = DB::table('categories')->insertGetId($categoryData);
 
         if (!empty($validated['default'])) {
-            DB::table('categories')->where('id', '!=', $id)->update(['default' => 0]);
+            DB::table('categories')->where('id', '!=', $id)->whereNull('deleted_at')->update(['default' => 0]);
         }
 
         event(new CategoryUpdated($id));
 
-        return response()->json(['id' => $id, 'message' => 'Categoría creada']);
+        return response()->json(['message' => 'Categoría creada']);
     }
 
     public function update(Request $request, $id)
@@ -55,7 +56,7 @@ class PosCategoryController extends Controller
         DB::table('categories')->where('id', $id)->update($updateData);
 
         if (!empty($validated['default'])) {
-            DB::table('categories')->where('id', '!=', $id)->update(['default' => 0]);
+            DB::table('categories')->where('id', '!=', $id)->whereNull('deleted_at')->update(['default' => 0]);
         }
 
         event(new CategoryUpdated($id));
@@ -66,7 +67,7 @@ class PosCategoryController extends Controller
     public function destroy($id)
     {
         event(new CategoryUpdated($id));
-        DB::table('categories')->where('id', $id)->delete();
+        DB::table('categories')->where('id', $id)->update(['deleted_at' => now(), 'updated_at' => now()]);
         return response()->json(['message' => 'Categoría eliminada']);
     }
 

@@ -17,7 +17,7 @@ class PosAuthController extends Controller
             'password' => 'required|string',
         ]);
 
-        $user = DB::table('users')->where('username', $credentials['username'])->first();
+        $user = DB::table('users')->where('username', $credentials['username'])->whereNull('deleted_at')->first();
 
         if (!$user || !password_verify($credentials['password'], $user->password)) {
             return response()->json(['message' => 'Credenciales incorrectas'], 401);

@@ -256,42 +256,42 @@ class CompanyModuleController extends Controller
     {
         Log::info('[CompanyModuleController] verifyPosTablesStructure: INICIO for ' . $company->db);
 
-        // Connect to child database
         config(['database.connections.mysql.database' => $company->db]);
         DB::purge('mysql');
         DB::reconnect('mysql');
 
-        // Verify orders table
-        if (!Schema::hasTable('orders')) {
-            Log::info('[CompanyModuleController] verifyPosTablesStructure: orders table does not exist yet');
-            return;
-        }
+        $posTables = [
+            'orders' => ['sync_id', 'mp_payment_id', 'mp_transaction_amount', 'deleted_at'],
+            'status_orders' => ['sync_id', 'deleted_at'],
+            'categories' => ['sync_id', 'deleted_at', 'order'],
+            'products' => ['sync_id', 'deleted_at'],
+            'users' => ['deleted_at'],
+        ];
 
-        $columns = DB::getSchemaBuilder()->getColumnListing('orders');
-        Log::info('[CompanyModuleController] verifyPosTablesStructure: Current columns: ' . implode(', ', $columns));
+        foreach ($posTables as $table => $columns) {
+            if (!Schema::hasTable($table)) continue;
 
-        // Add mp_payment_id if missing
-        if (!in_array('mp_payment_id', $columns)) {
-            try {
-                DB::statement('ALTER TABLE orders ADD COLUMN mp_payment_id VARCHAR(50) NULL AFTER paid');
-                Log::info('[CompanyModuleController] verifyPosTablesStructure: Added mp_payment_id column');
-            } catch (\Exception $e) {
-                Log::error('[CompanyModuleController] verifyPosTablesStructure: Error adding mp_payment_id: ' . $e->getMessage());
+            $existing = DB::getSchemaBuilder()->getColumnListing($table);
+            foreach ($columns as $column) {
+                if (!in_array($column, $existing)) {
+                    try {
+                        $stmt = match ($column) {
+                            'sync_id' => "ALTER TABLE {$table} ADD COLUMN sync_id VARCHAR(36) NULL DEFAULT NULL UNIQUE AFTER id",
+                            'deleted_at' => "ALTER TABLE {$table} ADD COLUMN deleted_at TIMESTAMP NULL DEFAULT NULL AFTER updated_at",
+                            'mp_payment_id' => "ALTER TABLE {$table} ADD COLUMN mp_payment_id VARCHAR(50) NULL AFTER paid",
+                            'mp_transaction_amount' => "ALTER TABLE {$table} ADD COLUMN mp_transaction_amount DECIMAL(10,2) NULL AFTER mp_payment_id",
+                            'order' => "ALTER TABLE {$table} ADD COLUMN `order` INT DEFAULT 0 AFTER enable",
+                            default => null,
+                        };
+                        if ($stmt) {
+                            DB::statement($stmt);
+                            Log::info("[CompanyModuleController] verifyPosTablesStructure: Added {$column} to {$table}");
+                        }
+                    } catch (\Exception $e) {
+                        Log::warning("[CompanyModuleController] verifyPosTablesStructure: Error adding {$column} to {$table}: " . $e->getMessage());
+                    }
+                }
             }
-        } else {
-            Log::info('[CompanyModuleController] verifyPosTablesStructure: mp_payment_id already exists');
-        }
-
-        // Add mp_transaction_amount if missing
-        if (!in_array('mp_transaction_amount', $columns)) {
-            try {
-                DB::statement('ALTER TABLE orders ADD COLUMN mp_transaction_amount DECIMAL(10,2) NULL AFTER mp_payment_id');
-                Log::info('[CompanyModuleController] verifyPosTablesStructure: Added mp_transaction_amount column');
-            } catch (\Exception $e) {
-                Log::error('[CompanyModuleController] verifyPosTablesStructure: Error adding mp_transaction_amount: ' . $e->getMessage());
-            }
-        } else {
-            Log::info('[CompanyModuleController] verifyPosTablesStructure: mp_transaction_amount already exists');
         }
 
         Log::info('[CompanyModuleController] verifyPosTablesStructure: FIN');

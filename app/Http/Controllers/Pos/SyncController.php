@@ -35,6 +35,7 @@ class SyncController extends Controller
         DB::beginTransaction();
         try {
             foreach ($items as $item) {
+                $this->formatDatetimeFields($item['data']);
                 match ($item['entity_type']) {
                     'categories' => $this->upsertCategory($item['data']),
                     'products' => $this->upsertProduct($item['data']),
@@ -284,5 +285,18 @@ class SyncController extends Controller
         }
 
         return response()->json(['status' => $status]);
+    }
+
+    private function formatDatetimeFields(array &$data): void
+    {
+        $dateFields = ['created_at', 'updated_at', 'deleted_at', 'date'];
+        foreach ($dateFields as $field) {
+            if (isset($data[$field]) && is_string($data[$field])) {
+                $ts = strtotime($data[$field]);
+                if ($ts !== false) {
+                    $data[$field] = date('Y-m-d H:i:s', $ts);
+                }
+            }
+        }
     }
 }

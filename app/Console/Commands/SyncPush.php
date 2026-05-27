@@ -19,18 +19,6 @@ class SyncPush extends Command
             return 0;
         }
 
-        $companyDb = Config::get('database.connections.mysql.database');
-        if (!$companyDb || $companyDb === 'erden') {
-            return 0;
-        }
-
-        $remoteUrl = $this->getConfig('remote_url');
-        $remoteKey = $this->getConfig('remote_key');
-
-        if (empty($remoteUrl) || empty($remoteKey)) {
-            return 0;
-        }
-
         $files = glob($queueDir . '/*.json');
         if (empty($files)) {
             return 0;
@@ -59,6 +47,24 @@ class SyncPush extends Command
         $grouped = collect($allItems)->groupBy('webhook_code');
 
         foreach ($grouped as $webhookCode => $items) {
+            $companyDb = $this->resolveCompanyDb($webhookCode);
+            if (!$companyDb) {
+                $this->warn(sprintf('[%s] No company DB found for webhook_code, skipping', $webhookCode));
+                continue;
+            }
+
+            $this->switchToDb($companyDb);
+
+            $remoteUrl = $this->getConfig('remote_url');
+            $remoteKey = $this->getConfig('remote_key');
+
+            if (empty($remoteUrl) || empty($remoteKey)) {
+                $this->warn(sprintf('[%s] remote_url or remote_key not configured in company DB', $webhookCode));
+                continue;
+            }
+
+            $this->info(sprintf('[%s] Pushing %d items to %s', $webhookCode, $items->count(), $remoteUrl));
+
             $chunks = array_chunk($items->toArray(), 100);
             $allSuccess = true;
 
@@ -104,6 +110,27 @@ class SyncPush extends Command
         }
 
         return 0;
+    }
+
+    private function resolveCompanyDb(string $webhookCode): ?string
+    {
+        try {
+            $company = DB::connection('mysql_parent')
+                ->table('companies')
+                ->where('webhook_code', $webhookCode)
+                ->first(['db']);
+
+            return $company?->db;
+        } catch (\Exception $e) {
+            return null;
+        }
+    }
+
+    private function switchToDb(string $dbName): void
+    {
+        Config::set('database.connections.mysql.database', $dbName);
+        DB::purge('mysql');
+        DB::reconnect('mysql');
     }
 
     private function getConfig(string $name): string

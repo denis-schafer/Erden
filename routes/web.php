@@ -200,11 +200,6 @@ Route::middleware(['web', 'setDatabase'])->group(function () {
         Route::get('/download', [App\Http\Controllers\Pos\PosConfigController::class, 'downloadAgent']);
     });
 
-    // Sync Jobs API (autenticado por API key, no por sesión)
-    Route::prefix('sync')->middleware('printAgentAuth')->group(function () {
-        Route::post('/push', [App\Http\Controllers\Pos\SyncController::class, 'push']);
-    });
-
     // Sync Settings (autenticado por sesión normal)
     Route::prefix('sync-settings')->group(function () {
         Route::get('/', [App\Http\Controllers\Pos\PosConfigController::class, 'syncSettings']);
@@ -222,6 +217,11 @@ Route::middleware(['web', 'setDatabase'])->group(function () {
         Route::get('/', [App\Http\Controllers\Pos\PosConfigController::class, 'webhookCode']);
         Route::put('/', [App\Http\Controllers\Pos\PosConfigController::class, 'updateWebhookCode']);
     });
+});
+
+// Sync Push API (autenticado por API key, fuera del grupo SPA para evitar CSRF)
+Route::prefix('pos')->middleware('printAgentAuth')->group(function () {
+    Route::post('/sync/push', [App\Http\Controllers\Pos\SyncController::class, 'push']);
 });
 
 // MP OAuth Callback - Standalone (sin middleware, sin autenticación)

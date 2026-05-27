@@ -28,9 +28,9 @@ return new class extends Migration
                 $table->boolean('mercadopago_enable_qr')->default(false);
                 $table->rememberToken();
                 $table->timestamps();
+                $table->softDeletes();
             });
         } else {
-            // Add missing columns if table exists
             Schema::table('users', function (Blueprint $table) {
                 if (!Schema::hasColumn('users', 'enable')) {
                     $table->boolean('enable')->default(true)->after('printer_type');
@@ -55,6 +55,9 @@ return new class extends Migration
                 }
                 if (!Schema::hasColumn('users', 'mercadopago_enable_qr')) {
                     $table->boolean('mercadopago_enable_qr')->default(false)->after('mercadopago_qr_enabled');
+                }
+                if (!Schema::hasColumn('users', 'deleted_at')) {
+                    $table->timestamp('deleted_at')->nullable()->after('updated_at');
                 }
             });
         }

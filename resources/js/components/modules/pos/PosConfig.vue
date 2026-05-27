@@ -170,7 +170,7 @@
         </div>
 
         <!-- Remote Sync Settings -->
-        <div class="mt-4">
+        <div v-if="!isVps" class="mt-4">
             <div class="setting-card">
                 <div class="setting-header">
                     <h6 class="setting-title">
@@ -235,7 +235,7 @@
         </div>
 
         <!-- Backfill Section -->
-        <div class="mt-4">
+        <div v-if="!isVps" class="mt-4">
             <div class="setting-card">
                 <div class="setting-header">
                     <h6 class="setting-title">
@@ -414,6 +414,11 @@ let backfillPollTimer = null;
 const showAgentSection = computed(() => {
     const mode = settings.value.find(s => s.name === 'printing_mode');
     return mode?.value !== 'local';
+});
+
+const isVps = computed(() => {
+    const mode = settings.value.find(s => s.name === 'printing_mode');
+    return mode?.value === 'vps';
 });
 
 const settingLabels = {

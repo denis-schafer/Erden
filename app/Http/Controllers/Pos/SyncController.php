@@ -84,7 +84,13 @@ class SyncController extends Controller
         if ($existing) {
             DB::table('products')->where('sync_id', $syncId)->update($data);
         } else {
-            DB::table('products')->insert($data);
+            $existing = DB::table('products')->where('name', $data['name'] ?? '')->first();
+            if ($existing) {
+                $data['id'] = $existing->id;
+                DB::table('products')->where('id', $existing->id)->update($data);
+            } else {
+                DB::table('products')->insert($data);
+            }
         }
     }
 

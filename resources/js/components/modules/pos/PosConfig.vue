@@ -253,7 +253,7 @@
                     <button 
                         class="btn btn-warning btn-sm w-100" 
                         @click="startBackfill" 
-                        :disabled="backfillRunning || backfillCompleted">
+                        :disabled="backfillRunning">
                         <span v-if="backfillRunning" class="spinner-border spinner-border-sm"></span>
                         <i v-else-if="backfillCompleted" class="bi bi-check-circle"></i>
                         <i v-else class="bi bi-cloud-upload"></i>
@@ -838,9 +838,19 @@ const updateStringSetting = (setting, event) => {
     }, 500);
 };
 
-onMounted(() => {
+onMounted(async () => {
     loadSettings();
     window.addEventListener('message', handleMpTokenObtained);
+
+    try {
+        const res = await api.get('/pos/sync/backfill-status');
+        if (res.data?.status === 'completed') {
+            backfillCompleted.value = true;
+            backfillQueued.value = res.data.queued || 0;
+        }
+    } catch {
+        // ignore
+    }
 });
 
 onUnmounted(() => {

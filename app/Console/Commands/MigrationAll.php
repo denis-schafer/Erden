@@ -300,7 +300,10 @@ class MigrationAll extends Command
         // Step 8: Ensure soft delete columns exist
         $this->verifySoftDeleteColumns();
 
-        // Step 9: Ensure stats role exists (for existing companies running migration_all)
+        // Step 9: Ensure sync_id columns exist (for remote sync)
+        $this->verifySyncIdColumns();
+
+        // Step 10: Ensure stats role exists (for existing companies running migration_all)
         try {
             $statsRole = DB::table('roles')->where('name', 'stats')->first();
             if (!$statsRole) {
@@ -544,6 +547,49 @@ class MigrationAll extends Command
         }
     }
 
+    protected function verifySyncIdColumns(): void
+    {
+        $this->info('Verifying sync_id columns...');
+
+        $tables = ['users', 'status_orders', 'categories', 'products', 'orders'];
+
+        foreach ($tables as $table) {
+            try {
+                if (!Schema::hasTable($table)) {
+                    $this->warn("Table {$table} does not exist yet. Skipping.");
+                    continue;
+                }
+
+                $columns = DB::getSchemaBuilder()->getColumnListing($table);
+
+                if (!in_array('sync_id', $columns)) {
+                    $this->info("Adding sync_id column to {$table}...");
+                    DB::statement("ALTER TABLE {$table} ADD COLUMN sync_id VARCHAR(36) NULL DEFAULT NULL AFTER id");
+                    $this->info("sync_id column added to {$table}.");
+                } else {
+                    $this->info("sync_id column already exists in {$table}.");
+                }
+
+                $indexes = DB::select("SHOW INDEX FROM {$table} WHERE Column_name = 'sync_id'");
+                $hasUnique = false;
+                foreach ($indexes as $idx) {
+                    if ($idx->Non_unique == 0) {
+                        $hasUnique = true;
+                        break;
+                    }
+                }
+
+                if (!$hasUnique) {
+                    $this->info("Adding UNIQUE index on sync_id for {$table}...");
+                    DB::statement("ALTER TABLE {$table} ADD UNIQUE INDEX sync_id_unique (sync_id)");
+                    $this->info("UNIQUE index added on sync_id for {$table}.");
+                }
+            } catch (\Exception $e) {
+                $this->warn("Error verifying {$table} sync_id column: " . $e->getMessage());
+            }
+        }
+    }
+
     protected function createDatabaseIfNotExists(string $dbName): void
     {
         config(['database.connections.mysql.database' => 'erden']);
@@ -665,6 +711,7 @@ class MigrationAll extends Command
             Schema::create('status_orders', function ($table) {
                 $table->id();
                 $table->string('name', 100);
+                $table->string('sync_id', 36)->nullable()->unique();
                 $table->timestamps();
                 $table->softDeletes();
             });
@@ -693,6 +740,7 @@ class MigrationAll extends Command
                 $table->decimal('total', 10, 2);
                 $table->unsignedBigInteger('operator_id');
                 $table->unsignedBigInteger('status_id')->default(1);
+                $table->string('sync_id', 36)->nullable()->unique();
                 $table->boolean('paid')->default(false);
                 $table->string('mp_payment_id', 50)->nullable();
                 $table->decimal('mp_transaction_amount', 10, 2)->nullable();
@@ -737,6 +785,7 @@ class MigrationAll extends Command
             Schema::create('categories', function ($table) {
                 $table->id();
                 $table->string('name', 100);
+                $table->string('sync_id', 36)->nullable()->unique();
                 $table->boolean('default')->default(false);
                 $table->integer('order')->default(0);
                 $table->boolean('enable')->default(true);
@@ -755,6 +804,7 @@ class MigrationAll extends Command
                 $table->text('long_description')->nullable();
                 $table->decimal('amount', 10, 2);
                 $table->unsignedBigInteger('category_id');
+                $table->string('sync_id', 36)->nullable()->unique();
                 $table->boolean('enable')->default(true);
                 $table->integer('order')->default(0);
                 $table->timestamps();

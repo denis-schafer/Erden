@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Pos;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Str;
 use App\Http\Controllers\Controller;
 use App\Events\OrderCreated;
 use App\Events\OrderUpdated;
@@ -53,12 +54,14 @@ class PosOrderController extends Controller
             'paid' => 'boolean',
         ]);
 
+        $syncId = Str::uuid()->toString();
         $orderData = TestModeHelper::setTestFlag([
             'dni' => $validated['dni'] ?? null,
             'detail' => json_encode($validated['detail']),
             'total' => $validated['total'],
             'operator_id' => $validated['operator_id'],
             'status_id' => $validated['status_id'] ?? 1,
+            'sync_id' => $syncId,
             'paid' => $validated['paid'] ?? false,
             'created_at' => now(),
             'updated_at' => now(),
@@ -72,6 +75,8 @@ class PosOrderController extends Controller
         $this->createPrintJob($order, $validated['detail'], $validated['operator_id']);
 
         event(new OrderCreated((array) $order));
+
+        $this->queueSync('orders', 'created', $order, ['operator_id' => 'users', 'status_id' => 'status_orders']);
 
         return response()->json([
             'id' => $id, 
@@ -149,6 +154,8 @@ class PosOrderController extends Controller
         $updatedOrder = DB::table('orders')->where('id', $id)->first();
         event(new OrderUpdated((array) $updatedOrder));
 
+        $this->queueSync('orders', 'updated', $updatedOrder, ['operator_id' => 'users', 'status_id' => 'status_orders']);
+
         return response()->json(['message' => 'Pedido cancelado', 'success' => true]);
     }
 
@@ -166,6 +173,9 @@ class PosOrderController extends Controller
         ]);
 
         event(new OrderDeleted($id));
+
+        $updatedOrder = DB::table('orders')->where('id', $id)->first();
+        $this->queueSync('orders', 'updated', $updatedOrder, ['operator_id' => 'users', 'status_id' => 'status_orders']);
 
         return response()->json(['message' => 'Pedido eliminado', 'success' => true]);
     }
@@ -212,6 +222,8 @@ class PosOrderController extends Controller
 
         $updatedOrder = DB::table('orders')->where('id', $id)->first();
         event(new OrderUpdated((array) $updatedOrder));
+
+        $this->queueSync('orders', 'updated', $updatedOrder, ['operator_id' => 'users', 'status_id' => 'status_orders']);
 
         return response()->json([
             'message' => $newPaid ? 'Pedido marcado como pagado' : 'Pedido desmarcado como pagado',

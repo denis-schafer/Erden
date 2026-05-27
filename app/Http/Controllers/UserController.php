@@ -6,6 +6,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Config;
+use Illuminate\Support\Str;
 use App\Models\GlobalUser;
 
 class UserController extends Controller
@@ -80,8 +81,12 @@ class UserController extends Controller
         ]);
 
         $validated['password'] = Hash::make($validated['password']);
+        $validated['sync_id'] = Str::uuid()->toString();
         
         $id = DB::table('users')->insertGetId($validated);
+
+        $user = DB::table('users')->find($id);
+        $this->queueSync('users', 'created', $user);
         
         return response()->json(['id' => $id, 'message' => 'Usuario creado']);
     }
@@ -133,6 +138,9 @@ class UserController extends Controller
         }
 
         DB::table('users')->where('id', $id)->update($validated);
+
+        $user = DB::table('users')->find($id);
+        $this->queueSync('users', 'updated', $user);
         
         return response()->json(['message' => 'Usuario actualizado']);
     }
@@ -146,7 +154,13 @@ class UserController extends Controller
             return response()->json(['message' => 'Usuario global eliminado']);
         } else {
             $now = now();
+            $user = DB::table('users')->find($id);
             DB::table('users')->where('id', $id)->update(['deleted_at' => $now, 'updated_at' => $now]);
+            if ($user) {
+                $user->deleted_at = $now;
+                $user->updated_at = $now;
+                $this->queueSync('users', 'deleted', $user);
+            }
             return response()->json(['message' => 'Usuario eliminado']);
         }
     }

@@ -169,6 +169,71 @@
             </div>
         </div>
 
+        <!-- Remote Sync Settings -->
+        <div class="mt-4">
+            <div class="setting-card">
+                <div class="setting-header">
+                    <h6 class="setting-title">
+                        <i class="bi bi-cloud-arrow-up me-1"></i>
+                        Sincronización Remota
+                    </h6>
+                </div>
+                <div class="setting-description">
+                    <small class="text-muted">
+                        Configura la sincronización automática de datos con el servidor VPS.
+                        Los cambios en productos, categorías, usuarios y órdenes se sincronizarán en segundo plano.
+                    </small>
+                </div>
+                <div class="mt-3">
+                    <div class="mb-2">
+                        <label class="form-label fw-semibold">URL del Servidor Remoto</label>
+                        <div class="input-group input-group-sm">
+                            <input type="text" 
+                                   class="form-control font-monospace" 
+                                   v-model="remoteUrlValue"
+                                   placeholder="ej: https://149.50.133.48">
+                            <button class="btn btn-outline-secondary" @click="copyText(remoteUrlValue)" title="Copiar URL">
+                                <i class="bi bi-clipboard"></i>
+                            </button>
+                        </div>
+                    </div>
+                    <div class="mb-2">
+                        <label class="form-label fw-semibold">Clave de Sincronización</label>
+                        <div class="input-group input-group-sm">
+                            <input type="text" 
+                                   class="form-control font-monospace" 
+                                   v-model="remoteKeyValue"
+                                   placeholder="API Key del agente en VPS">
+                            <button class="btn btn-outline-secondary" @click="copyText(remoteKeyValue)" title="Copiar clave">
+                                <i class="bi bi-clipboard"></i>
+                            </button>
+                        </div>
+                        <small class="text-muted">
+                            Copia esta clave desde <strong>Configuración &gt; POS &gt; Agente de Impresión</strong> del VPS.
+                        </small>
+                    </div>
+                    <div class="mt-2">
+                        <button class="btn btn-primary btn-sm w-100" @click="saveSyncSettings" :disabled="savingSyncSettings">
+                            <span v-if="savingSyncSettings" class="spinner-border spinner-border-sm"></span>
+                            <i v-else class="bi bi-check-lg"></i>
+                            Guardar configuración de sincronización
+                        </button>
+                    </div>
+                    <div v-if="syncSettingsSaved" class="text-success small mt-1">
+                        <i class="bi bi-check-circle me-1"></i>
+                        Configuración guardada correctamente.
+                    </div>
+                    <div class="alert alert-info py-2 mb-0 mt-2">
+                        <small>
+                            <i class="bi bi-info-circle me-1"></i>
+                            La sincronización se ejecuta automáticamente cada 5 minutos vía cron.
+                            Solo funciona si el sistema está configurado como <strong>Local</strong> (no VPS).
+                        </small>
+                    </div>
+                </div>
+            </div>
+        </div>
+
         <!-- Webhook Code Section -->
         <div class="mt-4">
             <div class="setting-card">
@@ -285,6 +350,10 @@ const confirmModal = ref(null);
 const webhookCodeValue = ref('');
 const savingWebhookCode = ref(false);
 const webhookCodeSaved = ref(false);
+const remoteUrlValue = ref('');
+const remoteKeyValue = ref('');
+const savingSyncSettings = ref(false);
+const syncSettingsSaved = ref(false);
 
 const showAgentSection = computed(() => {
     const mode = settings.value.find(s => s.name === 'printing_mode');
@@ -446,6 +515,9 @@ const loadSettings = async () => {
 
         // Load webhook code
         await loadWebhookCode();
+
+        // Load sync settings
+        await loadSyncSettings();
     } catch (error) {
         
     } finally {
@@ -522,6 +594,35 @@ const saveWebhookCode = async () => {
         // Silently fail
     } finally {
         savingWebhookCode.value = false;
+    }
+};
+
+const loadSyncSettings = async () => {
+    try {
+        const response = await api.get('/pos/sync-settings');
+        remoteUrlValue.value = response.data?.remote_url || '';
+        remoteKeyValue.value = response.data?.remote_key || '';
+    } catch (error) {
+        // Silently fail
+    }
+};
+
+const saveSyncSettings = async () => {
+    savingSyncSettings.value = true;
+    syncSettingsSaved.value = false;
+    try {
+        const response = await api.put('/pos/sync-settings', {
+            remote_url: remoteUrlValue.value,
+            remote_key: remoteKeyValue.value,
+        });
+        remoteUrlValue.value = response.data?.remote_url || '';
+        remoteKeyValue.value = response.data?.remote_key || '';
+        syncSettingsSaved.value = true;
+        setTimeout(() => { syncSettingsSaved.value = false; }, 3000);
+    } catch (error) {
+        // Silently fail
+    } finally {
+        savingSyncSettings.value = false;
     }
 };
 

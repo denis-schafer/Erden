@@ -113,6 +113,62 @@ class PosConfigController extends Controller
         return Storage::download($filePath, 'ErdenPrintAgent.exe');
     }
 
+    public function syncSettings(Request $request)
+    {
+        $sessionUser = $request->session()->get('user');
+        $company = $request->session()->get('company');
+
+        if (!$sessionUser || !$company) {
+            return response()->json(['error' => 'No autenticado'], 401);
+        }
+
+        $remoteUrl = DB::table('configs')->where('name', 'remote_url')->first();
+        $remoteKey = DB::table('configs')->where('name', 'remote_key')->first();
+
+        return response()->json([
+            'remote_url' => $remoteUrl->value ?? '',
+            'remote_key' => $remoteKey->value ?? '',
+        ]);
+    }
+
+    public function updateSyncSettings(Request $request)
+    {
+        $sessionUser = $request->session()->get('user');
+        $company = $request->session()->get('company');
+
+        if (!$sessionUser || !$company) {
+            return response()->json(['error' => 'No autenticado'], 401);
+        }
+
+        $isAdmin = $sessionUser['role_id'] == 1 || $request->session()->get('is_global_admin', false);
+        if (!$isAdmin) {
+            return response()->json(['error' => 'Solo administradores pueden modificar esta configuracion'], 403);
+        }
+
+        $validated = $request->validate([
+            'remote_url' => 'nullable|string|max:255',
+            'remote_key' => 'nullable|string|max:255',
+        ]);
+
+        DB::table('configs')->updateOrInsert(
+            ['name' => 'remote_url'],
+            ['value' => $validated['remote_url'] ?? '', 'type' => 'string', 'updated_at' => now(), 'created_at' => now()]
+        );
+
+        DB::table('configs')->updateOrInsert(
+            ['name' => 'remote_key'],
+            ['value' => $validated['remote_key'] ?? '', 'type' => 'string', 'updated_at' => now(), 'created_at' => now()]
+        );
+
+        Log::info("Sync settings updated for company DB: {$company['db']}");
+
+        return response()->json([
+            'success' => true,
+            'remote_url' => $validated['remote_url'] ?? '',
+            'remote_key' => $validated['remote_key'] ?? '',
+        ]);
+    }
+
     public function webhookCode(Request $request)
     {
         $sessionUser = $request->session()->get('user');

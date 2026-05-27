@@ -4,12 +4,14 @@ namespace App\Http\Controllers\Pos;
 
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 use App\Http\Controllers\Controller;
 use App\Events\ProductUpdated;
 use App\Events\ProductDisabled;
 use App\Events\ProductEnabled;
 use App\Events\ProductReordered;
 use App\Packages\Pos\Helpers\TestModeHelper;
+use App\Services\SyncService;
 
 class PosProductController extends Controller
 {
@@ -55,11 +57,14 @@ class PosProductController extends Controller
             'order' => 'integer|min:0',
         ]);
 
-        $productData = TestModeHelper::setTestFlag($validated + ['created_at' => now(), 'updated_at' => now()]);
+        $syncId = Str::uuid()->toString();
+        $productData = TestModeHelper::setTestFlag($validated + ['sync_id' => $syncId, 'created_at' => now(), 'updated_at' => now()]);
         $id = DB::table('products')->insertGetId($productData);
 
         $product = DB::table('products')->find($id);
         event(new ProductUpdated((array) $product));
+
+        $this->queueSync('products', 'created', $product, ['category_id' => 'categories']);
 
         return response()->json(['id' => $id, 'message' => 'Producto creado']);
     }
@@ -81,6 +86,8 @@ class PosProductController extends Controller
 
         $product = DB::table('products')->find($id);
         event(new ProductUpdated((array) $product));
+
+        $this->queueSync('products', 'updated', $product, ['category_id' => 'categories']);
 
         return response()->json(['message' => 'Producto actualizado']);
     }
@@ -108,6 +115,13 @@ class PosProductController extends Controller
             event(new ProductUpdated((array) $product));
         }
         DB::table('products')->where('id', $id)->update(['deleted_at' => $now, 'updated_at' => $now]);
+
+        if ($product) {
+            $product->deleted_at = $now;
+            $product->updated_at = $now;
+            $this->queueSync('products', 'deleted', $product, ['category_id' => 'categories']);
+        }
+
         return response()->json(['message' => 'Producto eliminado']);
     }
 

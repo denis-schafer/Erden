@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Pos;
 
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 use App\Http\Controllers\Controller;
 use App\Events\CategoryDisabled;
 use App\Events\CategoryEnabled;
@@ -32,7 +33,8 @@ class PosCategoryController extends Controller
             'enable' => 'boolean',
         ]);
 
-        $categoryData = TestModeHelper::setTestFlag($validated + ['created_at' => now(), 'updated_at' => now()]);
+        $syncId = Str::uuid()->toString();
+        $categoryData = TestModeHelper::setTestFlag($validated + ['sync_id' => $syncId, 'created_at' => now(), 'updated_at' => now()]);
         $id = DB::table('categories')->insertGetId($categoryData);
 
         if (!empty($validated['default'])) {
@@ -40,6 +42,9 @@ class PosCategoryController extends Controller
         }
 
         event(new CategoryUpdated($id));
+
+        $category = DB::table('categories')->find($id);
+        $this->queueSync('categories', 'created', $category);
 
         return response()->json(['message' => 'Categoría creada']);
     }
@@ -61,13 +66,22 @@ class PosCategoryController extends Controller
 
         event(new CategoryUpdated($id));
 
+        $category = DB::table('categories')->find($id);
+        $this->queueSync('categories', 'updated', $category);
+
         return response()->json(['message' => 'Categoría actualizada']);
     }
 
     public function destroy($id)
     {
+        $category = DB::table('categories')->find($id);
         event(new CategoryUpdated($id));
         DB::table('categories')->where('id', $id)->update(['deleted_at' => now(), 'updated_at' => now()]);
+        if ($category) {
+            $category->deleted_at = now();
+            $category->updated_at = now();
+            $this->queueSync('categories', 'deleted', $category);
+        }
         return response()->json(['message' => 'Categoría eliminada']);
     }
 
@@ -92,6 +106,9 @@ class PosCategoryController extends Controller
         } else {
             event(new CategoryEnabled($id));
         }
+
+        $category = DB::table('categories')->find($id);
+        $this->queueSync('categories', 'updated', $category);
 
         return response()->json(['message' => 'Estado actualizado']);
     }

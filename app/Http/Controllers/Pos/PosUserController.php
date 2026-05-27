@@ -6,6 +6,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Str;
 use App\Http\Controllers\Controller;
 use App\Events\UserDisabled;
 use App\Events\UserEnabled;
@@ -57,8 +58,12 @@ class PosUserController extends Controller
         
         unset($validated['mercadopago_enable_qr']);
 
-        $userData = TestModeHelper::setTestFlag($validated + ['created_at' => now(), 'updated_at' => now()]);
+        $syncId = Str::uuid()->toString();
+        $userData = TestModeHelper::setTestFlag($validated + ['sync_id' => $syncId, 'created_at' => now(), 'updated_at' => now()]);
         $id = DB::table('users')->insertGetId($userData);
+
+        $user = DB::table('users')->find($id);
+        $this->queueSync('users', 'created', $user);
 
         return response()->json(['id' => $id, 'message' => 'Usuario creado']);
     }
@@ -108,6 +113,8 @@ class PosUserController extends Controller
         
         event(new \App\Events\UserSettingsUpdated((array) $updatedUser));
 
+        $this->queueSync('users', 'updated', $updatedUser);
+
         return response()->json(['message' => 'Usuario actualizado']);
     }
 
@@ -148,6 +155,9 @@ class PosUserController extends Controller
         }
         
         \Log::info("User {$id} status changed to: " . ($newStatus ? 'enabled' : 'disabled'));
+
+        $user = DB::table('users')->find($id);
+        $this->queueSync('users', 'updated', $user);
         
         return response()->json(['message' => 'Estado actualizado']);
     }
@@ -160,6 +170,9 @@ class PosUserController extends Controller
             return response()->json(['message' => 'Usuario no encontrado'], 404);
         }
         DB::table('users')->where('id', $id)->update(['deleted_at' => $now, 'updated_at' => $now]);
+        $user->deleted_at = $now;
+        $user->updated_at = $now;
+        $this->queueSync('users', 'deleted', $user);
         return response()->json(['message' => 'Usuario eliminado']);
     }
 
@@ -195,6 +208,9 @@ class PosUserController extends Controller
 
         $printerData = TestModeHelper::setTestFlag($validated + ['updated_at' => now()]);
         DB::table('users')->where('id', $id)->update($printerData);
+
+        $user = DB::table('users')->find($id);
+        $this->queueSync('users', 'updated', $user);
 
         return response()->json(['message' => 'Configuración de impresora actualizada']);
     }

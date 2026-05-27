@@ -200,6 +200,17 @@ Route::middleware(['web', 'setDatabase'])->group(function () {
         Route::get('/download', [App\Http\Controllers\Pos\PosConfigController::class, 'downloadAgent']);
     });
 
+    // Sync Jobs API (autenticado por API key, no por sesión)
+    Route::prefix('sync')->middleware('printAgentAuth')->group(function () {
+        Route::post('/push', [App\Http\Controllers\Pos\SyncController::class, 'push']);
+    });
+
+    // Sync Settings (autenticado por sesión normal)
+    Route::prefix('sync-settings')->group(function () {
+        Route::get('/', [App\Http\Controllers\Pos\PosConfigController::class, 'syncSettings']);
+        Route::put('/', [App\Http\Controllers\Pos\PosConfigController::class, 'updateSyncSettings']);
+    });
+
     // Webhook Code (autenticado por sesión normal)
     Route::prefix('webhook-code')->group(function () {
         Route::get('/', [App\Http\Controllers\Pos\PosConfigController::class, 'webhookCode']);

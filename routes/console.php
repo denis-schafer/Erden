@@ -8,4 +8,5 @@ Artisan::command('inspire', function () {
     $this->comment(Inspiring::quote());
 })->purpose('Display an inspiring quote');
 
+Schedule::command('sync:push')->everyFiveMinutes();
 Schedule::command('pos:cleanup-jobs')->dailyAt('03:00');

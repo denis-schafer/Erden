@@ -23,6 +23,7 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->validateCsrfTokens(except: [
             'pos/print-jobs/*',
             'pos/webhooks-jobs/*',
+            'pos/sync/push',
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {

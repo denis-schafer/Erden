@@ -165,14 +165,9 @@ class SyncController extends Controller
     public function backfill(Request $request)
     {
         $status = DB::table('configs')->where('name', 'sync_backfill_status')->value('value');
+        $force = $request->boolean('force');
 
-        if ($request->boolean('force')) {
-            DB::table('categories')->update(['sync_id' => null]);
-            DB::table('products')->update(['sync_id' => null]);
-            DB::table('users')->update(['sync_id' => null]);
-            DB::table('status_orders')->update(['sync_id' => null]);
-            DB::table('orders')->update(['sync_id' => null]);
-
+        if ($force) {
             $queueDir = storage_path('sync/queue');
             if (is_dir($queueDir)) {
                 $files = glob($queueDir . '/*.json');
@@ -208,14 +203,19 @@ class SyncController extends Controller
             ];
 
             foreach ($entityOrder as $entity => $fkMap) {
-                $records = DB::table($entity)->whereNull('sync_id')->get();
+                $query = DB::table($entity);
+                if (!$force) {
+                    $query->whereNull('sync_id');
+                }
+                $records = $query->get();
                 $count = $records->count();
                 $processed = 0;
 
                 foreach ($records as $record) {
-                    $record->sync_id = Str::uuid()->toString();
-
-                    DB::table($entity)->where('id', $record->id)->update(['sync_id' => $record->sync_id]);
+                    if (!$record->sync_id) {
+                        $record->sync_id = Str::uuid()->toString();
+                        DB::table($entity)->where('id', $record->id)->update(['sync_id' => $record->sync_id]);
+                    }
 
                     $data = (array) $record;
                     foreach ($fkMap as $fkField => $fkTable) {

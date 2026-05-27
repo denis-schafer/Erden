@@ -168,7 +168,7 @@ class SyncController extends Controller
             ];
 
             foreach ($entityOrder as $entity => $fkMap) {
-                $records = DB::table($entity)->whereNull('sync_id')->whereNull('deleted_at')->get();
+                $records = DB::table($entity)->whereNull('sync_id')->get();
                 $count = $records->count();
                 $processed = 0;
 

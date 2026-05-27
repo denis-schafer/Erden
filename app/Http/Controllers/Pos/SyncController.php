@@ -62,7 +62,13 @@ class SyncController extends Controller
         if ($existing) {
             DB::table('categories')->where('sync_id', $syncId)->update($data);
         } else {
-            DB::table('categories')->insert($data);
+            $existing = DB::table('categories')->where('name', $data['name'] ?? '')->first();
+            if ($existing) {
+                $data['id'] = $existing->id;
+                DB::table('categories')->where('id', $existing->id)->update($data);
+            } else {
+                DB::table('categories')->insert($data);
+            }
         }
     }
 
@@ -92,7 +98,13 @@ class SyncController extends Controller
         if ($existing) {
             DB::table('users')->where('sync_id', $syncId)->update($data);
         } else {
-            DB::table('users')->insert($data);
+            $existing = DB::table('users')->where('username', $data['username'] ?? '')->first();
+            if ($existing) {
+                $data['id'] = $existing->id;
+                DB::table('users')->where('id', $existing->id)->update($data);
+            } else {
+                DB::table('users')->insert($data);
+            }
         }
     }
 
@@ -106,7 +118,13 @@ class SyncController extends Controller
         if ($existing) {
             DB::table('status_orders')->where('sync_id', $syncId)->update($data);
         } else {
-            DB::table('status_orders')->insert($data);
+            $existing = DB::table('status_orders')->where('name', $data['name'] ?? '')->first();
+            if ($existing) {
+                $data['id'] = $existing->id;
+                DB::table('status_orders')->where('id', $existing->id)->update($data);
+            } else {
+                DB::table('status_orders')->insert($data);
+            }
         }
     }
 
@@ -180,11 +198,12 @@ class SyncController extends Controller
                     $data = (array) $record;
                     foreach ($fkMap as $fkField => $fkTable) {
                         $fkValue = $data[$fkField] ?? null;
+                        $syncIdField = preg_replace('/_id$/', '_sync_id', $fkField);
                         if ($fkValue) {
                             $fkRecord = DB::table($fkTable)->find($fkValue);
-                            $data[$fkField . '_sync_id'] = $fkRecord->sync_id ?? null;
+                            $data[$syncIdField] = $fkRecord->sync_id ?? null;
                         } else {
-                            $data[$fkField . '_sync_id'] = null;
+                            $data[$syncIdField] = null;
                         }
                     }
 

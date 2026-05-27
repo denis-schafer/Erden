@@ -23,11 +23,12 @@ abstract class Controller
 
             foreach ($foreignKeys as $fkField => $fkTable) {
                 $fkValue = $data[$fkField] ?? null;
+                $syncIdField = preg_replace('/_id$/', '_sync_id', $fkField);
                 if ($fkValue) {
                     $fkRecord = DB::table($fkTable)->find($fkValue);
-                    $data[$fkField . '_sync_id'] = $fkRecord->sync_id ?? null;
+                    $data[$syncIdField] = $fkRecord->sync_id ?? null;
                 } else {
-                    $data[$fkField . '_sync_id'] = null;
+                    $data[$syncIdField] = null;
                 }
             }
 

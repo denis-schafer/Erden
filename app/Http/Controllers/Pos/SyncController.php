@@ -4,7 +4,9 @@ namespace App\Http\Controllers\Pos;
 
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 use App\Http\Controllers\Controller;
+use App\Services\SyncService;
 
 class SyncController extends Controller
 {
@@ -133,5 +135,114 @@ class SyncController extends Controller
                 $data[$idField] = $referenced->id;
             }
         }
+    }
+
+    public function backfill(Request $request)
+    {
+        $status = DB::table('configs')->where('name', 'sync_backfill_status')->value('value');
+        if ($status === 'running') {
+            return response()->json(['message' => 'Ya hay un backfill en ejecución'], 409);
+        }
+
+        DB::table('configs')->updateOrInsert(
+            ['name' => 'sync_backfill_status'],
+            ['value' => 'running', 'updated_at' => now()]
+        );
+
+        try {
+            $webhookCode = DB::table('configs')->where('name', 'webhook_code')->value('value');
+            if (!$webhookCode) {
+                DB::table('configs')->where('name', 'sync_backfill_status')->update(['value' => 'error:no_webhook_code']);
+                return response()->json(['message' => 'No hay webhook_code configurado'], 400);
+            }
+
+            $totalQueued = 0;
+
+            // Process entities in FK dependency order
+            $entityOrder = [
+                'categories' => [],
+                'status_orders' => [],
+                'users' => [],
+                'products' => ['category_id' => 'categories'],
+                'orders' => ['operator_id' => 'users', 'status_id' => 'status_orders'],
+            ];
+
+            foreach ($entityOrder as $entity => $fkMap) {
+                $records = DB::table($entity)->whereNull('sync_id')->whereNull('deleted_at')->get();
+                $count = $records->count();
+                $processed = 0;
+
+                foreach ($records as $record) {
+                    $record->sync_id = Str::uuid()->toString();
+
+                    DB::table($entity)->where('id', $record->id)->update(['sync_id' => $record->sync_id]);
+
+                    $data = (array) $record;
+                    foreach ($fkMap as $fkField => $fkTable) {
+                        $fkValue = $data[$fkField] ?? null;
+                        if ($fkValue) {
+                            $fkRecord = DB::table($fkTable)->find($fkValue);
+                            $data[$fkField . '_sync_id'] = $fkRecord->sync_id ?? null;
+                        } else {
+                            $data[$fkField . '_sync_id'] = null;
+                        }
+                    }
+
+                    SyncService::queueChange(
+                        $webhookCode,
+                        $entity,
+                        $record->id,
+                        'created',
+                        $data,
+                        $record->sync_id
+                    );
+
+                    $processed++;
+                    $totalQueued++;
+                }
+
+                DB::table('configs')->where('name', 'sync_backfill_status')->update([
+                    'value' => json_encode([
+                        'status' => 'running',
+                        'entity' => $entity,
+                        'processed' => $processed,
+                        'total' => $count,
+                        'queued' => $totalQueued,
+                    ]),
+                    'updated_at' => now(),
+                ]);
+            }
+
+            DB::table('configs')->where('name', 'sync_backfill_status')->update([
+                'value' => json_encode([
+                    'status' => 'completed',
+                    'queued' => $totalQueued,
+                ]),
+                'updated_at' => now(),
+            ]);
+
+            return response()->json(['status' => 'completed', 'queued' => $totalQueued]);
+        } catch (\Exception $e) {
+            DB::table('configs')->where('name', 'sync_backfill_status')->update([
+                'value' => 'error:' . $e->getMessage(),
+                'updated_at' => now(),
+            ]);
+            return response()->json(['error' => $e->getMessage()], 500);
+        }
+    }
+
+    public function backfillStatus()
+    {
+        $status = DB::table('configs')->where('name', 'sync_backfill_status')->value('value');
+        if (!$status) {
+            return response()->json(['status' => null]);
+        }
+
+        $decoded = json_decode($status, true);
+        if (json_last_error() === JSON_ERROR_NONE) {
+            return response()->json($decoded);
+        }
+
+        return response()->json(['status' => $status]);
     }
 }

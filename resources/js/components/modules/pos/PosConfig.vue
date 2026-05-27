@@ -234,6 +234,54 @@
             </div>
         </div>
 
+        <!-- Backfill Section -->
+        <div class="mt-4">
+            <div class="setting-card">
+                <div class="setting-header">
+                    <h6 class="setting-title">
+                        <i class="bi bi-arrow-repeat me-1"></i>
+                        Sincronización Inicial
+                    </h6>
+                </div>
+                <div class="setting-description">
+                    <small class="text-muted">
+                        Asigna sync_id a todos los registros existentes y los encola para sincronizar con el VPS.
+                        Útil al configurar la sincronización por primera vez.
+                    </small>
+                </div>
+                <div class="mt-3">
+                    <button 
+                        class="btn btn-warning btn-sm w-100" 
+                        @click="startBackfill" 
+                        :disabled="backfillRunning || backfillCompleted">
+                        <span v-if="backfillRunning" class="spinner-border spinner-border-sm"></span>
+                        <i v-else-if="backfillCompleted" class="bi bi-check-circle"></i>
+                        <i v-else class="bi bi-cloud-upload"></i>
+                        {{ backfillRunning ? 'Procesando...' : (backfillCompleted ? 'Backfill Completado' : 'Iniciar Sincronización Inicial') }}
+                    </button>
+
+                    <div v-if="backfillRunning" class="mt-2">
+                        <div class="d-flex justify-content-between small mb-1">
+                            <span class="text-muted">{{ backfillEntity }}</span>
+                            <span class="text-muted">{{ backfillProcessed }} / {{ backfillTotal }}</span>
+                        </div>
+                        <div class="progress" style="height: 6px;">
+                            <div class="progress-bar progress-bar-striped progress-bar-animated bg-warning" 
+                                 :style="{ width: backfillPercent + '%' }"></div>
+                        </div>
+                    </div>
+
+                    <div v-if="backfillCompleted" class="alert alert-success py-2 mb-0 mt-2">
+                        <small><i class="bi bi-check-circle me-1"></i>Backfill completado — {{ backfillQueued }} registros encolados.</small>
+                    </div>
+
+                    <div v-if="backfillError" class="alert alert-danger py-2 mb-0 mt-2">
+                        <small><i class="bi bi-exclamation-triangle me-1"></i>{{ backfillError }}</small>
+                    </div>
+                </div>
+            </div>
+        </div>
+
         <!-- Webhook Code Section -->
         <div class="mt-4">
             <div class="setting-card">
@@ -354,6 +402,14 @@ const remoteUrlValue = ref('');
 const remoteKeyValue = ref('');
 const savingSyncSettings = ref(false);
 const syncSettingsSaved = ref(false);
+const backfillRunning = ref(false);
+const backfillCompleted = ref(false);
+const backfillEntity = ref('');
+const backfillProcessed = ref(0);
+const backfillTotal = ref(0);
+const backfillQueued = ref(0);
+const backfillError = ref('');
+let backfillPollTimer = null;
 
 const showAgentSection = computed(() => {
     const mode = settings.value.find(s => s.name === 'printing_mode');
@@ -626,6 +682,68 @@ const saveSyncSettings = async () => {
     }
 };
 
+const backfillPercent = computed(() => {
+    if (backfillTotal.value === 0) return 0;
+    return Math.round((backfillProcessed.value / backfillTotal.value) * 100);
+});
+
+const startBackfill = async () => {
+    backfillRunning.value = true;
+    backfillCompleted.value = false;
+    backfillError.value = '';
+    backfillEntity.value = '';
+    backfillProcessed.value = 0;
+    backfillTotal.value = 0;
+    backfillQueued.value = 0;
+
+    try {
+        await api.post('/pos/sync/backfill');
+        pollBackfillStatus();
+    } catch (error) {
+        backfillRunning.value = false;
+        backfillError.value = error.response?.data?.message || error.message;
+    }
+};
+
+const pollBackfillStatus = () => {
+    backfillPollTimer = setInterval(async () => {
+        try {
+            const response = await api.get('/pos/sync/backfill-status');
+            const data = response.data;
+
+            if (!data || !data.status) {
+                clearInterval(backfillPollTimer);
+                backfillRunning.value = false;
+                return;
+            }
+
+            if (data.status === 'completed') {
+                clearInterval(backfillPollTimer);
+                backfillRunning.value = false;
+                backfillCompleted.value = true;
+                backfillQueued.value = data.queued || 0;
+                return;
+            }
+
+            if (data.status === 'running') {
+                backfillEntity.value = data.entity || '';
+                backfillProcessed.value = data.processed || 0;
+                backfillTotal.value = data.total || 0;
+                backfillQueued.value = data.queued || 0;
+                return;
+            }
+
+            if (data.status && data.status.startsWith('error:')) {
+                clearInterval(backfillPollTimer);
+                backfillRunning.value = false;
+                backfillError.value = data.status.replace('error:', '');
+            }
+        } catch (error) {
+            // Keep polling
+        }
+    }, 2000);
+};
+
 const copyText = async (text) => {
     try {
         await navigator.clipboard.writeText(text);
@@ -710,6 +828,9 @@ onMounted(() => {
 
 onUnmounted(() => {
     window.removeEventListener('message', handleMpTokenObtained);
+    if (backfillPollTimer) {
+        clearInterval(backfillPollTimer);
+    }
 });
 </script>
 

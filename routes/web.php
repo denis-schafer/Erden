@@ -211,6 +211,12 @@ Route::middleware(['web', 'setDatabase'])->group(function () {
         Route::put('/', [App\Http\Controllers\Pos\PosConfigController::class, 'updateSyncSettings']);
     });
 
+    // Sync Backfill (autenticado por sesión normal)
+    Route::prefix('sync')->group(function () {
+        Route::post('/backfill', [App\Http\Controllers\Pos\SyncController::class, 'backfill']);
+        Route::get('/backfill-status', [App\Http\Controllers\Pos\SyncController::class, 'backfillStatus']);
+    });
+
     // Webhook Code (autenticado por sesión normal)
     Route::prefix('webhook-code')->group(function () {
         Route::get('/', [App\Http\Controllers\Pos\PosConfigController::class, 'webhookCode']);

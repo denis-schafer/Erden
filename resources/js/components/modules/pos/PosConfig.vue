@@ -688,6 +688,23 @@ const backfillPercent = computed(() => {
 });
 
 const startBackfill = async () => {
+    if (backfillCompleted.value) {
+        confirmModal.value.open({
+            title: 'Reiniciar Sincronización',
+            message: 'Ya hay una sincronización inicial completada. Al reiniciar se resetearán todos los sync_id y se eliminarán los archivos de cola pendientes. ¿Desea continuar?',
+            confirmText: 'Sí, reiniciar',
+            cancelText: 'Cancelar',
+            onConfirm: async () => {
+                await doBackfill(true);
+            },
+        });
+        return;
+    }
+
+    await doBackfill(false);
+};
+
+const doBackfill = async (force) => {
     backfillRunning.value = true;
     backfillCompleted.value = false;
     backfillError.value = '';
@@ -697,7 +714,7 @@ const startBackfill = async () => {
     backfillQueued.value = 0;
 
     try {
-        await api.post('/pos/sync/backfill');
+        await api.post('/pos/sync/backfill', { force });
         pollBackfillStatus();
     } catch (error) {
         backfillRunning.value = false;

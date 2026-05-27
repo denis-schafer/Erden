@@ -164,7 +164,22 @@ class SyncController extends Controller
     public function backfill(Request $request)
     {
         $status = DB::table('configs')->where('name', 'sync_backfill_status')->value('value');
-        if ($status === 'running') {
+
+        if ($request->boolean('force')) {
+            DB::table('categories')->update(['sync_id' => null]);
+            DB::table('products')->update(['sync_id' => null]);
+            DB::table('users')->update(['sync_id' => null]);
+            DB::table('status_orders')->update(['sync_id' => null]);
+            DB::table('orders')->update(['sync_id' => null]);
+
+            $queueDir = storage_path('sync/queue');
+            if (is_dir($queueDir)) {
+                $files = glob($queueDir . '/*.json');
+                foreach ($files as $file) {
+                    @unlink($file);
+                }
+            }
+        } elseif ($status === 'running') {
             return response()->json(['message' => 'Ya hay un backfill en ejecución'], 409);
         }
 

@@ -62,6 +62,7 @@ import PosDashboard from '../modules/pos/PosDashboard.vue';
 import PosQR from '../modules/pos/PosQR.vue';
 import PosStatistics from '../modules/pos/PosStatistics.vue';
 import PosLog from '../modules/pos/PosLog.vue';
+import PosDocumentation from '../modules/pos/PosDocumentation.vue';
 
 const authStore = useAuthStore();
 
@@ -88,7 +89,8 @@ const componentMap = {
     'pos-config': markRaw(PosConfig),
     'pos-qr': markRaw(PosQR),
     'pos-statistics': markRaw(PosStatistics),
-    'pos-log': markRaw(PosLog)
+    'pos-log': markRaw(PosLog),
+    'pos-documentation': markRaw(PosDocumentation)
 };
 
 const tabs = ref([

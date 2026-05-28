@@ -54,6 +54,7 @@ class PosSeeder extends Seeder
             ['name' => 'Exportar Estadísticas', 'slug' => 'pos-statistics_export', 'module' => 'pos-statistics', 'action' => 'export'],
             ['name' => 'Ver Log', 'slug' => 'pos-log_read', 'module' => 'pos-log', 'action' => 'read'],
             ['name' => 'Ver QR', 'slug' => 'pos-qr_read', 'module' => 'pos-qr', 'action' => 'read'],
+            ['name' => 'Ver Documentación', 'slug' => 'pos-documentation_read', 'module' => 'pos-documentation', 'action' => 'read'],
         ];
 
         foreach ($permissions as $permission) {
@@ -247,6 +248,15 @@ class PosSeeder extends Seeder
                 'description' => 'Registro de actividad del POS',
                 'is_special' => false,
                 'order' => 9,
+                'package' => 'pos'
+            ],
+            [
+                'name' => 'Documentación',
+                'route' => 'pos-documentation',
+                'icon' => 'bi-book',
+                'description' => 'Documentación del sistema',
+                'is_special' => false,
+                'order' => 10,
                 'package' => 'pos'
             ],
         ];

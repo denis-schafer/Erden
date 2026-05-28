@@ -427,7 +427,7 @@ const settingLabels = {
     'business_phone': 'Teléfono',
     'business_nit': 'NIT',
     'ticket_title': 'Título del Ticket',
-    'redirect_uri': 'URL de Callback (ngrok)',
+    'redirect_uri': 'URL de Callback',
     'mp_access_token': 'Token OAuth',
     'printing_mode': 'Modo de Impresión',
 };
@@ -438,7 +438,7 @@ const settingDescriptions = {
     'business_phone': 'Teléfono de contacto',
     'business_nit': 'Número de identificación fiscal',
     'ticket_title': 'Título que aparecerá en el ticket',
-    'redirect_uri': 'URL de ngrok para recibir el callback de MercadoPago',
+    'redirect_uri': 'URL para recibir el callback de MercadoPago',
     'mp_access_token': 'Token OAuth generado (se obtiene automáticamente)',
     'printing_mode': 'VPS (a través del agente) / Local (directo a impresora)',
 };

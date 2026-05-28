@@ -44,6 +44,7 @@ class PermissionSeeder extends Seeder
                 ['name' => 'Ver Usuarios POS', 'slug' => 'pos-users_read', 'module' => 'pos-users', 'action' => 'read'],
                 ['name' => 'Ver Configuración', 'slug' => 'pos-config_read', 'module' => 'pos-config', 'action' => 'read'],
                 ['name' => 'Ver QR', 'slug' => 'pos-qr_read', 'module' => 'pos-qr', 'action' => 'read'],
+                ['name' => 'Ver Documentación', 'slug' => 'pos-documentation_read', 'module' => 'pos-documentation', 'action' => 'read'],
             ];
 
             foreach ($permissions as $permission) {

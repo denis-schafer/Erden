@@ -50,8 +50,9 @@ class RolePermissionSeeder extends Seeder
         }
         
         $readPermissions = DB::table('permissions')->where('action', 'read')->get();
-        
+
         foreach ($readPermissions as $permission) {
+            if ($permission->slug === 'pos-documentation_read') continue;
             $exists = DB::table('role_permission')
                 ->where('role_id', $operatorRole->id)
                 ->where('permission_id', $permission->id)

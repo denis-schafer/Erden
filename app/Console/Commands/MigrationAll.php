@@ -645,57 +645,55 @@ class MigrationAll extends Command
 
     protected function runPosSeeders(): void
     {
+        // Save current company DB name BEFORE switching to parent
+        $companyDb = config('database.connections.mysql.database');
+
         // Verificar si el módulo POS está asignado a esta compañía
         config(['database.connections.mysql.database' => 'erden']);
         DB::purge('mysql');
         DB::reconnect('mysql');
 
-        // Get current company DB name
-        $companyDb = config('database.connections.mysql.database');
-        
         $company = DB::table('companies')
             ->where('db', $companyDb)
             ->first();
-            
+
         if (!$company) {
+            $this->warn("Company with DB '{$companyDb}' not found in parent. Skipping POS seeders.");
+            // Switch back
+            config(['database.connections.mysql.database' => $companyDb]);
+            DB::purge('mysql');
+            DB::reconnect('mysql');
             return;
         }
-        
+
         // Check if company has POS module
         $hasPos = DB::table('company_modules')
-            ->where('company_id', $company->id)
-            ->whereHas('module', function($query) {
-                $query->where('route', 'pos');
-            })
+            ->join('modules', 'company_modules.module_id', '=', 'modules.id')
+            ->where('company_modules.company_id', $company->id)
+            ->where('modules.route', 'pos')
             ->exists();
-            
+
+        // Switch back to child database
+        config(['database.connections.mysql.database' => $companyDb]);
+        DB::purge('mysql');
+        DB::reconnect('mysql');
+
         if (!$hasPos) {
             $this->info('POS module not assigned to this company. Skipping POS seeders.');
             return;
         }
-        
+
         $this->info('POS module detected. Running POS seeders...');
-        
-        // Connect back to child database
-        config(['database.connections.mysql.database' => $companyDb]);
-        DB::purge('mysql');
-        DB::reconnect('mysql');
-        
+
         // Create status_orders table if not exists
         $this->createPosTables();
-        
-        // Run POS seeders - include Package ModuleSeeder for child DB (includes all POS modules)
-        // Solo ejecutar ModuleSeeder si no hay módulos POS aún
-        $posModuleCount = DB::table('modules')->where('package', 'pos')->count();
-        if ($posModuleCount === 0) {
-            $this->call('db:seed', ['--class' => 'App\Packages\Pos\Seeders\ModuleSeeder', '--force' => true]);
-        } else {
-            $this->info('POS modules already exist. Skipping ModuleSeeder.');
-        }
-        
+
+        // Run POS ModuleSeeder (updateOrInsert so it's safe to always run)
+        $this->call('db:seed', ['--class' => 'App\Packages\Pos\Seeders\ModuleSeeder', '--force' => true]);
+
         $this->call('db:seed', ['--class' => 'Database\Seeders\Child\PosStatusOrderSeeder', '--force' => true]);
         $this->call('db:seed', ['--class' => 'Database\Seeders\Child\PosConfigSeeder', '--force' => true]);
-        
+
         $this->info('POS seeders completed.');
     }
 
@@ -729,6 +727,16 @@ class MigrationAll extends Command
                 $table->timestamps();
             });
             $this->info('Table configs created.');
+        } else {
+            $configColumns = DB::getSchemaBuilder()->getColumnListing('configs');
+            if (!in_array('target', $configColumns)) {
+                DB::statement('ALTER TABLE configs ADD COLUMN target VARCHAR(255) NULL AFTER value');
+                $this->info('Added target column to configs.');
+            }
+            if (!in_array('type', $configColumns)) {
+                DB::statement('ALTER TABLE configs ADD COLUMN type VARCHAR(255) NULL AFTER target');
+                $this->info('Added type column to configs.');
+            }
         }
         
         // Create orders table

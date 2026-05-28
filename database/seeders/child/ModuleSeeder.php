@@ -41,6 +41,7 @@ class ModuleSeeder extends Seeder
                 ['name' => 'Usuarios POS', 'route' => 'pos-users', 'icon' => 'bi-people', 'is_special' => false, 'order' => 14, 'package' => 'pos'],
                 ['name' => 'Configuración', 'route' => 'pos-config', 'icon' => 'bi-sliders', 'is_special' => false, 'order' => 15, 'package' => 'pos'],
                 ['name' => 'QR', 'route' => 'pos-qr', 'icon' => 'bi-qr-code', 'is_special' => false, 'order' => 16, 'package' => 'pos'],
+                ['name' => 'Documentación', 'route' => 'pos-documentation', 'icon' => 'bi-book', 'is_special' => false, 'order' => 17, 'package' => 'pos'],
             ];
 
             foreach ($posModules as $module) {

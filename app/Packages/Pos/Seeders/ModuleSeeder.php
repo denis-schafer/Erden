@@ -91,6 +91,15 @@ class ModuleSeeder extends Seeder
                 'order' => 9,
                 'package' => 'pos'
             ],
+            [
+                'name' => 'Documentación',
+                'route' => 'pos-documentation',
+                'icon' => 'bi-book',
+                'description' => 'Documentación del sistema',
+                'is_special' => false,
+                'order' => 10,
+                'package' => 'pos'
+            ],
         ];
 
         foreach ($modules as $module) {

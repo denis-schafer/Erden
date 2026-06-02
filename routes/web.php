@@ -149,6 +149,8 @@ Route::middleware(['web', 'setDatabase'])->group(function () {
         Route::post('/users/{id}/toggle-status', [App\Http\Controllers\Pos\PosUserController::class, 'toggleStatus']);
         Route::delete('/users/{id}', [App\Http\Controllers\Pos\PosUserController::class, 'destroy']);
         Route::put('/users/{id}/printer-config', [App\Http\Controllers\Pos\PosUserController::class, 'updatePrinterConfig']);
+
+        Route::get('/terminals', [App\Http\Controllers\Pos\PosUserController::class, 'listTerminals']);
         
         Route::get('/configs', [App\Http\Controllers\Pos\PosConfigController::class, 'index']);
         Route::put('/configs/{id}', [App\Http\Controllers\Pos\PosConfigController::class, 'update']);

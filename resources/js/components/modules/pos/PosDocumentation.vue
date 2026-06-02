@@ -202,6 +202,91 @@
                             </div>
                         </div>
 
+                        <!-- PAGOS CON POSTNET (POINT) -->
+                        <div v-show="activeSection === 'postnet'">
+                            <h4 class="mb-3">Pagos con Postnet (MercadoPago Point)</h4>
+
+                            <h5>¿Qué es?</h5>
+                            <p>
+                                La integración con MercadoPago Point permite que al crear una orden, el importe se envíe automáticamente a un terminal Point (postnet físico) 
+                                para que el cliente pague directamente en el dispositivo. Funciona <strong>en simultáneo</strong> con el pago por QR.
+                            </p>
+
+                            <h5 class="mt-4">Funcionamiento</h5>
+                            <ol>
+                                <li>El cajero tiene un terminal Point asociado (configurado en Usuarios)</li>
+                                <li>Al crear una orden en Caja, el importe se envía al terminal Point además de generar el QR</li>
+                                <li>El cliente paga en el postnet con tarjeta</li>
+                                <li>MercadoPago notifica el pago vía webhook y la orden se marca como pagada automáticamente</li>
+                            </ol>
+
+                            <div class="alert alert-info">
+                                <i class="bi bi-info-circle me-2"></i>
+                                Si el terminal no está disponible o la API falla, la orden se crea igual y solo funciona el QR. 
+                                El error se registra en los logs pero no bloquea la operación.
+                            </div>
+
+                            <h5 class="mt-4">Cómo obtener el ID del terminal (posnet_id)</h5>
+                            <p>Hay dos formas de obtener el <code>posnet_id</code> de un terminal Point:</p>
+
+                            <h6 class="mt-3">Opción 1: Desde el formulario de Usuarios (recomendado)</h6>
+                            <p>Al crear o editar un cajero con QR habilitado, aparecerá el campo <strong>"ID Postnet (Point)"</strong> con un botón <strong>"Listar"</strong> a la derecha:</p>
+                            <ol>
+                                <li>Ir a <strong>Usuarios</strong> en el POS</li>
+                                <li>Crear o editar un usuario con rol <strong>cashier</strong></li>
+                                <li>Activar el checkbox <strong>"Habilitar QR MercadoPago"</strong></li>
+                                <li>Hacer clic en <strong>"Listar"</strong> junto al campo ID Postnet</li>
+                                <li>Seleccionar el terminal de la lista desplegable</li>
+                                <li>Guardar el usuario</li>
+                            </ol>
+                            <p class="text-muted small">El token <code>mp_access_token</code> utilizado es el de la propia empresa (obtenido al conectar MercadoPago vía OAuth). Los terminales listados pertenecen a la cuenta de MercadoPago de la empresa.</p>
+
+                            <h6 class="mt-3">Opción 2: Consultar la API de MercadoPago directamente</h6>
+                            <p>Usando el Access Token de la empresa (el mismo que se usa para QR, obtenido vía OAuth en Configuración), consultar:</p>
+                            <div class="bg-light p-3 rounded mb-3">
+                                <code class="d-block">GET https://api.mercadopago.com/terminals/v1/list</code>
+                                <code class="d-block mt-1">Authorization: Bearer {mp_access_token}</code>
+                            </div>
+                            <p>Ejemplo de respuesta:</p>
+                            <div class="bg-light p-3 rounded mb-3">
+                                <pre class="mb-0 small"><code>{
+  "data": {
+    "terminals": [
+      {
+        "id": "NEWLAND_N950__N950NCB801293324",
+        "operating_mode": "PDV"
+      }
+    ]
+  }
+}</code></pre>
+                            </div>
+                            <p>El valor del campo <code>id</code> (ej: <code>NEWLAND_N950__N950NCB801293324</code>) es el <strong>posnet_id</strong> que se debe asignar al usuario cajero.</p>
+                            <p class="text-muted small">Los últimos caracteres del ID coinciden con el número de serie impreso en la etiqueta trasera del terminal físico.</p>
+
+                            <h5 class="mt-4">Pre-requisitos del terminal</h5>
+                            <ul>
+                                <li>El terminal debe estar en modo <strong>PDV</strong> (Point of Sale), no STANDALONE</li>
+                                <li>Para activar PDV: <code>PATCH /terminals/v1/setup</code> con <code>operating_mode: "PDV"</code></li>
+                                <li>Se necesita una tienda (store) y punto de venta (pos) creados en MercadoPago</li>
+                                <li>Solo un terminal por punto de venta. Para múltiples terminales, crear múltiples puntos de venta</li>
+                                <li>Mismo OAuth token usado para QR sirve para Point — no se necesita configuración adicional de token</li>
+                            </ul>
+
+                            <h5 class="mt-4">Configuración en el POS</h5>
+                            <ol>
+                                <li>Ir a <strong>Usuarios</strong> en el POS</li>
+                                <li>Crear o editar un usuario con rol <strong>cashier</strong></li>
+                                <li>Activar el checkbox <strong>"Habilitar QR MercadoPago"</strong></li>
+                                <li>Aparecerá el campo <strong>"ID Postnet (Point)"</strong> con un botón <strong>"Listar"</strong></li>
+                                <li>Hacer clic en <strong>"Listar"</strong> para cargar los terminales disponibles, o ingresar el ID manualmente</li>
+                                <li>Guardar el usuario</li>
+                            </ol>
+
+                            <h5 class="mt-4">¿Qué pasa si el cajero no tiene postnet?</h5>
+                            <p>Si el campo <strong>ID Postnet</strong> está vacío, solo se genera el QR (comportamiento normal). 
+                            Ambos métodos conviven sin problemas y se puede tener una combinación de cajeros con y sin postnet.</p>
+                        </div>
+
                         <!-- SINCRONIZACIÓN -->
                         <div v-show="activeSection === 'sync'">
                             <h4 class="mb-3">Sincronización Local ↔ VPS</h4>
@@ -309,6 +394,7 @@ const sections = [
     { id: 'config', label: 'Configuración Inicial', icon: 'bi-sliders' },
     { id: 'agent', label: 'Agente de Impresión', icon: 'bi-printer' },
     { id: 'webhooks', label: 'Webhooks MP', icon: 'bi-currency-dollar' },
+    { id: 'postnet', label: 'Postnet (Point)', icon: 'bi-credit-card-2-front' },
     { id: 'sync', label: 'Sincronización', icon: 'bi-arrow-repeat' },
     { id: 'architecture', label: 'Arquitectura', icon: 'bi-diagram-3' },
 ];

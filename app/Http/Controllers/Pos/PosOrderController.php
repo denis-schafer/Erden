@@ -12,6 +12,7 @@ use App\Events\OrderUpdated;
 use App\Events\OrderDeleted;
 use App\Packages\Pos\Helpers\TestModeHelper;
 use App\Services\PrintJobService;
+use App\Services\MercadoPagoPointService;
 
 class PosOrderController extends Controller
 {
@@ -74,6 +75,9 @@ class PosOrderController extends Controller
         // Create print job for local agent
         $this->createPrintJob($order, $validated['detail'], $validated['operator_id']);
 
+        // Send to Point Postnet if operator has posnet_id
+        $this->sendToPointTerminal($order, $validated['operator_id']);
+
         event(new OrderCreated((array) $order));
 
         $this->queueSync('orders', 'created', $order, ['operator_id' => 'users', 'status_id' => 'status_orders']);
@@ -96,6 +100,54 @@ class PosOrderController extends Controller
             $printJobService->createFromOrder($order, $detail, $operatorId, $companyDb);
         } catch (\Exception $e) {
             Log::error('Error creating print job: ' . $e->getMessage());
+        }
+    }
+
+    private function sendToPointTerminal($order, int $operatorId): void
+    {
+        try {
+            $operator = DB::table('users')->find($operatorId);
+            if (!$operator || empty($operator->posnet_id) || !$operator->mercadopago_qr_enabled) {
+                return;
+            }
+
+            $accessToken = DB::table('configs')->where('name', 'mp_access_token')->value('value');
+            if (empty($accessToken)) {
+                Log::warning('[MercadoPagoPoint] No mp_access_token found for company');
+                return;
+            }
+
+            $companyDb = $this->resolveCompanyDb();
+            $externalReference = ($companyDb ?? 'unknown') . '-' . $operatorId . '-' . $order->id;
+            $amount = number_format($order->total, 2, '.', '');
+            $description = 'Pedido #' . $order->id;
+
+            $pointService = new MercadoPagoPointService($accessToken);
+            $result = $pointService->createOrder(
+                $operator->posnet_id,
+                $amount,
+                $externalReference,
+                $description
+            );
+
+            if ($result['success']) {
+                Log::info('[MercadoPagoPoint] Order sent to terminal', [
+                    'order_id' => $order->id,
+                    'operator' => $operator->username,
+                    'terminal' => $operator->posnet_id,
+                ]);
+            } else {
+                Log::warning('[MercadoPagoPoint] Failed to send order to terminal', [
+                    'order_id' => $order->id,
+                    'operator' => $operator->username,
+                    'error' => $result['error'] ?? 'unknown',
+                ]);
+            }
+        } catch (\Exception $e) {
+            Log::error('[MercadoPagoPoint] Error sending to Point terminal', [
+                'order_id' => $order->id ?? null,
+                'error' => $e->getMessage(),
+            ]);
         }
     }
 

@@ -265,7 +265,7 @@ class CompanyModuleController extends Controller
             'status_orders' => ['sync_id', 'deleted_at'],
             'categories' => ['sync_id', 'deleted_at', 'order'],
             'products' => ['sync_id', 'deleted_at'],
-            'users' => ['deleted_at'],
+            'users' => ['deleted_at', 'posnet_id'],
         ];
 
         foreach ($posTables as $table => $columns) {
@@ -281,6 +281,7 @@ class CompanyModuleController extends Controller
                             'mp_payment_id' => "ALTER TABLE {$table} ADD COLUMN mp_payment_id VARCHAR(50) NULL AFTER paid",
                             'mp_transaction_amount' => "ALTER TABLE {$table} ADD COLUMN mp_transaction_amount DECIMAL(10,2) NULL AFTER mp_payment_id",
                             'order' => "ALTER TABLE {$table} ADD COLUMN `order` INT DEFAULT 0 AFTER enable",
+                            'posnet_id' => "ALTER TABLE {$table} ADD COLUMN posnet_id VARCHAR(255) NULL AFTER mercadopago_qr_enabled",
                             default => null,
                         };
                         if ($stmt) {

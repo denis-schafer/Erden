@@ -11,6 +11,7 @@ use App\Http\Controllers\Controller;
 use App\Events\UserDisabled;
 use App\Events\UserEnabled;
 use App\Packages\Pos\Helpers\TestModeHelper;
+use App\Services\MercadoPagoPointService;
 
 class PosUserController extends Controller
 {
@@ -43,6 +44,7 @@ class PosUserController extends Controller
             'printer_width' => 'nullable|integer|in:80,50',
             'enable_print' => 'boolean',
             'mercadopago_qr_enabled' => 'boolean',
+            'posnet_id' => 'nullable|string|max:255',
         ]);
 
         $validated['password'] = Hash::make($validated['password']);
@@ -55,6 +57,8 @@ class PosUserController extends Controller
         $validated['enable_print'] = in_array($enablePrintValue, ['1', 'true', true, 1], true);
         $mercadoPagoValue = $request->input('mercadopago_qr_enabled', null);
         $validated['mercadopago_qr_enabled'] = in_array($mercadoPagoValue, ['1', 'true', true, 1], true);
+        
+        $validated['posnet_id'] = $request->input('posnet_id');
         
         unset($validated['mercadopago_enable_qr']);
 
@@ -82,6 +86,7 @@ class PosUserController extends Controller
             'printer_width' => 'nullable|integer|in:80,50',
             'enable_print' => 'boolean',
             'mercadopago_qr_enabled' => 'boolean',
+            'posnet_id' => 'nullable|string|max:255',
         ];
 
         if ($request->has('password') && $request->password) {
@@ -103,6 +108,8 @@ class PosUserController extends Controller
         
         $mercadopagoQrValue = $request->input('mercadopago_qr_enabled', null);
         $validated['mercadopago_qr_enabled'] = in_array($mercadopagoQrValue, ['1', 'true', true, 1], true);
+        
+        $validated['posnet_id'] = $request->input('posnet_id');
         
         unset($validated['mercadopago_enable_qr']); // Remove if exists from old request
 
@@ -213,5 +220,32 @@ class PosUserController extends Controller
         $this->queueSync('users', 'updated', $user);
 
         return response()->json(['message' => 'Configuración de impresora actualizada']);
+    }
+
+    public function listTerminals()
+    {
+        try {
+            $accessToken = DB::table('configs')->where('name', 'mp_access_token')->value('value');
+            if (empty($accessToken)) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'No hay mp_access_token configurado. Conecta MercadoPago primero.'
+                ], 400);
+            }
+
+            $pointService = new MercadoPagoPointService($accessToken);
+            $terminals = $pointService->getDevices();
+
+            return response()->json([
+                'success' => true,
+                'terminals' => $terminals,
+            ]);
+        } catch (\Exception $e) {
+            Log::error('[PosUserController] Error listing terminals: ' . $e->getMessage());
+            return response()->json([
+                'success' => false,
+                'message' => 'Error al listar terminales: ' . $e->getMessage()
+            ], 500);
+        }
     }
 }

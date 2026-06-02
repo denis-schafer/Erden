@@ -514,6 +514,14 @@ class MigrationAll extends Command
             } else {
                 $this->info('users.role_id column exists.');
             }
+            
+            if (!in_array('posnet_id', $columns)) {
+                $this->warn('users.posnet_id column NOT found! Adding it manually...');
+                DB::statement("ALTER TABLE users ADD COLUMN posnet_id VARCHAR(255) NULL AFTER mercadopago_qr_enabled");
+                $this->info('posnet_id column added successfully.');
+            } else {
+                $this->info('users.posnet_id column exists.');
+            }
         } catch (\Exception $e) {
             $this->warn('Error verifying table structure: ' . $e->getMessage());
         }

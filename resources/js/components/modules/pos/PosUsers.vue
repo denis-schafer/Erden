@@ -154,6 +154,30 @@
                                             <label class="form-check-label" for="mercadopago_qr">Habilitar QR MercadoPago</label>
                                         </div>
                                     </div>
+                                    <div class="mb-3" v-if="form.role_id == 2 && form.mercadopago_qr_enabled">
+                                        <label class="form-label">ID Postnet (Point)</label>
+                                        <div class="input-group">
+                                            <input v-model="form.posnet_id" type="text" class="form-control" placeholder="NEWLAND_N950__N950NCB801293324">
+                                            <button class="btn btn-outline-secondary" type="button" @click="fetchTerminals" :disabled="loadingTerminals">
+                                                <i class="bi" :class="loadingTerminals ? 'bi-arrow-repeat spin' : 'bi-list-ul'"></i>
+                                                Listar
+                                            </button>
+                                        </div>
+                                        <div v-if="terminals.length > 0" class="mt-2 p-2 border rounded">
+                                            <label class="form-label small">Seleccionar terminal:</label>
+                                            <select class="form-select form-select-sm" @change="form.posnet_id = $event.target.value">
+                                                <option value="">-- Elegir --</option>
+                                                <option v-for="t in terminals" :key="t.id" :value="t.id">
+                                                    {{ t.id }} ({{ t.model || 'N/A' }})
+                                                </option>
+                                            </select>
+                                        </div>
+                                        <small class="text-muted">
+                                            <i class="bi bi-info-circle"></i>
+                                            ID del terminal Point de MercadoPago. Se envía el importe al postnet al crear cada orden.
+                                            Usa el botón <strong>Listar</strong> para cargar los terminales disponibles en tu cuenta.
+                                        </small>
+                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -196,6 +220,9 @@ const withLoading = async (key, cb) => {
     }
 };
 
+const terminals = ref([]);
+const loadingTerminals = ref(false);
+
 const form = reactive({
     name: '',
     username: '',
@@ -208,6 +235,7 @@ const form = reactive({
     printer_width: 80,
     enable_print: false,
     mercadopago_qr_enabled: false,
+    posnet_id: '',
 });
 
 const loadData = async () => {
@@ -238,6 +266,7 @@ const openCreateModal = () => {
     form.printer_width = 80;
     form.enable_print = false;
     form.mercadopago_qr_enabled = false;
+    form.posnet_id = '';
     showModal.value = true;
 };
 
@@ -254,6 +283,7 @@ const editUser = (user) => {
     form.printer_width = parseInt(user.printer_width) || 80;
     form.enable_print = user.enable_print === 1 || user.enable_print === true || user.enable_print === '1';
     form.mercadopago_qr_enabled = user.mercadopago_qr_enabled === 1 || user.mercadopago_qr_enabled === true || user.mercadopago_qr_enabled === '1';
+    form.posnet_id = user.posnet_id || '';
     showModal.value = true;
 };
 
@@ -271,6 +301,7 @@ const closeModal = () => {
     form.printer_width = 80;
     form.enable_print = false;
     form.mercadopago_qr_enabled = false;
+    form.posnet_id = '';
 };
 
 const saveUser = async () => {
@@ -290,6 +321,7 @@ const saveUser = async () => {
             data.printer_width = parseInt(form.printer_width) || 80;
             data.enable_print = form.enable_print ? '1' : '0';
             data.mercadopago_qr_enabled = form.mercadopago_qr_enabled ? '1' : '0';
+            data.posnet_id = form.posnet_id || null;
         }
         
         if (editingUser.value) {
@@ -308,6 +340,23 @@ const saveUser = async () => {
         toastify.error('Error al guardar usuario');
     } finally {
         saving.value = false;
+    }
+};
+
+const fetchTerminals = async () => {
+    loadingTerminals.value = true;
+    terminals.value = [];
+    try {
+        const res = await api.get('/pos/terminals');
+        if (res.data.success && res.data.terminals.length > 0) {
+            terminals.value = res.data.terminals;
+        } else {
+            toastify.info('No se encontraron terminales Point en tu cuenta de MercadoPago.');
+        }
+    } catch (e) {
+        toastify.error(e.response?.data?.message || 'Error al listar terminales');
+    } finally {
+        loadingTerminals.value = false;
     }
 };
 
@@ -357,5 +406,13 @@ window.addEventListener('pos-user-disabled', () => {
     background-color: #f8f9fa;
     padding: 1rem;
     overflow-y: auto;
+}
+
+@keyframes spin {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+}
+.bi-arrow-repeat.spin {
+    animation: spin 1s linear infinite;
 }
 </style>

@@ -1,5 +1,35 @@
 === Historial de Versiones ===
 
+[MercadoPago Point (Postnet)]
+Fecha: 2026-06-02
+Estado: Completado
+
+Cambios realizados:
+- Nueva columna posnet_id en users para asociar terminal Point a cajeros
+- MercadoPagoPointService: servicio para la API Orders de MP Point (createOrder, getOrder, cancelOrder, getDevices)
+- Al crear una orden, si el operador tiene posnet_id activo se envía el importe al terminal Point automáticamente
+- Convive con el QR actual — ambos métodos funcionan en simultáneo
+- Campo posnet_id visible en UI solo para rol cashier con QR habilitado
+- Botón "Listar" en formulario de usuarios que obtiene terminales de la cuenta MP de la empresa vía API
+- Endpoint GET /pos/terminals para listar terminales Point disponibles
+- Documentación: nueva sección "Postnet (Point)" con pasos para obtener el posnet_id y configurarlo
+- Migración + verifyPosTablesStructure + verifyUsersTableStructure para DBs nuevas y existentes
+- Build exitoso
+
+Archivos creados:
+- app/Services/MercadoPagoPointService.php
+- app/Packages/Pos/Migrations/2026_06_02_000001_add_posnet_id_to_users_table.php
+
+Archivos modificados:
+- app/Http/Controllers/Pos/PosOrderController.php
+- app/Http/Controllers/Pos/PosUserController.php
+- app/Http/Controllers/CompanyModuleController.php
+- app/Console/Commands/MigrationAll.php
+- resources/js/components/modules/pos/PosUsers.vue
+- resources/js/components/modules/pos/PosDocumentation.vue
+
+---
+
 [QR POS funcional]
 Fecha: 2026-05-01
 Estado: Completado
@@ -397,6 +427,36 @@ Archivos modificados:
 - app/Packages/Pos/Migrations/2026_05_21_000001_add_printing_mode_config.php
 - database/seeders/child/PosConfigSeeder.php
 - versiones.txt
+
+---
+
+[Documentación]
+Fecha: 2026-06-02
+Estado: Completado
+
+Cambios realizados:
+- Nuevo módulo "Documentación" (pos-documentation) con panel de documentación técnica
+- DocSeeder siembra documentación desde archivos Markdown en docs/
+- ModuleSeeder registra permisos pos-documentation_read, pos-documentation_create, pos-documentation_update, pos-documentation_delete
+- PosDoc.vue: visor de documentación con 3 paneles (sidebar de módulos, contenido Markdown con highlight.js, metadatos)
+- DocController: sirve endpoints CRUD para documentación
+- MigrationAll.php: fix para agregar columnas target/type faltantes en tabla configs
+- Build exitoso
+
+Archivos creados:
+- app/Http/Controllers/Pos/DocController.php
+- resources/js/components/modules/pos/PosDoc.vue
+- database/seeders/child/DocSeeder.php
+- database/seeders/child/ModuleSeeder.php
+- docs/* (archivos de documentación)
+
+Archivos modificados:
+- routes/web.php
+- app/Console/Commands/MigrationAll.php
+- app/Packages/Pos/Seeders/PosSeeder.php
+- database/seeders/child/PosSeeder.php
+- resources/js/components/layout/TabsContainer.vue
+- resources/js/components/layout/Sidebar.vue
 
 ---
 

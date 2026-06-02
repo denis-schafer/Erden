@@ -411,6 +411,7 @@ class MigrationAll extends Command
             'database/migrations/2026_04_03_100004_create_role_permission_table.php',
             'database/migrations/2026_04_03_100007_create_modules_table.php',
             'database/migrations/2026_04_22_000001_drop_mercadopago_enable_qr_column.php',
+            // Also runs via POS package migration: 2026_06_02_000002_drop_mercadopago_enable_qr_from_users_table
             // Note: mp_payment_id and mp_transaction_amount columns are added in createPosTables()
         ];
 

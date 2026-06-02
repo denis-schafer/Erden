@@ -29,9 +29,6 @@ return new class extends Migration
                 if (!Schema::hasColumn('users', 'mercadopago_qr_enabled')) {
                     $table->boolean('mercadopago_qr_enabled')->default(false)->after('enable_print');
                 }
-                if (!Schema::hasColumn('users', 'mercadopago_enable_qr')) {
-                    $table->boolean('mercadopago_enable_qr')->default(false)->after('mercadopago_qr_enabled');
-                }
             });
         }
     }
@@ -39,7 +36,7 @@ return new class extends Migration
     public function down(): void
     {
         Schema::table('users', function (Blueprint $table) {
-            $columnsToRemove = ['printer_ip', 'printer_port', 'printer_type', 'printer_width', 'enable_print', 'mercadopago_qr_enabled', 'mercadopago_enable_qr'];
+            $columnsToRemove = ['printer_ip', 'printer_port', 'printer_type', 'printer_width', 'enable_print', 'mercadopago_qr_enabled'];
             foreach ($columnsToRemove as $column) {
                 if (Schema::hasColumn('users', $column)) {
                     $table->dropColumn($column);

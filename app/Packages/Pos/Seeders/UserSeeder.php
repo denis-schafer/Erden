@@ -22,8 +22,7 @@ class UserSeeder extends Seeder
                 'enable' => true,
                 'printer_ip' => null,
                 'printer_port' => 9100,
-                'printer_type' => 'raw',
-                'mercadopago_enable_qr' => false
+                'printer_type' => 'raw'
             ]);
             
             $this->command->info('Admin user created: admin / $0deJulio');

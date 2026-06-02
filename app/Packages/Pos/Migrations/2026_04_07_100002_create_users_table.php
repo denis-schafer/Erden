@@ -13,6 +13,7 @@ return new class extends Migration
         if (!Schema::hasTable('users')) {
             Schema::create('users', function (Blueprint $table) {
                 $table->id();
+                $table->string('sync_id', 36)->nullable()->unique()->after('id');
                 $table->string('name');
                 $table->string('username')->unique();
                 $table->string('email')->nullable()->unique();
@@ -25,13 +26,15 @@ return new class extends Migration
                 $table->boolean('enable')->default(true);
                 $table->boolean('enable_print')->default(false);
                 $table->boolean('mercadopago_qr_enabled')->default(false);
-                $table->boolean('mercadopago_enable_qr')->default(false);
                 $table->rememberToken();
                 $table->timestamps();
                 $table->softDeletes();
             });
         } else {
             Schema::table('users', function (Blueprint $table) {
+                if (!Schema::hasColumn('users', 'sync_id')) {
+                    $table->string('sync_id', 36)->nullable()->unique()->after('id');
+                }
                 if (!Schema::hasColumn('users', 'enable')) {
                     $table->boolean('enable')->default(true)->after('printer_type');
                 }
@@ -52,9 +55,6 @@ return new class extends Migration
                 }
                 if (!Schema::hasColumn('users', 'mercadopago_qr_enabled')) {
                     $table->boolean('mercadopago_qr_enabled')->default(false)->after('enable_print');
-                }
-                if (!Schema::hasColumn('users', 'mercadopago_enable_qr')) {
-                    $table->boolean('mercadopago_enable_qr')->default(false)->after('mercadopago_qr_enabled');
                 }
                 if (!Schema::hasColumn('users', 'deleted_at')) {
                     $table->timestamp('deleted_at')->nullable()->after('updated_at');

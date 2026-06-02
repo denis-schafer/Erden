@@ -265,7 +265,7 @@ class CompanyModuleController extends Controller
             'status_orders' => ['sync_id', 'deleted_at'],
             'categories' => ['sync_id', 'deleted_at', 'order'],
             'products' => ['sync_id', 'deleted_at'],
-            'users' => ['deleted_at', 'posnet_id'],
+            'users' => ['sync_id', 'deleted_at', 'posnet_id'],
         ];
 
         foreach ($posTables as $table => $columns) {

@@ -380,6 +380,9 @@ import { ref, computed, onMounted, onUnmounted } from 'vue';
 import api from '../../../services/api';
 import { useAuthStore } from '../../../stores/auth';
 import ConfirmModal from '../../../components/ConfirmModal.vue';
+import { useCache } from '../../../composables/useCache';
+
+const { fetch, refresh } = useCache();
 
 const settings = ref([]);
 const loading = ref(false);
@@ -562,8 +565,7 @@ const isBooleanTrue = (value) => {
 const loadSettings = async () => {
     loading.value = true;
     try {
-        const response = await api.get('/pos/configs');
-        const allSettings = response.data;
+        const allSettings = await fetch('configs', () => api.get('/pos/configs').then(r => r.data));
         
         const allowedSettings = ['business_name', 'business_address', 'business_phone', 'business_nit', 'ticket_title', 'redirect_uri', 'mp_access_token', 'printing_mode'];
         settings.value = allSettings.filter(s => allowedSettings.includes(s.name));

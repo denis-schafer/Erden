@@ -439,8 +439,10 @@ import api from '../../../services/api';
 import { toast as toastify } from '../../../utils/toast';
 import ConfirmModal from '../../../components/ConfirmModal.vue';
 import { useAuthStore } from '../../../stores/auth';
+import { useCache } from '../../../composables/useCache';
 
 const authStore = useAuthStore();
+const { fetch, refresh } = useCache();
 
 // WebSocket listener for OrderPaid - refresh orders in modal automatically
 let orderPaidListenerSetup = false;
@@ -707,14 +709,14 @@ const createOrder = async () => {
 
 const loadData = async () => {
     try {
-        const [categoriesRes, productsRes, userRes] = await Promise.all([
-            api.get('/pos/categories'),
-            api.get('/pos/products'),
+        const [categoriesData, productsData, userRes] = await Promise.all([
+            fetch('categories', () => api.get('/pos/categories').then(r => r.data)),
+            fetch('products', () => api.get('/pos/products').then(r => r.data)),
             api.get('/pos/user/current'),
         ]);
 
-        categories.value = categoriesRes.data.filter(c => c.enable);
-        products.value = productsRes.data;
+        categories.value = categoriesData.filter(c => c.enable);
+        products.value = productsData;
         user.value = userRes.data;
 
         const currentUser = userRes.data;
@@ -729,8 +731,8 @@ const loadData = async () => {
 
 const loadCategories = async () => {
     try {
-        const response = await api.get('/pos/categories');
-        categories.value = response.data.filter(c => c.enable);
+        const data = await refresh('categories', () => api.get('/pos/categories').then(r => r.data));
+        categories.value = data.filter(c => c.enable);
         const defaultCategory = categories.value.find(c => c.default);
         selectedCategory.value = defaultCategory ? defaultCategory.id : categories.value[0]?.id;
     } catch (error) {
@@ -740,8 +742,7 @@ const loadCategories = async () => {
 
 const loadProducts = async () => {
     try {
-        const response = await api.get('/pos/products');
-        products.value = response.data;
+        products.value = await refresh('products', () => api.get('/pos/products').then(r => r.data));
     } catch (error) {
         // Error loading products
     }
@@ -754,8 +755,6 @@ const removeDisabledProductsFromCart = () => {
     cart.value = cart.value.filter(item => !disabledProductIds.includes(item.id));
     return initialCount - cart.value.length;
 };
-
-onMounted(loadData);
 
 watch(() => showOrdersModal.value, (newVal) => {
     if (newVal) {
@@ -775,12 +774,21 @@ window.addEventListener('pos-order-updated', () => {
     }
 });
 
-window.addEventListener('pos-category-changed', () => {
-    loadCategories();
+window.addEventListener('pos-category-changed', async () => {
+    try {
+        const data = await refresh('categories', () => api.get('/pos/categories').then(r => r.data));
+        categories.value = data.filter(c => c.enable);
+        const defaultCategory = categories.value.find(c => c.default);
+        selectedCategory.value = defaultCategory ? defaultCategory.id : categories.value[0]?.id;
+    } catch (error) {
+    }
 });
 
 window.addEventListener('pos-product-changed', async (event) => {
-    await loadProducts();
+    try {
+        products.value = await refresh('products', () => api.get('/pos/products').then(r => r.data));
+    } catch (error) {
+    }
     setTimeout(() => {
         const removedCount = removeDisabledProductsFromCart();
         if (removedCount > 0) {
@@ -789,8 +797,11 @@ window.addEventListener('pos-product-changed', async (event) => {
     }, 100);
 });
 
-window.addEventListener('pos-product-reordered', () => {
-    loadProducts();
+window.addEventListener('pos-product-reordered', async () => {
+    try {
+        products.value = await refresh('products', () => api.get('/pos/products').then(r => r.data));
+    } catch (error) {
+    }
 });
 
 const goToOrdersPage = (p) => {

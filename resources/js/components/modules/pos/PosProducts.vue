@@ -124,6 +124,9 @@ import { ref, reactive, onMounted, computed } from 'vue';
 import api from '../../../services/api';
 import { toast as toastify } from '../../../utils/toast';
 import ConfirmModal from '../../../components/ConfirmModal.vue';
+import { useCache } from '../../../composables/useCache';
+
+const { fetch, refresh } = useCache();
 
 const products = ref([]);
 const categories = ref([]);
@@ -164,12 +167,12 @@ const filteredProducts = computed(() => {
 const loadData = async () => {
     loading.value = true;
     try {
-        const [productsRes, categoriesRes] = await Promise.all([
-            api.get('/pos/products'),
-            api.get('/pos/categories')
+        const [productsData, categoriesData] = await Promise.all([
+            fetch('products', () => api.get('/pos/products').then(r => r.data)),
+            fetch('categories', () => api.get('/pos/categories').then(r => r.data))
         ]);
-        products.value = productsRes.data;
-        categories.value = categoriesRes.data.filter(c => c.enable);
+        products.value = productsData;
+        categories.value = categoriesData.filter(c => c.enable);
         
         if (categories.value.length > 0 && !selectedCategory.value) {
             const defaultCategory = categories.value.find(c => c.default);
@@ -221,7 +224,7 @@ const saveProduct = async () => {
             await api.post('/pos/products', { ...form, order: maxOrder + 1 });
         }
         closeModal();
-        loadData();
+        products.value = await refresh('products', () => api.get('/pos/products').then(r => r.data));
     } catch (error) {
     } finally {
         saving.value = false;
@@ -237,7 +240,7 @@ const deleteProduct = async (id) => {
         onConfirm: () => withLoading('delete-' + id, async () => {
             try {
                 await api.delete(`/pos/products/${id}`);
-                loadData();
+                products.value = await refresh('products', () => api.get('/pos/products').then(r => r.data));
                 toastify.success('Producto eliminado');
             } catch (error) {
                 toastify.error('Error al eliminar producto');
@@ -250,10 +253,9 @@ const toggleProductStatus = async (id, currentStatus) => {
     await withLoading('toggle-' + id, async () => {
         try {
             await api.post(`/pos/products/${id}/toggle-status`);
-            loadData();
+            products.value = await refresh('products', () => api.get('/pos/products').then(r => r.data));
             toastify.success(`Producto ${currentStatus ? 'deshabilitado' : 'habilitado'} correctamente`);
         } catch (error) {
-            loadData();
             toastify.error('Error al cambiar estado del producto');
         }
     });
@@ -280,7 +282,7 @@ const drop = async (dropIndex) => {
     try {
         await api.post('/pos/products/reorder', { orders: reorderData });
     } catch (error) {
-        loadData();
+        products.value = await refresh('products', () => api.get('/pos/products').then(r => r.data));
     }
     
     draggedIndex.value = null;
@@ -292,12 +294,12 @@ const dragEnd = () => {
 
 onMounted(loadData);
 
-window.addEventListener('pos-product-changed', () => {
-    loadData();
+window.addEventListener('pos-product-changed', async () => {
+    products.value = await refresh('products', () => api.get('/pos/products').then(r => r.data));
 });
 
-window.addEventListener('pos-product-reordered', () => {
-    loadData();
+window.addEventListener('pos-product-reordered', async () => {
+    products.value = await refresh('products', () => api.get('/pos/products').then(r => r.data));
 });
 </script>
 

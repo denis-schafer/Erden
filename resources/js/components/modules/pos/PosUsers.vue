@@ -201,6 +201,9 @@ import { ref, reactive, onMounted } from 'vue';
 import api from '../../../services/api';
 import { toast as toastify } from '../../../utils/toast';
 import ConfirmModal from '../../../components/ConfirmModal.vue';
+import { useCache } from '../../../composables/useCache';
+
+const { fetch, refresh } = useCache();
 
 const users = ref([]);
 const roles = ref([]);
@@ -241,12 +244,12 @@ const form = reactive({
 const loadData = async () => {
     loading.value = true;
     try {
-        const [usersRes, rolesRes] = await Promise.all([
-            api.get('/pos/users'),
-            api.get('/pos/roles')
+        const [usersData, rolesData] = await Promise.all([
+            fetch('users', () => api.get('/pos/users').then(r => r.data)),
+            fetch('roles', () => api.get('/pos/roles').then(r => r.data))
         ]);
-        users.value = usersRes.data;
-        roles.value = rolesRes.data;
+        users.value = usersData;
+        roles.value = rolesData;
     } catch (error) {
     } finally {
         loading.value = false;
@@ -334,7 +337,8 @@ const saveUser = async () => {
             await api.post('/pos/users', data);
         }
         closeModal();
-        loadData();
+        users.value = await refresh('users', () => api.get('/pos/users').then(r => r.data));
+        roles.value = await refresh('roles', () => api.get('/pos/roles').then(r => r.data));
         toastify.success(editingUser.value ? 'Usuario actualizado correctamente' : 'Usuario creado correctamente');
     } catch (error) {
         toastify.error('Error al guardar usuario');
@@ -363,11 +367,10 @@ const fetchTerminals = async () => {
 const toggleUserStatus = async (id, currentStatus) => {
     await withLoading('toggle-' + id, async () => {
         try {
-            const response = await api.post(`/pos/users/${id}/toggle-status`);
-            loadData();
+            await api.post(`/pos/users/${id}/toggle-status`);
+            users.value = await refresh('users', () => api.get('/pos/users').then(r => r.data));
             toastify.success(`Usuario ${currentStatus ? 'deshabilitado' : 'habilitado'} correctamente`);
         } catch (error) {
-            loadData();
             toastify.error('Error al cambiar estado del usuario');
         }
     });
@@ -382,7 +385,7 @@ const deleteUser = async (id) => {
         onConfirm: () => withLoading('delete-' + id, async () => {
             try {
                 await api.delete(`/pos/users/${id}`);
-                loadData();
+                users.value = await refresh('users', () => api.get('/pos/users').then(r => r.data));
                 toastify.success('Usuario eliminado');
             } catch (error) {
                 toastify.error('Error al eliminar usuario');
@@ -393,8 +396,8 @@ const deleteUser = async (id) => {
 
 onMounted(loadData);
 
-window.addEventListener('pos-user-disabled', () => {
-    loadData();
+window.addEventListener('pos-user-disabled', async () => {
+    users.value = await refresh('users', () => api.get('/pos/users').then(r => r.data));
 });
 </script>
 

@@ -98,6 +98,9 @@ import { ref, reactive, onMounted } from 'vue';
 import api from '../../../services/api';
 import { toast as toastify } from '../../../utils/toast';
 import ConfirmModal from '../../../components/ConfirmModal.vue';
+import { useCache } from '../../../composables/useCache';
+
+const { fetch, refresh } = useCache();
 
 const categories = ref([]);
 const showModal = ref(false);
@@ -125,8 +128,7 @@ const form = reactive({
 const loadData = async () => {
     loading.value = true;
     try {
-        const response = await api.get('/pos/categories');
-        categories.value = response.data;
+        categories.value = await fetch('categories', () => api.get('/pos/categories').then(r => r.data));
     } catch (error) {
     } finally {
         loading.value = false;
@@ -158,7 +160,7 @@ const saveCategory = async () => {
             await api.post('/pos/categories', form);
         }
         closeModal();
-        loadData();
+        categories.value = await refresh('categories', () => api.get('/pos/categories').then(r => r.data));
     } catch (error) {
     } finally {
         saving.value = false;
@@ -174,7 +176,7 @@ const deleteCategory = async (id) => {
         onConfirm: () => withLoading('delete-' + id, async () => {
             try {
                 await api.delete(`/pos/categories/${id}`);
-                loadData();
+                categories.value = await refresh('categories', () => api.get('/pos/categories').then(r => r.data));
                 toastify.success('Categoría eliminada');
             } catch (error) {
                 toastify.error('Error al eliminar categoría');
@@ -187,10 +189,9 @@ const toggleCategoryStatus = async (id, currentStatus) => {
     await withLoading('toggle-' + id, async () => {
         try {
             await api.post(`/pos/categories/${id}/toggle-status`);
-            loadData();
+            categories.value = await refresh('categories', () => api.get('/pos/categories').then(r => r.data));
             toastify.success(`Categoría ${currentStatus ? 'deshabilitada' : 'habilitada'} correctamente`);
         } catch (error) {
-            loadData();
             toastify.error('Error al cambiar estado de la categoría');
         }
     });
@@ -198,8 +199,8 @@ const toggleCategoryStatus = async (id, currentStatus) => {
 
 onMounted(loadData);
 
-window.addEventListener('pos-category-changed', () => {
-    loadData();
+window.addEventListener('pos-category-changed', async () => {
+    categories.value = await refresh('categories', () => api.get('/pos/categories').then(r => r.data));
 });
 </script>
 

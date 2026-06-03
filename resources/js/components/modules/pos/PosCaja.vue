@@ -978,6 +978,10 @@ defineExpose({ openFullscreen });
     background: #f8f9fa;
     overflow: hidden;
     box-sizing: border-box;
+    user-select: none;
+    -webkit-user-select: none;
+    -moz-user-select: none;
+    -ms-user-select: none;
 }
 
 .pos-header {
@@ -1291,6 +1295,10 @@ defineExpose({ openFullscreen });
     z-index: 1050;
     display: flex;
     flex-direction: column;
+    user-select: none;
+    -webkit-user-select: none;
+    -moz-user-select: none;
+    -ms-user-select: none;
 }
 
 .pos-fullscreen-content {

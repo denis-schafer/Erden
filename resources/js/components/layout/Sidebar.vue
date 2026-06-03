@@ -220,6 +220,10 @@ onMounted(() => {
     overflow-y: auto;
     flex-shrink: 0;
     transition: width 0.3s ease;
+    user-select: none;
+    -webkit-user-select: none;
+    -moz-user-select: none;
+    -ms-user-select: none;
 }
 
 .sidebar.collapsed {

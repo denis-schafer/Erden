@@ -588,6 +588,10 @@ onMounted(loadData);
     display: flex;
     flex-direction: column;
     background: #f8f9fa;
+    user-select: none;
+    -webkit-user-select: none;
+    -moz-user-select: none;
+    -ms-user-select: none;
 }
 
 .pos-admin-header {
@@ -603,6 +607,10 @@ onMounted(loadData);
     background: white;
     border-bottom: 1px solid #dee2e6;
     padding: 0 1rem;
+    user-select: none;
+    -webkit-user-select: none;
+    -moz-user-select: none;
+    -ms-user-select: none;
 }
 
 .tab-btn {

@@ -97,6 +97,10 @@ const handleLogout = async () => {
     z-index: 100;
     background: white;
     border-bottom: 1px solid #dee2e6;
+    user-select: none;
+    -webkit-user-select: none;
+    -moz-user-select: none;
+    -ms-user-select: none;
 }
 
 .hamburger-btn {

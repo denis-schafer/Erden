@@ -153,6 +153,9 @@ import { useAuthStore } from '../../../stores/auth';
 import api from '../../../services/api';
 import { toast as toastify } from '../../../utils/toast';
 import ConfirmModal from '../../../components/ConfirmModal.vue';
+import { useCache } from '../../../composables/useCache';
+
+const { fetch, refresh } = useCache();
 
 const authStore = useAuthStore();
 const orders = ref([]);
@@ -178,7 +181,11 @@ const visiblePages = computed(() => {
     return pages;
 });
 
-const loadData = async () => {
+const ordersCacheKey = computed(() => {
+    return 'orders_admin_' + page.value + '_' + (statusFilter.value || 'all') + '_' + (isCashier.value ? currentUserId.value : 'all');
+});
+
+const loadData = async (forceRefresh = false) => {
     loading.value = true;
     try {
         const params = { page: page.value, per_page: 10 };
@@ -188,11 +195,12 @@ const loadData = async () => {
         if (isCashier.value) {
             params.operator_id = currentUserId.value;
         }
-        const response = await api.get('/pos/orders', { params });
-        orders.value = response.data.data;
-        page.value = response.data.current_page;
-        lastPage.value = response.data.last_page;
-        total.value = response.data.total;
+        const loadFn = forceRefresh ? refresh : fetch;
+        const response = await loadFn(ordersCacheKey.value, () => api.get('/pos/orders', { params }).then(r => r.data));
+        orders.value = response.data;
+        page.value = response.current_page;
+        lastPage.value = response.last_page;
+        total.value = response.total;
     } catch (error) {
     } finally {
         loading.value = false;
@@ -215,7 +223,7 @@ const withLoading = async (orderId, action, cb) => {
     }
 };
 
-// WebSocket listener for OrderPaid - refresh orders automatically
+// WebSocket listener for OrderPaid - update paid status in-place
 let orderPaidHandler = null;
 const setupOrderPaidListener = () => {
     if (!window.Echo || !authStore.user?.id) return;
@@ -224,14 +232,14 @@ const setupOrderPaidListener = () => {
     
     window.Echo.channel(`user.${operatorId}`)
         .listen('.OrderPaid', (data) => {
-            console.log('[PosOrders] OrderPaid received:', JSON.stringify({ orderId: data.order?.id }));
-            loadData();
+            const order = orders.value.find(o => o.id === data.order?.id);
+            if (order) order.paid = true;
         });
 };
 
-const handleOrderCreated = () => { loadData(); };
-const handleOrderUpdated = () => { loadData(); };
-const handleOrderDeleted = () => { loadData(); };
+const handleOrderCreated = () => { loadData(true); };
+const handleOrderUpdated = () => { loadData(true); };
+const handleOrderDeleted = () => { loadData(true); };
 
 const hasMercadoQr = computed(() => {
     return authStore.user?.mercadopago_qr_enabled;
@@ -292,7 +300,17 @@ const deleteOrder = (order) => {
             await withLoading(order.id, 'delete', async () => {
                 try {
                     await api.delete(`/pos/orders/${order.id}`);
-                    await loadData();
+                    const idx = orders.value.findIndex(o => o.id === order.id);
+                    if (idx !== -1) {
+                        const wasOnlyItem = orders.value.length === 1;
+                        orders.value.splice(idx, 1);
+                        if (wasOnlyItem && page.value > 1) {
+                            page.value--;
+                            loadData(true);
+                        } else {
+                            loadData(true);
+                        }
+                    }
                     toastify.success('Pedido eliminado');
                 } catch (error) {
                     toastify.error('Error al eliminar pedido: ' + (error.response?.data?.message || 'Error desconocido'));
@@ -320,7 +338,8 @@ const togglePaid = (order) => {
             await withLoading(order.id, 'togglePaid', async () => {
                 try {
                     await api.post(`/pos/orders/${order.id}/toggle-paid`);
-                    await loadData();
+                    const localOrder = orders.value.find(o => o.id === order.id);
+                    if (localOrder) localOrder.paid = !localOrder.paid;
                     toastify.success(order.paid ? 'Pago desmarcado' : 'Pedido marcado como pagado');
                 } catch (error) {
                     toastify.error('Error: ' + (error.response?.data?.message || 'Error desconocido'));

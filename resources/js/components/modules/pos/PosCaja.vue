@@ -444,7 +444,7 @@ import { useCache } from '../../../composables/useCache';
 const authStore = useAuthStore();
 const { fetch, refresh } = useCache();
 
-// WebSocket listener for OrderPaid - refresh orders in modal automatically
+// WebSocket listener for OrderPaid - update paid status in-place
 let orderPaidListenerSetup = false;
 const setupOrderPaidListener = () => {
     if (orderPaidListenerSetup || !window.Echo || !authStore.user?.id) return;
@@ -454,7 +454,8 @@ const setupOrderPaidListener = () => {
     window.Echo.channel(`user.${operatorId}`)
         .listen('.OrderPaid', (data) => {
             if (showOrdersModal.value) {
-                loadOrders();
+                const order = orders.value.find(o => o.id === data.order?.id);
+                if (order) order.paid = true;
             }
         });
     
@@ -758,19 +759,19 @@ const removeDisabledProductsFromCart = () => {
 
 watch(() => showOrdersModal.value, (newVal) => {
     if (newVal) {
-        loadOrders();
+        loadOrders(true);
     }
 });
 
 window.addEventListener('pos-order-created', () => {
     if (showOrdersModal.value) {
-        loadOrders();
+        loadOrders(true);
     }
 });
 
 window.addEventListener('pos-order-updated', () => {
     if (showOrdersModal.value) {
-        loadOrders();
+        loadOrders(true);
     }
 });
 
@@ -810,18 +811,23 @@ const goToOrdersPage = (p) => {
     loadOrders();
 };
 
-const loadOrders = async () => {
+const ordersCacheKey = computed(() => {
+    return 'orders_caja_' + ordersPage.value + '_' + (isAdmin.value ? 'all' : currentUserId.value);
+});
+
+const loadOrders = async (forceRefresh = false) => {
     loadingOrders.value = true;
     try {
         const params = { page: ordersPage.value, per_page: 10 };
         if (!isAdmin.value) {
             params.operator_id = currentUserId.value;
         }
-        const response = await api.get('/pos/orders', { params });
-        orders.value = response.data.data;
-        ordersPage.value = response.data.current_page;
-        ordersLastPage.value = response.data.last_page;
-        ordersTotal.value = response.data.total;
+        const loadFn = forceRefresh ? refresh : fetch;
+        const response = await loadFn(ordersCacheKey.value, () => api.get('/pos/orders', { params }).then(r => r.data));
+        orders.value = response.data;
+        ordersPage.value = response.current_page;
+        ordersLastPage.value = response.last_page;
+        ordersTotal.value = response.total;
     } catch (error) {
     } finally {
         loadingOrders.value = false;
@@ -908,7 +914,17 @@ const deleteOrder = (order) => {
             await withLoading(order.id, 'delete', async () => {
                 try {
                     await api.delete(`/pos/orders/${order.id}`);
-                    await loadOrders();
+                    const idx = orders.value.findIndex(o => o.id === order.id);
+                    if (idx !== -1) {
+                        const wasOnlyItem = orders.value.length === 1;
+                        orders.value.splice(idx, 1);
+                        if (wasOnlyItem && ordersPage.value > 1) {
+                            ordersPage.value--;
+                            loadOrders(true);
+                        } else {
+                            loadOrders(true);
+                        }
+                    }
                     toastify.success('Pedido eliminado');
                     window.dispatchEvent(new CustomEvent('pos-order-deleted'));
                 } catch (error) {
@@ -937,7 +953,8 @@ const togglePaid = (order) => {
             await withLoading(order.id, 'togglePaid', async () => {
                 try {
                     await api.post(`/pos/orders/${order.id}/toggle-paid`);
-                    await loadOrders();
+                    const localOrder = orders.value.find(o => o.id === order.id);
+                    if (localOrder) localOrder.paid = !localOrder.paid;
                     toastify.success(order.paid ? 'Pago desmarcado' : 'Pedido marcado como pagado');
                     window.dispatchEvent(new CustomEvent('pos-order-updated'));
                 } catch (error) {

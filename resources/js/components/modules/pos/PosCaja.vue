@@ -558,8 +558,14 @@ const handleConfigUpdate = (event) => {
     }
 };
 
-const handleUserSettingsUpdated = (event) => {
-    enablePrint.value = event.enable_print === 1 || event.enable_print === true || event.enable_print === '1' || event.enable_print === 'true';
+const handleUserSettingsUpdated = async (event) => {
+    if (user.value && event.id && Number(user.value.id) === Number(event.id)) {
+        const data = await refresh('currentUser', () => api.get('/pos/user/current').then(r => r.data));
+        user.value = data;
+        enablePrint.value = data.enable_print === 1 || data.enable_print === true || data.enable_print === '1' || data.enable_print === 'true';
+    } else {
+        enablePrint.value = event.enable_print === 1 || event.enable_print === true || event.enable_print === '1' || event.enable_print === 'true';
+    }
 };
 
 const handleProductUpdate = (event) => {
@@ -710,17 +716,15 @@ const createOrder = async () => {
 
 const loadData = async () => {
     try {
-        const [categoriesData, productsData, userRes] = await Promise.all([
-            fetch('categories', () => api.get('/pos/categories').then(r => r.data)),
-            fetch('products', () => api.get('/pos/products').then(r => r.data)),
-            api.get('/pos/user/current'),
-        ]);
+const [categoriesData, productsData, currentUser] = await Promise.all([
+    fetch('categories', () => api.get('/pos/categories').then(r => r.data)),
+    fetch('products', () => api.get('/pos/products').then(r => r.data)),
+    fetch('currentUser', () => api.get('/pos/user/current').then(r => r.data)),
+]);
 
-        categories.value = categoriesData.filter(c => c.enable);
-        products.value = productsData;
-        user.value = userRes.data;
-
-        const currentUser = userRes.data;
+categories.value = categoriesData.filter(c => c.enable);
+products.value = productsData;
+user.value = currentUser;
         enablePrint.value = currentUser.enable_print === 1 || currentUser.enable_print === true || currentUser.enable_print === '1' || currentUser.enable_print === 'true';
 
         const defaultCategory = categories.value.find(c => c.default);

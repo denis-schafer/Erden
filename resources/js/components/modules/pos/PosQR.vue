@@ -16,10 +16,7 @@
                     </select>
                     <span v-if="usersLoading" class="spinner-border spinner-border-sm text-light"></span>
                 </div>
-                <!-- Fullscreen button -->
-                <button class="btn btn-sm btn-outline-light" @click="toggleBrowserFullscreen" :title="isBrowserFullscreen ? 'Salir de pantalla completa' : 'Pantalla completa'">
-                    <i class="bi" :class="isBrowserFullscreen ? 'bi-fullscreen-exit' : 'bi-fullscreen'"></i>
-                </button>
+
             </div>
         </div>
         
@@ -38,13 +35,13 @@
                     </div>
                 </div>
                 <div class="qr-fullscreen-body">
-                    <!-- Vista de pago exitoso (PRIMERO en la cadena) -->
+                    <!-- Vista de pago exitoso -->
                     <div v-if="paymentSuccess" class="success-view text-center py-5">
                         <div class="mb-3">
-                            <i class="bi bi-check-circle-fill text-success" style="font-size: 4rem;"></i>
+                            <i class="bi bi-check-circle-fill" style="font-size: 4rem; color: #00A650;"></i>
                         </div>
-                        <h3 class="text-success">¡Pago Realizado!</h3>
-                        <p class="lead">Orden #{{ closedOrderId || order?.id }} pagada correctamente</p>
+                        <h3 style="color: #00A650; font-weight: 700;">¡Pago Realizado!</h3>
+                        <p class="lead text-white">Orden #{{ closedOrderId || order?.id }} pagada correctamente</p>
                     </div>
                     <!-- Publicidad cuando no hay orden -->
                     <div v-else-if="!order" class="advertisement-section">
@@ -80,15 +77,15 @@
                     <!-- QR Section -->
                     <div v-else-if="order && order.status_id === 1" class="order-card">
                         <div v-if="qrCode" class="qr-section mb-3 text-center">
-                            <div class="qr-label mb-2">Escanea para pagar</div>
+                            <div class="qr-label mb-2">Escanea con MercadoPago</div>
                             <img :src="qrCode" alt="QR MercadoPago" class="qr-image" />
-                            <div class="qr-total">Total: ${{ formatPrice(order.total) }}</div>
+                            <div class="qr-total">Total: <span class="text-mp-green">${{ formatPrice(order.total) }}</span></div>
                         </div>
                         <div v-else-if="qrLoading" class="qr-section mb-3 text-center">
-                            <div class="spinner-border text-primary" role="status">
+                            <div class="spinner-border" style="color: #3483FA;" role="status">
                                 <span class="visually-hidden">Generando QR...</span>
                             </div>
-                            <div class="small text-muted mt-2">Generando QR...</div>
+                            <div class="small mt-2" style="color: #3483FA;">Generando QR...</div>
                         </div>
                         <div v-else-if="qrError" class="qr-section mb-3 text-center">
                             <div class="text-danger small">{{ qrError }}</div>
@@ -135,13 +132,13 @@
         
         <!-- Normal View -->
         <div class="order-content flex-grow-1 overflow-auto p-3" v-else>
-            <!-- Vista de pago exitoso (PRIMERO en la cadena) -->
+            <!-- Vista de pago exitoso -->
             <div v-if="paymentSuccess" class="success-view text-center py-5">
                 <div class="mb-3">
-                    <i class="bi bi-check-circle-fill text-success" style="font-size: 4rem;"></i>
+                    <i class="bi bi-check-circle-fill" style="font-size: 4rem; color: #00A650;"></i>
                 </div>
-                <h3 class="text-success">¡Pago Realizado!</h3>
-                <p class="lead">Orden #{{ closedOrderId || order?.id }} pagada correctamente</p>
+                <h3 style="color: #00A650; font-weight: 700;">¡Pago Realizado!</h3>
+                <p class="lead" style="color: #333;">Orden #{{ closedOrderId || order?.id }} pagada correctamente</p>
             </div>
             
             <!-- Publicidad cuando no hay orden -->
@@ -150,7 +147,7 @@
                     <div class="ad-logo mb-4" v-html="logoSvg"></div>
                 </div>
                 <div class="ad-text h4 mb-4">Desarrollo de Software</div>
-                <div class="ad-footer text-muted">
+                <div class="ad-footer">
                     Denis Schafer | tel: +54 291 4357999
                 </div>
             </div>
@@ -183,15 +180,15 @@
                 <div v-if="error" class="alert alert-danger">{{ error }}</div>
                 
                 <div v-if="qrCode" class="qr-section mb-3 text-center">
-                    <div class="qr-label mb-2">Escanea para pagar</div>
+                    <div class="qr-label mb-2">Escanea con MercadoPago</div>
                     <img :src="qrCode" alt="QR MercadoPago" class="qr-image" />
-                    <div class="qr-total">Total: ${{ formatPrice(order.total) }}</div>
+                    <div class="qr-total">Total: <span class="text-mp-green">${{ formatPrice(order.total) }}</span></div>
                 </div>
                 <div v-else-if="qrLoading" class="qr-section mb-3 text-center">
-                    <div class="spinner-border text-primary" role="status">
+                    <div class="spinner-border" style="color: #3483FA;" role="status">
                         <span class="visually-hidden">Generando QR...</span>
                     </div>
-                    <div class="small text-muted mt-2">Generando QR...</div>
+                    <div class="small mt-2" style="color: #3483FA;">Generando QR...</div>
                 </div>
                 <div v-else-if="qrError" class="qr-section mb-3 text-center">
                     <div class="text-danger small">{{ qrError }}</div>
@@ -667,12 +664,12 @@ onUnmounted(() => {
 
 <style scoped>
 .pos-order-display {
-    background: #f8f9fa;
+    background: #ebebeb;
     min-height: 100%;
 }
 
 .order-header {
-    background: #343a40;
+    background: #3483FA;
     color: white;
     padding: 10px 15px;
     display: flex;
@@ -681,16 +678,17 @@ onUnmounted(() => {
 }
 
 .order-header .form-select {
-    background-color: #495057;
+    background-color: rgba(255,255,255,0.15);
     color: white;
-    border-color: #6c757d;
+    border-color: rgba(255,255,255,0.3);
 }
 
 .order-card {
     background: white;
     border-radius: 8px;
-    padding: 15px;
-    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    padding: 20px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.12);
+    border-left: 4px solid #3483FA;
 }
 
 .order-items table {
@@ -702,19 +700,31 @@ onUnmounted(() => {
     overflow-y: auto;
 }
 
-.order-total {
-    border-top: 2px solid #28a745;
-    padding-top: 10px;
+.order-items thead th {
+    color: #666;
+    font-weight: 600;
+    border-bottom: 2px solid #eee;
 }
 
-/* Fullscreen Modal Styles - like PosCaja */
+.order-total {
+    border-top: 2px solid #3483FA;
+    padding-top: 12px;
+    margin-top: 4px;
+}
+
+.order-total .h4 {
+    color: #333;
+    font-weight: 600;
+}
+
+/* Fullscreen Modal Styles - same light aesthetic as normal view */
 .qr-fullscreen-modal {
     position: fixed;
     top: 0;
     left: 0;
     right: 0;
     bottom: 0;
-    background: #1a1a1a;
+    background: #ebebeb;
     z-index: 9999;
     display: flex;
     flex-direction: column;
@@ -727,11 +737,11 @@ onUnmounted(() => {
     max-width: 800px;
     margin: 0 auto;
     width: 100%;
-    background: #2d2d2d;
+    background: #fff;
 }
 
 .qr-fullscreen-header {
-    background: #343a40;
+    background: #3483FA;
     color: white;
     padding: 15px 20px;
     display: flex;
@@ -743,6 +753,7 @@ onUnmounted(() => {
     flex: 1;
     overflow: auto;
     padding: 20px;
+    background: #ebebeb;
 }
 
 .qr-fullscreen-body .order-items {
@@ -751,51 +762,87 @@ onUnmounted(() => {
 }
 
 .qr-fullscreen-body .order-card {
-    background: #3d3d3d;
-    color: white;
+    background: white;
+    color: #333;
+    border-left: 4px solid #3483FA;
 }
 
 .qr-fullscreen-body .order-info .text-muted {
-    color: #aaa !important;
+    color: #6c757d !important;
 }
 
 .qr-fullscreen-body .table {
-    color: white;
+    color: #333;
 }
 
 .qr-fullscreen-body .table-striped > tbody > tr:nth-of-type(odd) {
-    --bs-table-accent-bg: #444;
+    --bs-table-accent-bg: #f8f9fa;
 }
 
 .qr-fullscreen-body .order-total {
-    border-color: #28a745;
+    border-color: #3483FA;
+}
+
+.qr-fullscreen-body .order-total .h4 {
+    color: #333;
+}
+
+.qr-fullscreen-body .order-total .text-success {
+    color: #00A650 !important;
 }
 
 .qr-section {
     background: white;
-    padding: 15px;
-    border-radius: 8px;
+    padding: 20px;
+    border-radius: 12px;
+    box-shadow: 0 2px 12px rgba(52,131,250,0.1);
+    border: 2px solid #e8f0fe;
+}
+
+.qr-fullscreen-body .qr-section {
+    background: white;
+    border-color: #e8f0fe;
+}
+
+.qr-fullscreen-body .qr-label {
+    color: #3483FA;
+}
+
+.qr-fullscreen-body .qr-total {
+    color: #333;
+}
+
+.qr-fullscreen-body .advertisement-section {
+    background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+    color: #fff;
 }
 
 .qr-label {
-    font-size: 0.9rem;
-    color: #666;
-    font-weight: 500;
+    font-size: 0.95rem;
+    color: #3483FA;
+    font-weight: 600;
+    letter-spacing: 0.3px;
 }
 
 .qr-image {
-    max-width: 200px;
+    max-width: 220px;
     height: auto;
-    border: 2px solid #fff;
-    border-radius: 8px;
-    box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+    border: 3px solid #fff;
+    border-radius: 12px;
+    box-shadow: 0 4px 16px rgba(52,131,250,0.15);
+    margin: 10px 0;
 }
 
 .qr-total {
     font-size: 1.2rem;
-    font-weight: bold;
-    color: #00d1a0;
-    margin-top: 10px;
+    font-weight: 600;
+    color: #333;
+    margin-top: 12px;
+}
+
+.text-mp-green {
+    color: #00A650;
+    font-weight: 700;
 }
 
 .advertisement-section {
@@ -805,8 +852,12 @@ onUnmounted(() => {
     align-items: center;
     justify-content: center;
     min-height: 100%;
-    background: #1a1a1a;
+    background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
     color: #fff;
+}
+
+.success-view .mp-badge {
+    opacity: 0.8;
 }
 
 .ad-logo {
@@ -821,12 +872,13 @@ onUnmounted(() => {
 .ad-text {
     font-size: 1.5rem;
     font-weight: 500;
-    color: #adb5bd;
+    color: #fff;
     margin-bottom: 30px;
 }
 
 .ad-footer {
     font-size: 0.9rem;
-    color: #6c757d;
+    color: #fff;
+    opacity: 0.7;
 }
 </style>

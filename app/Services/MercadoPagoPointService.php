@@ -96,8 +96,7 @@ class MercadoPagoPointService
         string $terminalId,
         string $amount,
         string $externalReference,
-        string $description = '',
-        ?string $notificationUrl = null
+        string $description = ''
     ): array {
 
         $payload = [
@@ -117,10 +116,6 @@ class MercadoPagoPointService
             ],
             'description' => $description,
         ];
-
-        if ($notificationUrl) {
-            $payload['notification_url'] = $notificationUrl;
-        }
 
         $idempotencyKey = (string) Str::uuid();
 

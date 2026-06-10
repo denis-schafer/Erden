@@ -78,7 +78,22 @@ class PosOrderController extends Controller
 
         // Send to Point Postnet if operator has posnet_id and send_to_point is true
         if ($validated['send_to_point'] ?? false) {
-            $this->sendToPointTerminal($order, $validated['operator_id']);
+            $orderId = $order->id;
+            $operatorId = $validated['operator_id'];
+            dispatch(function () use ($orderId, $operatorId) {
+                try {
+                    $order = DB::table('orders')->find($orderId);
+                    if ($order) {
+                        $controller = app(\App\Http\Controllers\Pos\PosOrderController::class);
+                        $controller->sendToPointTerminal($order, $operatorId);
+                    }
+                } catch (\Exception $e) {
+                    Log::error('[MercadoPagoPoint] Deferred sendToPointTerminal failed', [
+                        'error' => $e->getMessage(),
+                        'order_id' => $orderId,
+                    ]);
+                }
+            })->afterResponse();
         }
 
         event(new OrderCreated((array) $order));
@@ -93,14 +108,25 @@ class PosOrderController extends Controller
 
     public function sendOrderToPoint($orderId): void
     {
-        $order = DB::table('orders')->find($orderId);
-        if (!$order) {
-            Log::warning('[MercadoPagoPoint] Order not found for sendToPoint', [
-                'order_id' => $orderId,
-            ]);
-            return;
-        }
-        $this->sendToPointTerminal($order, $order->operator_id);
+        $orderId = (int) $orderId;
+        dispatch(function () use ($orderId) {
+            try {
+                $order = DB::table('orders')->find($orderId);
+                if (!$order) {
+                    Log::warning('[MercadoPagoPoint] Order not found for sendToPoint', [
+                        'order_id' => $orderId,
+                    ]);
+                    return;
+                }
+                $controller = app(\App\Http\Controllers\Pos\PosOrderController::class);
+                $controller->sendToPointTerminal($order, $order->operator_id);
+            } catch (\Exception $e) {
+                Log::error('[MercadoPagoPoint] Deferred sendOrderToPoint failed', [
+                    'error' => $e->getMessage(),
+                    'order_id' => $orderId,
+                ]);
+            }
+        })->afterResponse();
     }
 
     private function createPrintJob($order, $detail, $operatorId)
@@ -159,22 +185,11 @@ class PosOrderController extends Controller
             $amount = number_format($order->total, 2, '.', '');
             $description = 'Pedido #' . $order->id;
 
-            $redirectUri = DB::table('configs')->where('name', 'redirect_uri')->value('value');
-            $webhookCode = DB::table('configs')->where('name', 'webhook_code')->value('value');
-            $baseUrl = $redirectUri
-                ? rtrim(preg_replace('/\/mp\/callback$/', '', $redirectUri), '/')
-                : config('app.url');
-            $notificationUrl = $baseUrl . '/mp/webhook?company_db=' . urlencode($companyDb);
-            if (!empty($webhookCode)) {
-                $notificationUrl .= '&whc=' . urlencode($webhookCode);
-            }
-
             Log::info('[MercadoPagoPoint] Calling createOrder', [
                 'external_reference' => $externalReference,
                 'amount' => $amount,
                 'company_db' => $companyDb,
                 'description' => $description,
-                'notification_url' => $notificationUrl,
             ]);
 
             $pointService = new MercadoPagoPointService($accessToken);
@@ -182,18 +197,61 @@ class PosOrderController extends Controller
                 $operator->posnet_id,
                 $amount,
                 $externalReference,
-                $description,
-                $notificationUrl
+                $description
             );
 
             if ($result['success']) {
+                $mpOrderId = $result['data']['id'] ?? null;
                 Log::info('[MercadoPagoPoint] Order sent to terminal', [
                     'order_id' => $order->id,
                     'operator' => $operator->username,
                     'terminal' => $operator->posnet_id,
-                    'mp_order_id' => $result['data']['id'] ?? null,
+                    'mp_order_id' => $mpOrderId,
                     'mp_status' => $result['data']['status'] ?? null,
                 ]);
+
+                // Poll for order status inline (since this runs after response)
+                if ($mpOrderId) {
+                    $orderId = $order->id;
+                    try {
+                        $pointPoller = new MercadoPagoPointService($accessToken);
+                        $maxAttempts = 20;
+                        for ($i = 0; $i < $maxAttempts; $i++) {
+                            sleep(3);
+                            try {
+                                $statusResult = $pointPoller->getOrder($mpOrderId);
+                                if (!empty($statusResult) && isset($statusResult['status'])) {
+                                    $status = $statusResult['status'];
+                                    if ($status === 'processed') {
+                                        DB::table('orders')->where('id', $orderId)->update([
+                                            'status_id' => 3,
+                                            'paid' => 1,
+                                            'mp_payment_id' => $statusResult['transactions']['payments'][0]['id'] ?? null,
+                                            'updated_at' => now(),
+                                        ]);
+                                        $updatedOrder = DB::table('orders')->where('id', $orderId)->first();
+                                        event(new \App\Events\OrderPaid($updatedOrder, $operatorId));
+                                        Log::info('[MercadoPagoPoint] Order paid via polling', [
+                                            'order_id' => $orderId,
+                                            'mp_order_id' => $mpOrderId,
+                                        ]);
+                                        break;
+                                    }
+                                }
+                            } catch (\Exception $e) {
+                                Log::error('[MercadoPagoPoint] Poll error', [
+                                    'error' => $e->getMessage(),
+                                    'order_id' => $orderId,
+                                ]);
+                            }
+                        }
+                    } catch (\Exception $e) {
+                        Log::error('[MercadoPagoPoint] Polling setup error', [
+                            'error' => $e->getMessage(),
+                            'order_id' => $orderId,
+                        ]);
+                    }
+                }
 
                 // Verificar el estado del terminal después de enviar
                 $terminalInfo = $pointService->getTerminalInfo($operator->posnet_id);

@@ -119,7 +119,7 @@ class MercadoPagoPointService
         ];
 
         if ($notificationUrl) {
-            $payload['integration_data']['notification_url'] = $notificationUrl;
+            $payload['notification_url'] = $notificationUrl;
         }
 
         $idempotencyKey = (string) Str::uuid();

@@ -34,6 +34,9 @@ Route::middleware(['web', 'setDatabase'])->group(function () {
             $request->input('total')
         ));
         
+        $controller = app(\App\Http\Controllers\Pos\PosOrderController::class);
+        $controller->sendOrderToPoint($request->input('order_id'));
+        
         return response()->json(['success' => true]);
     });
 });
@@ -151,6 +154,7 @@ Route::middleware(['web', 'setDatabase'])->group(function () {
         Route::put('/users/{id}/printer-config', [App\Http\Controllers\Pos\PosUserController::class, 'updatePrinterConfig']);
 
         Route::get('/terminals', [App\Http\Controllers\Pos\PosUserController::class, 'listTerminals']);
+        Route::post('/terminals/{id}/set-mode', [App\Http\Controllers\Pos\PosUserController::class, 'setTerminalMode']);
         
         Route::get('/configs', [App\Http\Controllers\Pos\PosConfigController::class, 'index']);
         Route::put('/configs/{id}', [App\Http\Controllers\Pos\PosConfigController::class, 'update']);

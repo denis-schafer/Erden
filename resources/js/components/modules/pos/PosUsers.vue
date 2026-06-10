@@ -168,9 +168,21 @@
                                             <select class="form-select form-select-sm" @change="form.posnet_id = $event.target.value">
                                                 <option value="">-- Elegir --</option>
                                                 <option v-for="t in terminals" :key="t.id" :value="t.id">
-                                                    {{ t.id }} ({{ t.model || 'N/A' }})
+                                                    {{ t.id }} ({{ t.model || 'N/A' }}) - {{ t.operating_mode || 'N/A' }}
                                                 </option>
                                             </select>
+                                            <div v-if="selectedTerminal && selectedTerminal.operating_mode !== 'PDV'" class="mt-2">
+                                                <button class="btn btn-sm btn-outline-warning w-100" type="button" @click="switchTerminalToPdv(selectedTerminal.id)" :disabled="switchingMode">
+                                                    <i class="bi bi-arrow-repeat me-1"></i>
+                                                    Cambiar a modo PDV (actual: {{ selectedTerminal.operating_mode }})
+                                                </button>
+                                            </div>
+                                            <div v-if="selectedTerminal && selectedTerminal.operating_mode === 'PDV'" class="mt-2">
+                                                <button class="btn btn-sm btn-outline-secondary w-100" type="button" @click="switchTerminalToStandalone(selectedTerminal.id)" :disabled="switchingMode">
+                                                    <i class="bi bi-arrow-repeat me-1"></i>
+                                                    Cambiar a modo STANDALONE (actual: PDV)
+                                                </button>
+                                            </div>
                                         </div>
                                         <small class="text-muted">
                                             <i class="bi bi-info-circle"></i>
@@ -197,7 +209,7 @@
 </template>
 
 <script setup>
-import { ref, reactive, onMounted } from 'vue';
+import { ref, reactive, computed, onMounted } from 'vue';
 import api from '../../../services/api';
 import { toast as toastify } from '../../../utils/toast';
 import ConfirmModal from '../../../components/ConfirmModal.vue';
@@ -225,6 +237,8 @@ const withLoading = async (key, cb) => {
 
 const terminals = ref([]);
 const loadingTerminals = ref(false);
+const switchingMode = ref(false);
+const selectedTerminal = computed(() => terminals.value.find(t => t.id === form.posnet_id));
 
 const form = reactive({
     name: '',
@@ -361,6 +375,40 @@ const fetchTerminals = async () => {
         toastify.error(e.response?.data?.message || 'Error al listar terminales');
     } finally {
         loadingTerminals.value = false;
+    }
+};
+
+const switchTerminalToPdv = async (terminalId) => {
+    switchingMode.value = true;
+    try {
+        const res = await api.post(`/pos/terminals/${terminalId}/set-mode`, { mode: 'PDV' });
+        if (res.data.success) {
+            toastify.success('Terminal cambiada a modo PDV correctamente');
+            await fetchTerminals();
+        } else {
+            toastify.error(res.data.error || 'Error al cambiar modo del terminal');
+        }
+    } catch (e) {
+        toastify.error(e.response?.data?.message || 'Error al cambiar modo del terminal');
+    } finally {
+        switchingMode.value = false;
+    }
+};
+
+const switchTerminalToStandalone = async (terminalId) => {
+    switchingMode.value = true;
+    try {
+        const res = await api.post(`/pos/terminals/${terminalId}/set-mode`, { mode: 'STANDALONE' });
+        if (res.data.success) {
+            toastify.success('Terminal cambiada a modo STANDALONE correctamente');
+            await fetchTerminals();
+        } else {
+            toastify.error(res.data.error || 'Error al cambiar modo del terminal');
+        }
+    } catch (e) {
+        toastify.error(e.response?.data?.message || 'Error al cambiar modo del terminal');
+    } finally {
+        switchingMode.value = false;
     }
 };
 

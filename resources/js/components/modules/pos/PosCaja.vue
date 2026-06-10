@@ -74,15 +74,26 @@
                         <span>Total:</span>
                         <span class="total-amount">${{ Number(cartTotal).toFixed(2) }}</span>
                     </div>
-                    <button 
-                        class="btn w-100 btn-lg" 
-                        :class="enablePrint ? 'btn-primary' : 'btn-success'"
-                        :disabled="cart.length === 0 || isSaving"
-                        @click="createOrder"
-                    >
-                        <i :class="enablePrint ? 'bi bi-printer me-2' : 'bi bi-check-circle me-2'"></i>
-                        {{ isSaving ? 'Guardando...' : (enablePrint ? 'Imprimir Pedido' : 'Generar Pedido') }}
-                    </button>
+                    <div class="d-flex gap-2">
+                        <button 
+                            class="btn flex-grow-1 btn-lg" 
+                            :class="enablePrint ? 'btn-primary' : 'btn-success'"
+                            :disabled="cart.length === 0 || isSaving"
+                            @click="createOrder(false)"
+                        >
+                            <i :class="enablePrint ? 'bi bi-printer me-2' : 'bi bi-check-circle me-2'"></i>
+                            {{ isSaving ? 'Guardando...' : (enablePrint ? 'Imprimir Pedido' : 'Generar Pedido') }}
+                        </button>
+                        <button 
+                            v-if="canViewQR"
+                            class="btn btn-outline-primary"
+                            :disabled="cart.length === 0 || isSaving"
+                            @click="createOrder(true)"
+                            title="Generar pedido con QR y Postnet"
+                        >
+                            <i class="bi bi-qr-code"></i>
+                        </button>
+                    </div>
                 </div>
             </div>
         </div>
@@ -166,15 +177,26 @@
                             <span class="total-label">Total:</span>
                             <span class="total-amount">${{ Number(cartTotal).toFixed(2) }}</span>
                         </div>
-                        <button 
-                            class="btn flex-grow-1 btn-lg" 
-                            :class="enablePrint ? 'btn-primary' : 'btn-success'"
-                            :disabled="cart.length === 0 || isSaving"
-                            @click="createOrder"
-                        >
-                            <i :class="enablePrint ? 'bi bi-printer me-2' : 'bi bi-check-circle me-2'"></i>
-                            {{ isSaving ? 'Guardando...' : (enablePrint ? 'Imprimir Pedido' : 'Guardar Pedido') }}
-                        </button>
+                        <div class="d-flex flex-grow-1 gap-2">
+                            <button 
+                                class="btn flex-grow-1 btn-lg" 
+                                :class="enablePrint ? 'btn-primary' : 'btn-success'"
+                                :disabled="cart.length === 0 || isSaving"
+                                @click="createOrder(false)"
+                            >
+                                <i :class="enablePrint ? 'bi bi-printer me-2' : 'bi bi-check-circle me-2'"></i>
+                                {{ isSaving ? 'Guardando...' : (enablePrint ? 'Imprimir Pedido' : 'Guardar Pedido') }}
+                            </button>
+                            <button 
+                                v-if="canViewQR"
+                                class="btn btn-outline-primary"
+                                :disabled="cart.length === 0 || isSaving"
+                                @click="createOrder(true)"
+                                title="Generar pedido con QR y Postnet"
+                            >
+                                <i class="bi bi-qr-code"></i>
+                            </button>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -241,16 +263,28 @@
                     </div>
                     <div class="modal-footer">
                         <button type="button" class="btn btn-secondary" @click="showCartModal = false">Cerrar</button>
-                        <button 
-                            type="button" 
-                            class="btn"
-                            :class="enablePrint ? 'btn-primary' : 'btn-success'"
-                            @click="createOrderFromCartModal"
-                            :disabled="cart.length === 0 || isSaving"
-                        >
-                            <i :class="enablePrint ? 'bi bi-printer me-2' : 'bi bi-check-circle me-2'"></i>
-                            {{ isSaving ? 'Guardando...' : (enablePrint ? 'Imprimir Pedido' : 'Guardar Pedido') }}
-                        </button>
+                        <div class="d-flex gap-2">
+                            <button 
+                                type="button" 
+                                class="btn"
+                                :class="enablePrint ? 'btn-primary' : 'btn-success'"
+                                @click="createOrderFromCartModal(false)"
+                                :disabled="cart.length === 0 || isSaving"
+                            >
+                                <i :class="enablePrint ? 'bi bi-printer me-2' : 'bi bi-check-circle me-2'"></i>
+                                {{ isSaving ? 'Guardando...' : (enablePrint ? 'Imprimir Pedido' : 'Guardar Pedido') }}
+                            </button>
+                            <button 
+                                v-if="canViewQR"
+                                type="button" 
+                                class="btn btn-outline-primary"
+                                :disabled="cart.length === 0 || isSaving"
+                                @click="createOrderFromCartModal(true)"
+                                title="Generar pedido con QR y Postnet"
+                            >
+                                <i class="bi bi-qr-code"></i>
+                            </button>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -683,7 +717,7 @@ const clearCart = () => {
     cart.value = [];
 };
 
-const createOrder = async () => {
+const createOrder = async (withQR = false) => {
     if (cart.value.length === 0 || isSaving.value) return;
 
     isSaving.value = true;
@@ -696,17 +730,36 @@ const createOrder = async () => {
     }));
 
     try {
-        await api.post('/pos/orders', {
+        const payload = {
             detail: { items, timestamp: new Date().toISOString() },
             total: cartTotal.value,
             operator_id: user.value.id,
             status_id: 1,
             paid: false
-        });
+        };
 
+        if (withQR) {
+            payload.send_to_point = true;
+        }
+
+        const res = await api.post('/pos/orders', payload);
+
+        const orderId = res.data.id;
         cart.value = [];
         toastify.success('Pedido generado correctamente');
+
         window.dispatchEvent(new CustomEvent('pos-order-created'));
+
+        if (withQR) {
+            window.dispatchEvent(new CustomEvent('open-pos-qr-order', {
+                detail: {
+                    orderId: orderId,
+                    username: user.value.username,
+                    total: cartTotal.value,
+                    target_user_id: user.value.id
+                }
+            }));
+        }
     } catch (error) {
         toastify.error('Error al generar pedido: ' + (error.response?.data?.message || 'Error desconocido'));
     } finally {
@@ -974,8 +1027,8 @@ const createOrderFromDetail = async () => {
     showOrderDetail.value = false;
 };
 
-const createOrderFromCartModal = async () => {
-    await createOrder();
+const createOrderFromCartModal = async (withQR = false) => {
+    await createOrder(withQR);
     showCartModal.value = false;
 };
 

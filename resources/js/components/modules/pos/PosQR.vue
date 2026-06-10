@@ -487,7 +487,7 @@ const getItemValue = (item, field) => {
 };
 
 const handleOrderCreated = (event) => {
-    if (closedOrderId.value) return;
+    if (closedOrderId.value || !event.detail) return;
     const { operator_id } = event.detail;
     if (!operator_id) return;
 

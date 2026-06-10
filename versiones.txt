@@ -498,3 +498,30 @@ Archivos modificados:
 - versiones.txt
 
 ---
+
+[PosNet MP funcional]
+Fecha: 2026-06-10
+Estado: Completado
+
+Cambios realizados:
+- Terminal Point cambiado de STANDALONE a PDV (Punto De Venta) para recibir push de órdenes
+- MercadoPagoPointService: corregido endpoint PATCH /terminals/v1/setup (antes usaba PUT inexistente)
+- MercadoPagoPointService: createOrder usa POST /v1/orders sin payment_method.default_type para que el POSnet permita elegir forma de pago
+- MercadoPagoPointService: logs mejorados con request/response bodies, token prefix, idempotency keys
+- PosUserController: validación de modo acepta PDV o STANDALONE
+- PosOrderController: nuevo método sendOrderToPoint($orderId) público, reutiliza sendToPointTerminal()
+- routes/web.php: ruta request-qr-order ahora también envía la orden al POSnet si el operador tiene posnet_id
+- PosUsers.vue: botón "Cambiar a modo PDV" y "Cambiar a modo STANDALONE" (toggle bidireccional)
+- PosUsers.vue: función switchTerminalToStandalone() para volver a modo independiente
+- PosUsers.vue: textos renombrados de "Point" a "PDV"
+- QR en pantalla y POSnet funcionan simultáneamente
+- Build exitoso
+
+Archivos modificados:
+- app/Services/MercadoPagoPointService.php
+- app/Http/Controllers/Pos/PosOrderController.php
+- app/Http/Controllers/Pos/PosUserController.php
+- routes/web.php
+- resources/js/components/modules/pos/PosUsers.vue
+- resources/js/components/modules/pos/PosQR.vue
+- versiones.txt

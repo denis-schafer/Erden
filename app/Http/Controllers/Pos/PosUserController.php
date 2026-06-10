@@ -248,4 +248,36 @@ class PosUserController extends Controller
             ], 500);
         }
     }
+
+    public function setTerminalMode(string $id, Request $request)
+    {
+        try {
+        $mode = $request->input('mode', 'PDV');
+        if (!in_array($mode, ['PDV', 'STANDALONE'])) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Modo inválido. Usar PDV o STANDALONE.'
+            ], 400);
+        }
+
+            $accessToken = DB::table('configs')->where('name', 'mp_access_token')->value('value');
+            if (empty($accessToken)) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'No hay mp_access_token configurado.'
+                ], 400);
+            }
+
+            $pointService = new MercadoPagoPointService($accessToken);
+            $result = $pointService->updateTerminalMode($id, $mode);
+
+            return response()->json($result);
+        } catch (\Exception $e) {
+            Log::error('[PosUserController] Error setting terminal mode: ' . $e->getMessage());
+            return response()->json([
+                'success' => false,
+                'message' => 'Error al cambiar modo del terminal: ' . $e->getMessage()
+            ], 500);
+        }
+    }
 }

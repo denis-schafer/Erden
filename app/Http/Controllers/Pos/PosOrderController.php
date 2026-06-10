@@ -159,11 +159,22 @@ class PosOrderController extends Controller
             $amount = number_format($order->total, 2, '.', '');
             $description = 'Pedido #' . $order->id;
 
+            $redirectUri = DB::table('configs')->where('name', 'redirect_uri')->value('value');
+            $webhookCode = DB::table('configs')->where('name', 'webhook_code')->value('value');
+            $baseUrl = $redirectUri
+                ? rtrim(preg_replace('/\/mp\/callback$/', '', $redirectUri), '/')
+                : config('app.url');
+            $notificationUrl = $baseUrl . '/mp/webhook?company_db=' . urlencode($companyDb);
+            if (!empty($webhookCode)) {
+                $notificationUrl .= '&whc=' . urlencode($webhookCode);
+            }
+
             Log::info('[MercadoPagoPoint] Calling createOrder', [
                 'external_reference' => $externalReference,
                 'amount' => $amount,
                 'company_db' => $companyDb,
                 'description' => $description,
+                'notification_url' => $notificationUrl,
             ]);
 
             $pointService = new MercadoPagoPointService($accessToken);
@@ -171,7 +182,8 @@ class PosOrderController extends Controller
                 $operator->posnet_id,
                 $amount,
                 $externalReference,
-                $description
+                $description,
+                $notificationUrl
             );
 
             if ($result['success']) {

@@ -272,6 +272,8 @@ const qrError = ref(null);
 const paymentSuccess = ref(false);
 const successTimeout = ref(null);
 const closedOrderId = ref(null);
+const paymentPollTimer = ref(null);
+const polling = ref(false);
 
 const selectedUsername = ref('');
 const currentUsername = authStore.user?.username;
@@ -404,6 +406,7 @@ const generateQR = async () => {
         
         if (response.data.success) {
             qrCode.value = response.data.qr_base64;
+            startPaymentPolling();
         } else {
             qrError.value = response.data.message || 'Error al generar QR';
         }
@@ -420,6 +423,7 @@ const toggleFullscreen = () => {
 };
 
 const closeOrder = () => {
+    stopPaymentPolling();
     order.value = null;
     qrCode.value = null;
     closedOrderId.value = null;
@@ -445,6 +449,33 @@ const showPaymentSuccess = () => {
         paymentSuccess.value = false;
         closeOrder();
     }, 3000);
+};
+
+const startPaymentPolling = () => {
+    stopPaymentPolling();
+    const orderId = order.value?.id;
+    if (!orderId) return;
+
+    polling.value = true;
+    paymentPollTimer.value = setInterval(async () => {
+        try {
+            const res = await api.get(`/pos/orders/${orderId}/payment-status`);
+            if (res.data.paid) {
+                stopPaymentPolling();
+                showPaymentSuccess();
+            }
+        } catch (err) {
+            console.error('[PosQR] Payment poll error:', err);
+        }
+    }, 3000);
+};
+
+const stopPaymentPolling = () => {
+    polling.value = false;
+    if (paymentPollTimer.value) {
+        clearInterval(paymentPollTimer.value);
+        paymentPollTimer.value = null;
+    }
 };
 
 // Listen for when admin disables QR for user - close the order and show advertisement
@@ -518,6 +549,7 @@ const handleOpenFullscreen = () => {
 };
 
 const handleOpenSpecificOrder = async (event) => {
+    stopPaymentPolling();
     const { orderId, username: targetUsername, total } = event.detail;
     loading.value = true;
     error.value = null;
@@ -640,6 +672,8 @@ onUnmounted(() => {
     if (successTimeout.value) {
         clearTimeout(successTimeout.value);
     }
+    
+    stopPaymentPolling();
 });
 
 onUnmounted(() => {

@@ -145,6 +145,7 @@ Route::middleware(['web', 'setDatabase'])->group(function () {
         Route::delete('/orders/{id}', [App\Http\Controllers\Pos\PosOrderController::class, 'destroy']);
         Route::post('/orders/{id}/toggle-paid', [App\Http\Controllers\Pos\PosOrderController::class, 'togglePaid']);
         Route::post('/orders/{id}/reprint', [App\Http\Controllers\Pos\PosOrderController::class, 'reprint']);
+        Route::get('/orders/{id}/payment-status', [App\Http\Controllers\Pos\PosOrderController::class, 'checkPaymentStatus']);
         
         Route::get('/users', [App\Http\Controllers\Pos\PosUserController::class, 'index']);
         Route::post('/users', [App\Http\Controllers\Pos\PosUserController::class, 'store']);

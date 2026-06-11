@@ -61,6 +61,7 @@ class SyncController extends Controller
         unset($data['id']);
         $existing = DB::table('categories')->where('sync_id', $syncId)->first();
         if ($existing) {
+            $this->resolveUniqueConflict('categories', 'name', $data['name'] ?? '', $syncId);
             DB::table('categories')->where('sync_id', $syncId)->update($data);
         } else {
             $existing = DB::table('categories')->where('name', $data['name'] ?? '')->first();
@@ -83,6 +84,7 @@ class SyncController extends Controller
         unset($data['id'], $data['category_sync_id']);
         $existing = DB::table('products')->where('sync_id', $syncId)->first();
         if ($existing) {
+            $this->resolveUniqueConflict('products', 'name', $data['name'] ?? '', $syncId);
             DB::table('products')->where('sync_id', $syncId)->update($data);
         } else {
             $existing = DB::table('products')->where('name', $data['name'] ?? '')->first();
@@ -103,6 +105,7 @@ class SyncController extends Controller
         unset($data['id']);
         $existing = DB::table('users')->where('sync_id', $syncId)->first();
         if ($existing) {
+            $this->resolveUniqueConflict('users', 'username', $data['username'] ?? '', $syncId);
             DB::table('users')->where('sync_id', $syncId)->update($data);
         } else {
             $existing = DB::table('users')->where('username', $data['username'] ?? '')->first();
@@ -123,6 +126,7 @@ class SyncController extends Controller
         unset($data['id']);
         $existing = DB::table('status_orders')->where('sync_id', $syncId)->first();
         if ($existing) {
+            $this->resolveUniqueConflict('status_orders', 'name', $data['name'] ?? '', $syncId);
             DB::table('status_orders')->where('sync_id', $syncId)->update($data);
         } else {
             $existing = DB::table('status_orders')->where('name', $data['name'] ?? '')->first();
@@ -132,6 +136,22 @@ class SyncController extends Controller
             } else {
                 DB::table('status_orders')->insert($data);
             }
+        }
+    }
+
+    private function resolveUniqueConflict(string $table, string $column, string $value, string $syncId): void
+    {
+        if (empty($value)) return;
+
+        $conflicting = DB::table($table)
+            ->where($column, $value)
+            ->where('sync_id', '!=', $syncId)
+            ->first();
+
+        if ($conflicting) {
+            DB::table($table)
+                ->where('id', $conflicting->id)
+                ->update([$column => $value . '_' . $conflicting->id]);
         }
     }
 

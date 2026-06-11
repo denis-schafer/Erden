@@ -19,6 +19,7 @@ return new class extends Migration
                 $table->string('sync_id', 36)->nullable()->unique();
                 $table->boolean('paid')->default(false);
                 $table->string('mp_payment_id', 50)->nullable();
+            $table->string('mp_order_id', 50)->nullable()->after('mp_payment_id');
                 $table->decimal('mp_transaction_amount', 10, 2)->nullable();
                 $table->timestamps();
                 $table->softDeletes();

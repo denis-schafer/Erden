@@ -481,6 +481,14 @@ class MigrationAll extends Command
             } else {
                 $this->info('mp_transaction_amount column already exists.');
             }
+            
+            if (!in_array('mp_order_id', $columns)) {
+                $this->info('Adding mp_order_id column to orders...');
+                DB::statement('ALTER TABLE orders ADD COLUMN mp_order_id VARCHAR(50) NULL AFTER mp_transaction_amount');
+                $this->info('mp_order_id column added successfully.');
+            } else {
+                $this->info('mp_order_id column already exists.');
+            }
         } catch (\Exception $e) {
             $this->warn('Error verifying orders table: ' . $e->getMessage());
         }
@@ -761,6 +769,7 @@ class MigrationAll extends Command
                 $table->boolean('paid')->default(false);
                 $table->string('mp_payment_id', 50)->nullable();
                 $table->decimal('mp_transaction_amount', 10, 2)->nullable();
+                $table->string('mp_order_id', 50)->nullable()->after('mp_transaction_amount');
                 $table->timestamp('deleted_at')->nullable();
                 $table->timestamps();
                 

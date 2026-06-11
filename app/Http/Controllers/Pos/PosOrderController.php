@@ -73,32 +73,15 @@ class PosOrderController extends Controller
 
         $order = DB::table('orders')->where('id', $id)->first();
 
-        // Create print job for local agent
+        // Run fast tasks synchronously
         $this->createPrintJob($order, $validated['detail'], $validated['operator_id']);
+        event(new OrderCreated((array) $order));
+        $this->queueSync('orders', 'created', $order, ['operator_id' => 'users', 'status_id' => 'status_orders']);
 
         // Send to Point Postnet if operator has posnet_id and send_to_point is true
         if ($validated['send_to_point'] ?? false) {
-            $orderId = $order->id;
-            $operatorId = $validated['operator_id'];
-            dispatch(function () use ($orderId, $operatorId) {
-                try {
-                    $order = DB::table('orders')->find($orderId);
-                    if ($order) {
-                        $controller = app(\App\Http\Controllers\Pos\PosOrderController::class);
-                        $controller->sendToPointTerminal($order, $operatorId);
-                    }
-                } catch (\Exception $e) {
-                    Log::error('[MercadoPagoPoint] Deferred sendToPointTerminal failed', [
-                        'error' => $e->getMessage(),
-                        'order_id' => $orderId,
-                    ]);
-                }
-            })->afterResponse();
+            $this->sendToPointTerminal($order, $validated['operator_id']);
         }
-
-        event(new OrderCreated((array) $order));
-
-        $this->queueSync('orders', 'created', $order, ['operator_id' => 'users', 'status_id' => 'status_orders']);
 
         return response()->json([
             'id' => $id, 
@@ -109,24 +92,72 @@ class PosOrderController extends Controller
     public function sendOrderToPoint($orderId): void
     {
         $orderId = (int) $orderId;
-        dispatch(function () use ($orderId) {
-            try {
-                $order = DB::table('orders')->find($orderId);
-                if (!$order) {
-                    Log::warning('[MercadoPagoPoint] Order not found for sendToPoint', [
-                        'order_id' => $orderId,
-                    ]);
-                    return;
-                }
-                $controller = app(\App\Http\Controllers\Pos\PosOrderController::class);
-                $controller->sendToPointTerminal($order, $order->operator_id);
-            } catch (\Exception $e) {
-                Log::error('[MercadoPagoPoint] Deferred sendOrderToPoint failed', [
-                    'error' => $e->getMessage(),
+        try {
+            $order = DB::table('orders')->find($orderId);
+            if (!$order) {
+                Log::warning('[MercadoPagoPoint] Order not found for sendToPoint', [
                     'order_id' => $orderId,
                 ]);
+                return;
             }
-        })->afterResponse();
+            $this->sendToPointTerminal($order, $order->operator_id);
+        } catch (\Exception $e) {
+            Log::error('[MercadoPagoPoint] sendOrderToPoint failed', [
+                'error' => $e->getMessage(),
+                'order_id' => $orderId,
+            ]);
+        }
+    }
+
+    public function checkPaymentStatus($orderId)
+    {
+        $orderId = (int) $orderId;
+        $order = DB::table('orders')->where('id', $orderId)->first(['id', 'mp_order_id', 'paid', 'status_id', 'operator_id']);
+
+        if (!$order) {
+            return response()->json(['error' => 'Pedido no encontrado'], 404);
+        }
+
+        if ($order->paid) {
+            return response()->json(['paid' => true, 'status_id' => $order->status_id]);
+        }
+
+        if (empty($order->mp_order_id)) {
+            return response()->json(['paid' => false, 'message' => 'Sin referencia MP']);
+        }
+
+        try {
+            $accessToken = DB::table('configs')->where('name', 'mp_access_token')->value('value');
+            if (empty($accessToken)) {
+                return response()->json(['paid' => false, 'message' => 'Sin token MP']);
+            }
+
+            $pointService = new MercadoPagoPointService($accessToken);
+            $statusResult = $pointService->getOrder($order->mp_order_id);
+
+            if (!empty($statusResult) && isset($statusResult['status']) && $statusResult['status'] === 'processed') {
+                DB::table('orders')->where('id', $orderId)->update([
+                    'status_id' => 3,
+                    'paid' => 1,
+                    'mp_payment_id' => $statusResult['transactions']['payments'][0]['id'] ?? null,
+                    'updated_at' => now(),
+                ]);
+
+                $updatedOrder = DB::table('orders')->where('id', $orderId)->first();
+                $this->queueSync('orders', 'updated', $updatedOrder, ['operator_id' => 'users', 'status_id' => 'status_orders']);
+                event(new \App\Events\OrderPaid($updatedOrder, $order->operator_id));
+
+                return response()->json(['paid' => true, 'status_id' => 3, 'mp_payment_id' => $statusResult['transactions']['payments'][0]['id'] ?? null]);
+            }
+
+            return response()->json(['paid' => false, 'status' => $statusResult['status'] ?? 'unknown']);
+        } catch (\Exception $e) {
+            Log::error('[MercadoPagoPoint] Payment check error', [
+                'error' => $e->getMessage(),
+                'order_id' => $orderId,
+            ]);
+            return response()->json(['paid' => false, 'error' => $e->getMessage()]);
+        }
     }
 
     private function createPrintJob($order, $detail, $operatorId)
@@ -210,56 +241,20 @@ class PosOrderController extends Controller
                     'mp_status' => $result['data']['status'] ?? null,
                 ]);
 
-                // Poll for order status inline (since this runs after response)
+                // Save MP Order ID for later payment status checks
                 if ($mpOrderId) {
-                    $orderId = $order->id;
                     try {
-                        $pointPoller = new MercadoPagoPointService($accessToken);
-                        $maxAttempts = 20;
-                        for ($i = 0; $i < $maxAttempts; $i++) {
-                            sleep(3);
-                            try {
-                                $statusResult = $pointPoller->getOrder($mpOrderId);
-                                if (!empty($statusResult) && isset($statusResult['status'])) {
-                                    $status = $statusResult['status'];
-                                    if ($status === 'processed') {
-                                        DB::table('orders')->where('id', $orderId)->update([
-                                            'status_id' => 3,
-                                            'paid' => 1,
-                                            'mp_payment_id' => $statusResult['transactions']['payments'][0]['id'] ?? null,
-                                            'updated_at' => now(),
-                                        ]);
-                                        $updatedOrder = DB::table('orders')->where('id', $orderId)->first();
-                                        event(new \App\Events\OrderPaid($updatedOrder, $operatorId));
-                                        Log::info('[MercadoPagoPoint] Order paid via polling', [
-                                            'order_id' => $orderId,
-                                            'mp_order_id' => $mpOrderId,
-                                        ]);
-                                        break;
-                                    }
-                                }
-                            } catch (\Exception $e) {
-                                Log::error('[MercadoPagoPoint] Poll error', [
-                                    'error' => $e->getMessage(),
-                                    'order_id' => $orderId,
-                                ]);
-                            }
-                        }
+                        DB::table('orders')->where('id', $order->id)->update([
+                            'mp_order_id' => $mpOrderId,
+                            'updated_at' => now(),
+                        ]);
                     } catch (\Exception $e) {
-                        Log::error('[MercadoPagoPoint] Polling setup error', [
+                        Log::warning('[MercadoPagoPoint] Failed to save mp_order_id', [
                             'error' => $e->getMessage(),
-                            'order_id' => $orderId,
+                            'order_id' => $order->id,
+                            'mp_order_id' => $mpOrderId,
                         ]);
                     }
-                }
-
-                // Verificar el estado del terminal después de enviar
-                $terminalInfo = $pointService->getTerminalInfo($operator->posnet_id);
-                if (!empty($terminalInfo)) {
-                    Log::info('[MercadoPagoPoint] Terminal status after order', [
-                        'terminal_id' => $operator->posnet_id,
-                        'terminal_info' => $terminalInfo,
-                    ]);
                 }
             } else {
                 Log::warning('[MercadoPagoPoint] Failed to send order to terminal', [

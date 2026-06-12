@@ -90,6 +90,12 @@
                         <div v-else-if="qrError" class="qr-section mb-3 text-center">
                             <div class="text-danger small">{{ qrError }}</div>
                         </div>
+                        <div v-if="showManualCheck" class="text-center mb-3">
+                            <button @click="manualCheck" :disabled="loadingCheck" class="btn btn-outline-primary btn-sm">
+                                <span v-if="loadingCheck" class="spinner-border spinner-border-sm me-1"></span>
+                                {{ loadingCheck ? 'Verificando...' : 'Verificar pago manualmente' }}
+                            </button>
+                        </div>
                         <div class="order-info mb-3">
                             <div class="d-flex justify-content-between">
                                 <span><strong>#{{ order.id }}</strong></span>
@@ -194,6 +200,13 @@
                     <div class="text-danger small">{{ qrError }}</div>
                 </div>
                 
+                <div v-if="showManualCheck" class="text-center mb-3">
+                    <button @click="manualCheck" :disabled="loadingCheck" class="btn btn-outline-primary">
+                        <span v-if="loadingCheck" class="spinner-border spinner-border-sm me-1"></span>
+                        {{ loadingCheck ? 'Verificando...' : 'Verificar pago manualmente' }}
+                    </button>
+                </div>
+                
                 <div class="order-info mb-3">
                     <div class="d-flex justify-content-between">
                         <span><strong>#{{ order.id }}</strong></span>
@@ -274,6 +287,8 @@ const successTimeout = ref(null);
 const closedOrderId = ref(null);
 const paymentPollTimer = ref(null);
 const polling = ref(false);
+const showManualCheck = ref(false);
+const loadingCheck = ref(false);
 
 const selectedUsername = ref('');
 const currentUsername = authStore.user?.username;
@@ -451,13 +466,26 @@ const showPaymentSuccess = () => {
     }, 3000);
 };
 
+const POLL_MAX_MS = 180000; // 3 minutos
+const POLL_INTERVAL_MS = 1000; // 1 segundo
+
 const startPaymentPolling = () => {
     stopPaymentPolling();
     const orderId = order.value?.id;
     if (!orderId) return;
 
+    const startTime = Date.now();
     polling.value = true;
+    showManualCheck.value = false;
+
     paymentPollTimer.value = setInterval(async () => {
+        if (Date.now() - startTime > POLL_MAX_MS) {
+            stopPaymentPolling();
+            showManualCheck.value = true;
+            toastStore.info('Tiempo de espera agotado. Verifique el pago manualmente.');
+            return;
+        }
+
         try {
             const res = await api.get(`/pos/orders/${orderId}/payment-status`);
             if (res.data.paid) {
@@ -467,14 +495,32 @@ const startPaymentPolling = () => {
         } catch (err) {
             console.error('[PosQR] Payment poll error:', err);
         }
-    }, 3000);
+    }, POLL_INTERVAL_MS);
 };
 
 const stopPaymentPolling = () => {
     polling.value = false;
+    showManualCheck.value = false;
     if (paymentPollTimer.value) {
         clearInterval(paymentPollTimer.value);
         paymentPollTimer.value = null;
+    }
+};
+
+const manualCheck = async () => {
+    if (!order.value?.id) return;
+    loadingCheck.value = true;
+    try {
+        const res = await api.get(`/pos/orders/${order.value.id}/payment-status`);
+        if (res.data.paid) {
+            showPaymentSuccess();
+        } else {
+            toastStore.info('Pago no detectado. Intente nuevamente o verifique en el módulo Órdenes.');
+        }
+    } catch (err) {
+        toastStore.error('Error al verificar pago.');
+    } finally {
+        loadingCheck.value = false;
     }
 };
 

@@ -3,6 +3,11 @@
         <div class="d-flex justify-content-between align-items-center mb-3">
             <h5 class="mb-0">Órdenes</h5>
             <div class="d-flex gap-2">
+                <button @click="checkPendingPayments" :disabled="verifyingPayments" class="btn btn-sm btn-outline-success">
+                    <span v-if="verifyingPayments" class="spinner-border spinner-border-sm me-1"></span>
+                    <i v-else class="bi bi-arrow-repeat me-1"></i>
+                    {{ verifyingPayments ? 'Verificando...' : 'Verificar pagos' }}
+                </button>
                 <select v-model="statusFilter" class="form-select form-select-sm" style="width: auto;" @change="goToPage(1)">
                     <option value="">Todos</option>
                     <option value="1">Pendiente</option>
@@ -170,6 +175,7 @@ const lastPage = ref(1);
 const total = ref(0);
 const loading = ref(false);
 const loadingActions = ref({});
+const verifyingPayments = ref(false);
 
 const visiblePages = computed(() => {
     const pages = [];
@@ -207,6 +213,21 @@ const loadData = async (forceRefresh = false) => {
     }
 };
 
+const checkPendingPayments = async () => {
+    verifyingPayments.value = true;
+    try {
+        const res = await api.post('/pos/orders/check-pending-payments');
+        if (res.data.updated > 0) {
+            toastify.success(`${res.data.updated} pago(s) actualizado(s)`);
+            await loadData(true);
+        }
+    } catch (error) {
+        console.error('[PosOrders] Error checking payments:', error);
+    } finally {
+        verifyingPayments.value = false;
+    }
+};
+
 const goToPage = (p) => {
     if (p < 1 || p > lastPage.value || loading.value) return;
     page.value = p;
@@ -237,7 +258,10 @@ const setupOrderPaidListener = () => {
         });
 };
 
-const handleOrderCreated = () => { loadData(true); };
+const handleOrderCreated = () => {
+    loadData(true);
+    setTimeout(() => checkPendingPayments(), 2000);
+};
 const handleOrderUpdated = () => { loadData(true); };
 const handleOrderDeleted = () => { loadData(true); };
 
@@ -380,6 +404,7 @@ const viewOrderQR = async (order) => {
 
 onMounted(() => {
     loadData();
+    setTimeout(() => checkPendingPayments(), 1500);
     window.addEventListener('pos-order-created', handleOrderCreated);
     window.addEventListener('pos-order-updated', handleOrderUpdated);
     window.addEventListener('pos-order-deleted', handleOrderDeleted);

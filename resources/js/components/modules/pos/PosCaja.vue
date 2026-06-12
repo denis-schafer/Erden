@@ -738,10 +738,6 @@ const createOrder = async (withQR = false) => {
             paid: false
         };
 
-        if (withQR) {
-            payload.send_to_point = true;
-        }
-
         const res = await api.post('/pos/orders', payload);
 
         const orderId = res.data.id;
@@ -751,6 +747,15 @@ const createOrder = async (withQR = false) => {
         window.dispatchEvent(new CustomEvent('pos-order-created'));
 
         if (withQR) {
+            // Fire & forget: send to Point terminal in background (does not block)
+            api.post('/pos/request-qr-order', {
+                order_id: orderId,
+                username: user.value.username,
+                total: cartTotal.value,
+                target_user_id: user.value.id
+            });
+
+            // Open QR module immediately
             window.dispatchEvent(new CustomEvent('open-pos-qr-order', {
                 detail: {
                     orderId: orderId,

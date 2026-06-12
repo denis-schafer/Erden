@@ -27,6 +27,7 @@ class WebhookJobController extends Controller
                 'raw_payload' => $job->raw_payload,
                 'topic' => $job->topic,
                 'webhook_code' => $job->webhook_code,
+                'payment_id' => $job->payment_id,
                 'created_at' => $job->created_at,
             ];
         }));

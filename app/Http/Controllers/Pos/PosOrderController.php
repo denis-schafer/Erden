@@ -13,6 +13,7 @@ use App\Events\OrderDeleted;
 use App\Packages\Pos\Helpers\TestModeHelper;
 use App\Services\PrintJobService;
 use App\Services\MercadoPagoPointService;
+use Illuminate\Support\Facades\Http;
 
 class PosOrderController extends Controller
 {
@@ -53,7 +54,6 @@ class PosOrderController extends Controller
             'operator_id' => 'required|exists:users,id',
             'status_id' => 'required|exists:status_orders,id',
             'paid' => 'boolean',
-            'send_to_point' => 'nullable|boolean',
         ]);
 
         $syncId = Str::uuid()->toString();
@@ -73,15 +73,10 @@ class PosOrderController extends Controller
 
         $order = DB::table('orders')->where('id', $id)->first();
 
-        // Run fast tasks synchronously
+        // Run tasks synchronously (fast: DB insert + print job generation, no Point/QR)
         $this->createPrintJob($order, $validated['detail'], $validated['operator_id']);
         event(new OrderCreated((array) $order));
         $this->queueSync('orders', 'created', $order, ['operator_id' => 'users', 'status_id' => 'status_orders']);
-
-        // Send to Point Postnet if operator has posnet_id and send_to_point is true
-        if ($validated['send_to_point'] ?? false) {
-            $this->sendToPointTerminal($order, $validated['operator_id']);
-        }
 
         return response()->json([
             'id' => $id, 
@@ -122,42 +117,44 @@ class PosOrderController extends Controller
             return response()->json(['paid' => true, 'status_id' => $order->status_id]);
         }
 
-        if (empty($order->mp_order_id)) {
-            return response()->json(['paid' => false, 'message' => 'Sin referencia MP']);
-        }
+        // Check 1: MP Point API (if order was sent to Point terminal)
+        if (!empty($order->mp_order_id)) {
+            try {
+                $accessToken = DB::table('configs')->where('name', 'mp_access_token')->value('value');
+                if (!empty($accessToken)) {
+                    $pointService = new MercadoPagoPointService($accessToken);
+                    $statusResult = $pointService->getOrder($order->mp_order_id);
 
-        try {
-            $accessToken = DB::table('configs')->where('name', 'mp_access_token')->value('value');
-            if (empty($accessToken)) {
-                return response()->json(['paid' => false, 'message' => 'Sin token MP']);
-            }
+                    if (!empty($statusResult) && isset($statusResult['status']) && $statusResult['status'] === 'processed') {
+                        DB::table('orders')->where('id', $orderId)->update([
+                            'status_id' => 3,
+                            'paid' => 1,
+                            'mp_payment_id' => $statusResult['transactions']['payments'][0]['id'] ?? null,
+                            'updated_at' => now(),
+                        ]);
 
-            $pointService = new MercadoPagoPointService($accessToken);
-            $statusResult = $pointService->getOrder($order->mp_order_id);
+                        $updatedOrder = DB::table('orders')->where('id', $orderId)->first();
+                        $this->queueSync('orders', 'updated', $updatedOrder, ['operator_id' => 'users', 'status_id' => 'status_orders']);
+                        event(new \App\Events\OrderPaid($updatedOrder, $order->operator_id));
 
-            if (!empty($statusResult) && isset($statusResult['status']) && $statusResult['status'] === 'processed') {
-                DB::table('orders')->where('id', $orderId)->update([
-                    'status_id' => 3,
-                    'paid' => 1,
-                    'mp_payment_id' => $statusResult['transactions']['payments'][0]['id'] ?? null,
-                    'updated_at' => now(),
+                        return response()->json(['paid' => true, 'status_id' => 3, 'mp_payment_id' => $statusResult['transactions']['payments'][0]['id'] ?? null]);
+                    }
+                }
+            } catch (\Exception $e) {
+                Log::error('[MercadoPagoPoint] Payment check error', [
+                    'error' => $e->getMessage(),
+                    'order_id' => $orderId,
                 ]);
-
-                $updatedOrder = DB::table('orders')->where('id', $orderId)->first();
-                $this->queueSync('orders', 'updated', $updatedOrder, ['operator_id' => 'users', 'status_id' => 'status_orders']);
-                event(new \App\Events\OrderPaid($updatedOrder, $order->operator_id));
-
-                return response()->json(['paid' => true, 'status_id' => 3, 'mp_payment_id' => $statusResult['transactions']['payments'][0]['id'] ?? null]);
             }
-
-            return response()->json(['paid' => false, 'status' => $statusResult['status'] ?? 'unknown']);
-        } catch (\Exception $e) {
-            Log::error('[MercadoPagoPoint] Payment check error', [
-                'error' => $e->getMessage(),
-                'order_id' => $orderId,
-            ]);
-            return response()->json(['paid' => false, 'error' => $e->getMessage()]);
         }
+
+        // Check 2: VPS webhooks via API (QR payments)
+        if ($this->checkWebhooksForOrder($order)) {
+            $updated = DB::table('orders')->where('id', $orderId)->first();
+            return response()->json(['paid' => true, 'status_id' => 3, 'mp_payment_id' => $updated->mp_payment_id]);
+        }
+
+        return response()->json(['paid' => false]);
     }
 
     private function createPrintJob($order, $detail, $operatorId)
@@ -270,6 +267,126 @@ class PosOrderController extends Controller
                 'trace' => $e->getTraceAsString(),
             ]);
         }
+    }
+
+    public function checkPendingPayments()
+    {
+        $pendingOrders = DB::table('orders')
+            ->where('paid', 0)
+            ->where('status_id', '!=', 2)
+            ->where('created_at', '>=', now()->subDay())
+            ->get(['id', 'operator_id']);
+
+        $updated = 0;
+        foreach ($pendingOrders as $order) {
+            if ($this->checkWebhooksForOrder($order)) {
+                $updated++;
+            }
+        }
+
+        return response()->json(['updated' => $updated]);
+    }
+
+    private function checkWebhooksForOrder($order): bool
+    {
+        try {
+            $remoteUrl = DB::table('configs')->where('name', 'remote_url')->value('value');
+            $remoteKey = DB::table('configs')->where('name', 'remote_key')->value('value');
+            $webhookCode = DB::table('configs')->where('name', 'webhook_code')->value('value');
+            $accessToken = DB::table('configs')->where('name', 'mp_access_token')->value('value');
+            $companyDb = $this->resolveCompanyDb();
+
+            if (empty($remoteUrl) || empty($remoteKey) || empty($webhookCode) || empty($accessToken) || empty($companyDb)) {
+                return false;
+            }
+
+            // Fetch pending webhooks from VPS using existing webhook-jobs endpoint
+            $response = Http::timeout(10)
+                ->withHeaders(['X-Print-Agent-Key' => $remoteKey])
+                ->get(rtrim($remoteUrl, '/') . '/pos/webhooks-jobs/pending');
+
+            if (!$response->successful()) {
+                return false;
+            }
+
+            $webhooks = $response->json() ?? [];
+
+            foreach ($webhooks as $job) {
+                // Parse raw_payload to extract payment info
+                $payload = is_string($job['raw_payload'] ?? null) 
+                    ? json_decode($job['raw_payload'], true) 
+                    : ($job['raw_payload'] ?? []);
+                
+                if (empty($payload)) continue;
+
+                $topic = $job['topic'] ?? $payload['topic'] ?? '';
+                $paymentId = null;
+
+                if ($topic === 'payment') {
+                    $paymentId = $payload['data']['id'] ?? null;
+                } elseif ($topic === 'merchant_order') {
+                    $merchantOrderId = $payload['data']['id'] ?? null;
+                    if ($merchantOrderId) {
+                        $moResponse = Http::withToken($accessToken)
+                            ->timeout(10)
+                            ->get("https://api.mercadopago.com/merchant_orders/{$merchantOrderId}");
+                        if ($moResponse->successful()) {
+                            $moData = $moResponse->json();
+                            $payments = $moData['payments'] ?? [];
+                            $paymentId = $payments[0]['id'] ?? null;
+                        }
+                    }
+                }
+
+                if (!$paymentId) continue;
+
+                // Fetch payment details from MP API
+                $mpResponse = Http::withToken($accessToken)
+                    ->timeout(10)
+                    ->get("https://api.mercadopago.com/v1/payments/{$paymentId}");
+
+                if (!$mpResponse->successful()) continue;
+
+                $payment = $mpResponse->json();
+                if (($payment['status'] ?? '') !== 'approved') continue;
+
+                $extRef = $payment['external_reference'] ?? '';
+                if (empty($extRef)) continue;
+
+                // Parse external_reference: {companyDb}-{operatorId}-{orderId}
+                $parts = explode('-', $extRef, 3);
+                if (count($parts) < 3) continue;
+
+                [$extDb, $extOp, $extOrderId] = $parts;
+
+                if ((int)$extOrderId !== $order->id || $extDb !== $companyDb) continue;
+
+                // MATCH! Update order as paid
+                DB::table('orders')->where('id', $order->id)->update([
+                    'status_id' => 3,
+                    'paid' => 1,
+                    'mp_payment_id' => $paymentId,
+                    'mp_transaction_amount' => $payment['transaction_details']['net_received_amount'] ?? $payment['transaction_amount'] ?? null,
+                    'updated_at' => now(),
+                ]);
+
+                // ACK webhook on VPS (mark as forwarded/processed)
+                Http::timeout(5)
+                    ->withHeaders(['X-Print-Agent-Key' => $remoteKey])
+                    ->post(rtrim($remoteUrl, '/') . "/pos/webhooks-jobs/{$job['id']}/ack");
+
+                // Fire events
+                $updatedOrder = DB::table('orders')->where('id', $order->id)->first();
+                $this->queueSync('orders', 'updated', $updatedOrder, ['operator_id' => 'users', 'status_id' => 'status_orders']);
+                event(new \App\Events\OrderPaid($updatedOrder, $order->operator_id));
+
+                return true;
+            }
+        } catch (\Exception $e) {
+            Log::error('[CheckWebhooks] Error: ' . $e->getMessage());
+        }
+
+        return false;
     }
 
     private function resolveCompanyDb(): ?string

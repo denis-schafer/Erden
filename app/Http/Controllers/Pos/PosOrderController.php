@@ -148,7 +148,13 @@ class PosOrderController extends Controller
             }
         }
 
-        // Check 2: VPS webhooks via API (QR payments)
+        // Check 2: MP Payments API by external_reference (QR/preference payments)
+        if ($this->checkExternalReferencePayment($order)) {
+            $updated = DB::table('orders')->where('id', $orderId)->first();
+            return response()->json(['paid' => true, 'status_id' => 3, 'mp_payment_id' => $updated->mp_payment_id]);
+        }
+
+        // Check 3: VPS webhooks via API (QR payments, fallback)
         if ($this->checkWebhooksForOrder($order)) {
             $updated = DB::table('orders')->where('id', $orderId)->first();
             return response()->json(['paid' => true, 'status_id' => 3, 'mp_payment_id' => $updated->mp_payment_id]);
@@ -279,12 +285,62 @@ class PosOrderController extends Controller
 
         $updated = 0;
         foreach ($pendingOrders as $order) {
-            if ($this->checkWebhooksForOrder($order)) {
+            $order = DB::table('orders')->where('id', $order->id)->first(['id', 'mp_order_id', 'paid', 'status_id', 'operator_id']);
+            if ($this->checkExternalReferencePayment($order)) {
+                $updated++;
+            } elseif ($this->checkWebhooksForOrder($order)) {
                 $updated++;
             }
         }
 
         return response()->json(['updated' => $updated]);
+    }
+
+    private function checkExternalReferencePayment($order): bool
+    {
+        try {
+            $accessToken = DB::table('configs')->where('name', 'mp_access_token')->value('value');
+            if (empty($accessToken)) return false;
+
+            $companyDb = $this->resolveCompanyDb();
+            if (empty($companyDb)) return false;
+
+            $externalRef = $companyDb . '-' . $order->operator_id . '-' . $order->id;
+
+            $response = Http::withToken($accessToken)
+                ->timeout(10)
+                ->get('https://api.mercadopago.com/v1/payments/search', [
+                    'external_reference' => $externalRef,
+                    'sort' => 'date_created',
+                    'criteria' => 'desc',
+                    'limit' => 1,
+                ]);
+
+            if (!$response->successful()) return false;
+
+            $results = $response->json()['results'] ?? [];
+            foreach ($results as $payment) {
+                if (($payment['status'] ?? '') === 'approved') {
+                    DB::table('orders')->where('id', $order->id)->update([
+                        'status_id' => 3,
+                        'paid' => 1,
+                        'mp_payment_id' => $payment['id'],
+                        'mp_transaction_amount' => $payment['transaction_details']['net_received_amount'] ?? $payment['transaction_amount'] ?? null,
+                        'updated_at' => now(),
+                    ]);
+
+                    $updatedOrder = DB::table('orders')->where('id', $order->id)->first();
+                    $this->queueSync('orders', 'updated', $updatedOrder, ['operator_id' => 'users', 'status_id' => 'status_orders']);
+                    event(new \App\Events\OrderPaid($updatedOrder, $order->operator_id));
+
+                    return true;
+                }
+            }
+        } catch (\Exception $e) {
+            Log::error('[MercadoPago] External ref search error: ' . $e->getMessage());
+        }
+
+        return false;
     }
 
     private function checkWebhooksForOrder($order): bool

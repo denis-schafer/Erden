@@ -402,6 +402,7 @@ const loadOrder = async () => {
 
 const generateQR = async () => {
     if (!order.value || !order.value.id) return;
+    if (qrLoading.value || qrCode.value) return;
     
     qrLoading.value = true;
     qrError.value = null;

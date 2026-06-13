@@ -82,7 +82,7 @@ class PrintJobService
             'printer_ip' => $operator->printer_ip,
             'printer_port' => $operator->printer_port ?? 9100,
             'printer_width' => $operator->printer_width ?? '80mm',
-            'ticket_data' => $ticketData,
+            'ticket_data' => json_encode($ticketData),
             'status' => 'pending',
             'created_at' => now(),
         ]);

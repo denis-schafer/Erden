@@ -447,22 +447,21 @@ const closeOrder = () => {
 };
 
 const showPaymentSuccess = () => {
-    console.log('[PosQR] showPaymentSuccess called, orderId:', order.value?.id);
+    stopPaymentPolling();
+    if (paymentSuccess.value) return;
     const currentOrderId = order.value?.id;
+    if (!currentOrderId) return;
+    console.log('[PosQR] showPaymentSuccess called, orderId:', currentOrderId);
     
     paymentSuccess.value = true;
     qrCode.value = null;
     closedOrderId.value = currentOrderId;
     
-    // Toast de éxito (usa la instancia del nivel superior)
     toastStore.success(`¡Pago completado! Orden #${currentOrderId}`);
     
-    // Notificar a otros módulos que la orden fue actualizada (pagada)
     window.dispatchEvent(new CustomEvent('pos-order-updated'));
     
-    // Cerrar después de 3 segundos
     setTimeout(() => {
-        paymentSuccess.value = false;
         closeOrder();
     }, 3000);
 };
@@ -491,6 +490,7 @@ const startPaymentPolling = () => {
             const res = await api.get(`/pos/orders/${orderId}/payment-status`);
             if (res.data.paid) {
                 stopPaymentPolling();
+                if (paymentSuccess.value) return;
                 showPaymentSuccess();
             }
         } catch (err) {
@@ -684,6 +684,7 @@ onMounted(() => {
                 }
                 // Call showPaymentSuccess directly - order is already updated
                 if (data.order?.id === order.value?.id) {
+                    if (paymentSuccess.value) return;
                     order.value = data.order;
                     console.log('[PosQR] Calling showPaymentSuccess');
                     showPaymentSuccess();

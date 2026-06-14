@@ -148,14 +148,8 @@ class PosOrderController extends Controller
             }
         }
 
-        // Check 2: MP Payments API by external_reference (QR/preference payments)
+        // Check 2: MP Payments API by external_reference (QR/preference payments, no VPS needed)
         if ($this->checkExternalReferencePayment($order)) {
-            $updated = DB::table('orders')->where('id', $orderId)->first();
-            return response()->json(['paid' => true, 'status_id' => 3, 'mp_payment_id' => $updated->mp_payment_id]);
-        }
-
-        // Check 3: VPS webhooks via API (QR payments, fallback)
-        if ($this->checkWebhooksForOrder($order)) {
             $updated = DB::table('orders')->where('id', $orderId)->first();
             return response()->json(['paid' => true, 'status_id' => 3, 'mp_payment_id' => $updated->mp_payment_id]);
         }
@@ -308,7 +302,8 @@ class PosOrderController extends Controller
             $externalRef = $companyDb . '-' . $order->operator_id . '-' . $order->id;
 
             $response = Http::withToken($accessToken)
-                ->timeout(10)
+                ->connectTimeout(3)
+                ->timeout(5)
                 ->get('https://api.mercadopago.com/v1/payments/search', [
                     'external_reference' => $externalRef,
                     'sort' => 'date_created',
@@ -316,9 +311,25 @@ class PosOrderController extends Controller
                     'limit' => 1,
                 ]);
 
-            if (!$response->successful()) return false;
-
             $results = $response->json()['results'] ?? [];
+
+            Log::info('[MercadoPago] External ref search', [
+                'external_reference' => $externalRef,
+                'order_id' => $order->id,
+                'status' => $response->status(),
+                'results_count' => count($results),
+            ]);
+
+            if (!$response->successful()) {
+                Log::warning('[MercadoPago] External ref search failed', [
+                    'external_reference' => $externalRef,
+                    'order_id' => $order->id,
+                    'status' => $response->status(),
+                    'body' => $response->body(),
+                ]);
+                return false;
+            }
+
             foreach ($results as $payment) {
                 if (($payment['status'] ?? '') === 'approved') {
                     DB::table('orders')->where('id', $order->id)->update([
@@ -333,11 +344,20 @@ class PosOrderController extends Controller
                     $this->queueSync('orders', 'updated', $updatedOrder, ['operator_id' => 'users', 'status_id' => 'status_orders']);
                     event(new \App\Events\OrderPaid($updatedOrder, $order->operator_id));
 
+                    Log::info('[MercadoPago] Payment detected via external ref', [
+                        'order_id' => $order->id,
+                        'payment_id' => $payment['id'],
+                        'external_reference' => $externalRef,
+                    ]);
+
                     return true;
                 }
             }
         } catch (\Exception $e) {
-            Log::error('[MercadoPago] External ref search error: ' . $e->getMessage());
+            Log::info('[MercadoPago] External ref search error (no internet / timeout)', [
+                'order_id' => $order->id,
+                'error' => $e->getMessage(),
+            ]);
         }
 
         return false;
@@ -357,7 +377,8 @@ class PosOrderController extends Controller
             }
 
             // Fetch pending webhooks from VPS using existing webhook-jobs endpoint
-            $response = Http::timeout(10)
+            $response = Http::connectTimeout(3)
+                ->timeout(5)
                 ->withHeaders(['X-Print-Agent-Key' => $remoteKey])
                 ->get(rtrim($remoteUrl, '/') . '/pos/webhooks-jobs/pending');
 
@@ -384,7 +405,8 @@ class PosOrderController extends Controller
                     $merchantOrderId = $payload['data']['id'] ?? null;
                     if ($merchantOrderId) {
                         $moResponse = Http::withToken($accessToken)
-                            ->timeout(10)
+                            ->connectTimeout(3)
+                            ->timeout(5)
                             ->get("https://api.mercadopago.com/merchant_orders/{$merchantOrderId}");
                         if ($moResponse->successful()) {
                             $moData = $moResponse->json();
@@ -398,7 +420,8 @@ class PosOrderController extends Controller
 
                 // Fetch payment details from MP API
                 $mpResponse = Http::withToken($accessToken)
-                    ->timeout(10)
+                    ->connectTimeout(3)
+                    ->timeout(5)
                     ->get("https://api.mercadopago.com/v1/payments/{$paymentId}");
 
                 if (!$mpResponse->successful()) continue;
@@ -427,7 +450,8 @@ class PosOrderController extends Controller
                 ]);
 
                 // ACK webhook on VPS (mark as forwarded/processed)
-                Http::timeout(5)
+                Http::connectTimeout(2)
+                    ->timeout(3)
                     ->withHeaders(['X-Print-Agent-Key' => $remoteKey])
                     ->post(rtrim($remoteUrl, '/') . "/pos/webhooks-jobs/{$job['id']}/ack");
 
@@ -439,7 +463,7 @@ class PosOrderController extends Controller
                 return true;
             }
         } catch (\Exception $e) {
-            Log::error('[CheckWebhooks] Error: ' . $e->getMessage());
+            Log::info('[CheckWebhooks] VPS check error (no internet / timeout): ' . $e->getMessage());
         }
 
         return false;

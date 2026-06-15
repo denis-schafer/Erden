@@ -525,3 +525,22 @@ Archivos modificados:
 - resources/js/components/modules/pos/PosUsers.vue
 - resources/js/components/modules/pos/PosQR.vue
 - versiones.txt
+
+---
+
+[Independencia del agente]
+Fecha: 2026-06-14
+Estado: Completado
+
+Cambios realizados:
+- checkPaymentStatus() ya no llama a checkWebhooksForOrder() — el polling del QR module es rápido y no depende del VPS
+- checkExternalReferencePayment() ahora es el método principal de detección: busca pagos directamente en MP API por external_reference (sin agente, sin VPS)
+- Timeouts cortos (connectTimeout 3s / timeout 5s) en todas las llamadas HTTP externas — si no hay internet falla rápido sin errores
+- Logging agregado a checkExternalReferencePayment(): registra external_reference buscado, cantidad de resultados, y cuando encuentra un pago aprobado
+- Errores de timeout/conexión loggean en INFO, no ERROR — sin ruido en logs cuando no hay internet
+- showPaymentSuccess() en PosQR.vue: agregado guard !currentOrderId para ignorar respuestas HTTP tardías después de closeOrder() — elimina el pantallazo entre success/advertisement
+
+Archivos modificados:
+- app/Http/Controllers/Pos/PosOrderController.php
+- resources/js/components/modules/pos/PosQR.vue
+- versiones.txt

@@ -15,6 +15,12 @@ body {
     overflow: hidden;
 }
 
+#app.portal-mode {
+    height: auto;
+    min-height: 100dvh;
+    overflow: auto;
+}
+
 .card {
     border: none;
     box-shadow: 0 0.125rem 0.25rem rgba(0,0,0,0.075);

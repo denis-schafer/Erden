@@ -166,6 +166,7 @@ class MigrationAll extends Command
             ['name' => 'Usuarios', 'route' => 'users', 'icon' => 'bi-people', 'is_special' => 0, 'parent_id' => null, 'order' => 5],
             ['name' => 'Roles', 'route' => 'roles', 'icon' => 'bi-shield-lock', 'is_special' => 0, 'parent_id' => null, 'order' => 6],
             ['name' => 'POS', 'route' => 'pos', 'icon' => 'bi-cart3', 'is_special' => 1, 'parent_id' => null, 'order' => 50, 'package' => 'pos'],
+            ['name' => 'Administración de Cuotas', 'route' => 'quota', 'icon' => 'bi-calendar3', 'is_special' => 1, 'parent_id' => null, 'order' => 60, 'package' => 'quota_admin'],
         ];
 
         $this->info('Starting module insertion loop...');
@@ -657,6 +658,9 @@ class MigrationAll extends Command
         // Check if POS module is assigned and run POS seeders
         $this->runPosSeeders();
 
+        // Check if QuotaAdmin module is assigned and run QuotaAdmin seeders
+        $this->runQuotaAdminSeeders();
+
         $this->info('Seeders completed.');
     }
 
@@ -872,6 +876,78 @@ class MigrationAll extends Command
         }
         
         $this->info('POS tables creation completed.');
+    }
+
+    protected function runQuotaAdminSeeders(): void
+    {
+        $companyDb = config('database.connections.mysql.database');
+
+        config(['database.connections.mysql.database' => 'erden']);
+        DB::purge('mysql');
+        DB::reconnect('mysql');
+
+        $company = DB::table('companies')
+            ->where('db', $companyDb)
+            ->first();
+
+        if (!$company) {
+            $this->warn("Company with DB '{$companyDb}' not found in parent. Skipping QuotaAdmin seeders.");
+            config(['database.connections.mysql.database' => $companyDb]);
+            DB::purge('mysql');
+            DB::reconnect('mysql');
+            return;
+        }
+
+        $hasQuotaAdmin = DB::table('company_modules')
+            ->join('modules', 'company_modules.module_id', '=', 'modules.id')
+            ->where('company_modules.company_id', $company->id)
+            ->where('modules.package', 'quota_admin')
+            ->exists();
+
+        config(['database.connections.mysql.database' => $companyDb]);
+        DB::purge('mysql');
+        DB::reconnect('mysql');
+
+        if (!$hasQuotaAdmin) {
+            $this->info('QuotaAdmin module not assigned to this company. Skipping.');
+            return;
+        }
+
+        $this->info('QuotaAdmin module detected. Running QuotaAdmin seeders...');
+
+        $this->runQuotaAdminMigrations();
+
+        $this->call('db:seed', ['--class' => 'App\Packages\QuotaAdmin\Seeders\QuotaAdminSeeder', '--force' => true]);
+
+        $this->info('QuotaAdmin seeders completed.');
+    }
+
+    protected function runQuotaAdminMigrations(): void
+    {
+        $migrationsPath = 'app/Packages/QuotaAdmin/Migrations';
+        $fullPath = base_path($migrationsPath);
+
+        if (!is_dir($fullPath)) {
+            $this->warn("QuotaAdmin migrations path not found: {$fullPath}");
+            return;
+        }
+
+        $files = glob($fullPath . '/*.php');
+        sort($files);
+
+        foreach ($files as $file) {
+            $migrationName = basename($file, '.php');
+            try {
+                $this->call('migrate', ['--force' => true, '--path' => $migrationsPath . '/' . basename($file)]);
+                $this->info("Migration {$migrationName} ejecutada.");
+            } catch (\Exception $e) {
+                if (strpos($e->getMessage(), 'already exists') !== false) {
+                    $this->info("Migration {$migrationName} ya aplicada.");
+                } else {
+                    $this->warn("Error en migration {$migrationName}: " . $e->getMessage());
+                }
+            }
+        }
     }
 
     protected function verifyAndInstallNpmPackages(): void

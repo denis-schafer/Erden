@@ -63,6 +63,14 @@ import PosQR from '../modules/pos/PosQR.vue';
 import PosStatistics from '../modules/pos/PosStatistics.vue';
 import PosLog from '../modules/pos/PosLog.vue';
 import PosDocumentation from '../modules/pos/PosDocumentation.vue';
+import QuotaDashboard from '../modules/quota-admin/QuotaDashboard.vue';
+import QuotaPartners from '../modules/quota-admin/QuotaPartners.vue';
+import QuotaPlans from '../modules/quota-admin/QuotaPlans.vue';
+import QuotaItems from '../modules/quota-admin/QuotaItems.vue';
+import QuotaPayments from '../modules/quota-admin/QuotaPayments.vue';
+import QuotaConfig from '../modules/quota-admin/QuotaConfig.vue';
+import QuotaStatistics from '../modules/quota-admin/QuotaStatistics.vue';
+import QuotaUsers from '../modules/quota-admin/QuotaUsers.vue';
 
 const authStore = useAuthStore();
 
@@ -90,7 +98,15 @@ const componentMap = {
     'pos-qr': markRaw(PosQR),
     'pos-statistics': markRaw(PosStatistics),
     'pos-log': markRaw(PosLog),
-    'pos-documentation': markRaw(PosDocumentation)
+    'pos-documentation': markRaw(PosDocumentation),
+    'quota-dashboard': markRaw(QuotaDashboard),
+    'quota-partners': markRaw(QuotaPartners),
+    'quota-plans': markRaw(QuotaPlans),
+    'quota-items': markRaw(QuotaItems),
+    'quota-payments': markRaw(QuotaPayments),
+    'quota-config': markRaw(QuotaConfig),
+    'quota-statistics': markRaw(QuotaStatistics),
+    'quota-users': markRaw(QuotaUsers)
 };
 
 const tabs = ref([
@@ -115,7 +131,7 @@ const getComponent = (tabId) => {
     return Dashboard;
 };
 
-const initPosDashboard = () => {
+const initDefaultDashboard = () => {
     if (authStore.modules && authStore.modules.length > 0) {
         const posDashModule = authStore.modules.find(m => m.route === 'pos-dashboard');
         if (posDashModule) {
@@ -126,11 +142,22 @@ const initPosDashboard = () => {
                 fixed: true
             };
             activeTabId.value = 'pos-dashboard';
+            return;
+        }
+        const quotaDashModule = authStore.modules.find(m => m.route === 'quota-dashboard');
+        if (quotaDashModule) {
+            tabs.value[0] = {
+                id: 'quota-dashboard',
+                title: 'Dashboard',
+                component: markRaw(QuotaDashboard),
+                fixed: true
+            };
+            activeTabId.value = 'quota-dashboard';
         }
     }
 };
 
-setTimeout(initPosDashboard, 200);
+setTimeout(initDefaultDashboard, 200);
 
 const selectTab = (tabId) => {
     activeTabId.value = tabId;
@@ -285,6 +312,6 @@ defineExpose({ openTab, selectTab });
     flex: 1;
     min-height: 0;
     height: 100%;
-    overflow: hidden;
+    overflow-y: auto;
 }
 </style>

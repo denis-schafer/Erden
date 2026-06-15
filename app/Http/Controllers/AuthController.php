@@ -72,7 +72,7 @@ class AuthController extends Controller
             
             $this->switchToCompany($company->db);
                 
-            $user = DB::table('users')->where('username', $credentials['username'])->whereNull('deleted_at')->first();
+            $user = $this->applySoftDeleteCondition(DB::table('users')->where('username', $credentials['username']))->first();
             
             if ($user && password_verify($credentials['password'], $user->password)) {
                 if (isset($user->enable) && !$user->enable) {
@@ -249,7 +249,7 @@ class AuthController extends Controller
         $permissions = array_merge($this->getPermissions($globalUser), $localPermissions);
         
         // Check if user has mercadopago QR enabled
-        $localUser = DB::table('users')->where('username', $globalUser->username)->whereNull('deleted_at')->first();
+            $localUser = $this->applySoftDeleteCondition(DB::table('users')->where('username', $globalUser->username))->first();
         \Log::info("mercadopago check: username={$globalUser->username}, currentDB=" . config('database.connections.mysql.database') . ", localUser found=" . ($localUser ? "yes" : "no"));
         
         $mercadopagoEnableQr = false;
@@ -354,6 +354,14 @@ $request->session()->put('user', [
         DB::reconnect('mysql');
     }
 
+    private function applySoftDeleteCondition($query, $table = 'users')
+    {
+        if (Schema::hasColumn($table, 'deleted_at')) {
+            $query->whereNull($table . '.deleted_at');
+        }
+        return $query;
+    }
+
     private function generateToken($user, $company)
     {
         return base64_encode($user->id . ':' . $company->id . ':' . time());
@@ -384,7 +392,7 @@ private function getPermissions($globalUser)
         if (!$username) return [];
         
         try {
-            $user = DB::table('users')->where('username', $username)->whereNull('deleted_at')->first();
+            $user = $this->applySoftDeleteCondition(DB::table('users')->where('username', $username))->first();
             \Log::info("getLocalPermissions: user=$username, userFound=" . ($user ? "yes" : "no") . ", role_id=" . ($user->role_id ?? 'null'));
             if (!$user) return [];
             

@@ -98,6 +98,36 @@ class CompanyModuleController extends Controller
             $this->uninstallPosPackage($company);
         }
 
+        // QuotaAdmin package detection
+        $quotaModuleIds = Module::where('package', 'quota_admin')->pluck('id')->toArray();
+
+        $currentQuotaAssigned = DB::connection('mysql_parent')
+            ->table('company_modules as cm')
+            ->join('modules as m', 'cm.module_id', '=', 'm.id')
+            ->where('cm.company_id', $companyId)
+            ->where('m.package', 'quota_admin')
+            ->pluck('cm.module_id')
+            ->toArray();
+
+        $newQuotaAssigned = array_intersect($moduleIds, $quotaModuleIds);
+
+        $quotaWasAssigned = !empty($currentQuotaAssigned);
+        $quotaIsAssigned = !empty($newQuotaAssigned);
+
+        Log::info('[CompanyModuleController] update: quotaModuleIds=' . json_encode($quotaModuleIds) . ', currentQuotaAssigned=' . json_encode($currentQuotaAssigned) . ', newQuotaAssigned=' . json_encode($newQuotaAssigned) . ', quotaWasAssigned=' . ($quotaWasAssigned ? 'yes' : 'no') . ', quotaIsAssigned=' . ($quotaIsAssigned ? 'yes' : 'no'));
+
+        if ($quotaIsAssigned && !$quotaWasAssigned) {
+            Log::info('[CompanyModuleController] update: Installing QuotaAdmin package (first time)');
+            $this->installQuotaAdminPackage($company);
+        } elseif ($quotaIsAssigned && $quotaWasAssigned) {
+            Log::info('[CompanyModuleController] update: Reinstalling QuotaAdmin package');
+            $this->uninstallQuotaAdminPackage($company);
+            $this->installQuotaAdminPackage($company);
+        } elseif ($quotaWasAssigned && !$quotaIsAssigned) {
+            Log::info('[CompanyModuleController] update: Uninstalling QuotaAdmin package');
+            $this->uninstallQuotaAdminPackage($company);
+        }
+
         return response()->json(['message' => 'Módulos actualizados correctamente']);
     }
 
@@ -326,5 +356,122 @@ class CompanyModuleController extends Controller
         }
 
         Log::info('[CompanyModuleController] verifyPrintJobsTable: FIN');
+    }
+
+    protected function installQuotaAdminPackage(Company $company): void
+    {
+        Log::info('[CompanyModuleController] installQuotaAdminPackage: INICIO para empresa: ' . $company->name . ' (DB: ' . $company->db . ')');
+
+        $companyDb = $company->db;
+
+        $this->createDatabaseIfNotExists($companyDb);
+
+        config(['database.connections.mysql.database' => $companyDb]);
+        DB::purge('mysql');
+        DB::reconnect('mysql');
+
+        Log::info('[CompanyModuleController] installQuotaAdminPackage: BD configurada a: ' . $companyDb);
+
+        $this->runQuotaAdminMigrations();
+        $this->runQuotaAdminSeeders($company);
+
+        Log::info('[CompanyModuleController] installQuotaAdminPackage: FIN para empresa: ' . $company->name);
+    }
+
+    protected function uninstallQuotaAdminPackage(Company $company): void
+    {
+        Log::info('[CompanyModuleController] uninstallQuotaAdminPackage: INICIO para empresa: ' . $company->name . ' (DB: ' . $company->db . ')');
+
+        $companyDb = $company->db;
+
+        $this->connectToChildDatabase($companyDb);
+
+        $quotaTables = [
+            'quota_payment_items',
+            'quota_payments',
+            'quotas',
+            'quota_partner_config',
+            'quota_configs',
+            'quota_plans',
+        ];
+
+        try {
+            DB::statement('SET FOREIGN_KEY_CHECKS=0');
+
+            foreach ($quotaTables as $table) {
+                try {
+                    Schema::dropIfExists($table);
+                } catch (\Exception $e) {
+                    Log::warning('[CompanyModuleController] uninstallQuotaAdminPackage: Error dropping ' . $table . ': ' . $e->getMessage());
+                }
+            }
+
+            DB::statement('SET FOREIGN_KEY_CHECKS=1');
+
+            Log::info('[CompanyModuleController] uninstallQuotaAdminPackage: Tablas quota_* eliminadas');
+        } catch (\Exception $e) {
+            try { DB::statement('SET FOREIGN_KEY_CHECKS=1'); } catch (\Exception $e2) {}
+            Log::error('[CompanyModuleController] uninstallQuotaAdminPackage: Error: ' . $e->getMessage());
+        }
+
+        Log::info('[CompanyModuleController] uninstallQuotaAdminPackage: FIN para empresa: ' . $company->name);
+    }
+
+    protected function runQuotaAdminMigrations(): void
+    {
+        Log::info('[CompanyModuleController] runQuotaAdminMigrations: INICIO');
+
+        $migrationsPath = 'app/Packages/QuotaAdmin/Migrations';
+        $fullPath = base_path($migrationsPath);
+
+        if (!is_dir($fullPath)) {
+            Log::warning('[CompanyModuleController] runQuotaAdminMigrations: Directorio no encontrado: ' . $fullPath);
+            return;
+        }
+
+        $files = glob($fullPath . '/*.php');
+        sort($files);
+
+        Log::info('[CompanyModuleController] runQuotaAdminMigrations: Archivos encontrados: ' . count($files));
+
+        foreach ($files as $file) {
+            $migrationName = basename($file);
+            Log::info('[CompanyModuleController] runQuotaAdminMigrations: Ejecutando: ' . $migrationName);
+            try {
+                $exitCode = Artisan::call('migrate', [
+                    '--force' => true,
+                    '--path' => $migrationsPath . '/' . basename($file),
+                    '--database' => 'mysql'
+                ]);
+                Log::info('[CompanyModuleController] runQuotaAdminMigrations: Migration ' . $migrationName . ' completada con código: ' . $exitCode);
+            } catch (\Exception $e) {
+                Log::error('[CompanyModuleController] runQuotaAdminMigrations: Migration ' . $migrationName . ' error: ' . $e->getMessage());
+            }
+        }
+
+        Log::info('[CompanyModuleController] runQuotaAdminMigrations: FIN');
+    }
+
+    protected function runQuotaAdminSeeders(Company $company): void
+    {
+        Log::info('[CompanyModuleController] runQuotaAdminSeeders: INICIO');
+
+        config(['database.connections.mysql.database' => $company->db]);
+        DB::purge('mysql');
+        DB::reconnect('mysql');
+        Log::info('[CompanyModuleController] runQuotaAdminSeeders: Reconnected to DB: ' . $company->db);
+
+        try {
+            $exitCode = Artisan::call('db:seed', [
+                '--class' => 'App\\Packages\\QuotaAdmin\\Seeders\\QuotaAdminSeeder',
+                '--force' => true,
+                '--database' => 'mysql'
+            ]);
+            Log::info('[CompanyModuleController] runQuotaAdminSeeders: QuotaAdmin Seeder executed with code: ' . $exitCode);
+        } catch (\Exception $e) {
+            Log::error('[CompanyModuleController] runQuotaAdminSeeders: QuotaAdmin Seeder error: ' . $e->getMessage());
+        }
+
+        Log::info('[CompanyModuleController] runQuotaAdminSeeders: FIN');
     }
 }

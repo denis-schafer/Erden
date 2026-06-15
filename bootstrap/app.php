@@ -24,6 +24,7 @@ return Application::configure(basePath: dirname(__DIR__))
             'pos/print-jobs/*',
             'pos/webhooks-jobs/*',
             'pos/sync/push',
+            'quota/mp/webhook',
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {

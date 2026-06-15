@@ -31,6 +31,21 @@ class ModuleInstall extends Command
             'migrations_path' => 'app/Packages/Pos/Migrations',
             'seeder_class' => 'App\Packages\Pos\Seeders\PosSeeder',
         ],
+        'quota_admin' => [
+            'name' => 'Administración de Cuotas',
+            'modules' => [
+                ['name' => 'Menu', 'route' => 'menu', 'icon' => 'bi-list', 'is_special' => 1, 'order' => 0, 'package' => null],
+                ['name' => 'Dashboard', 'route' => 'quota-dashboard', 'icon' => 'bi-speedometer2', 'is_special' => 1, 'order' => 0, 'package' => 'quota_admin'],
+                ['name' => 'Socios', 'route' => 'quota-partners', 'icon' => 'bi-people', 'is_special' => 0, 'order' => 1, 'package' => 'quota_admin'],
+                ['name' => 'Planes', 'route' => 'quota-plans', 'icon' => 'bi-calendar3', 'is_special' => 0, 'order' => 2, 'package' => 'quota_admin'],
+                ['name' => 'Cuotas', 'route' => 'quota-items', 'icon' => 'bi-credit-card', 'is_special' => 0, 'order' => 3, 'package' => 'quota_admin'],
+                ['name' => 'Pagos', 'route' => 'quota-payments', 'icon' => 'bi-cash-coin', 'is_special' => 0, 'order' => 4, 'package' => 'quota_admin'],
+                ['name' => 'Configuración', 'route' => 'quota-config', 'icon' => 'bi-sliders', 'is_special' => 0, 'order' => 5, 'package' => 'quota_admin'],
+                ['name' => 'Estadísticas', 'route' => 'quota-statistics', 'icon' => 'bi-bar-chart', 'is_special' => 0, 'order' => 6, 'package' => 'quota_admin'],
+            ],
+            'migrations_path' => 'app/Packages/QuotaAdmin/Migrations',
+            'seeder_class' => 'App\Packages\QuotaAdmin\Seeders\QuotaAdminSeeder',
+        ],
     ];
 
     public function handle(): int

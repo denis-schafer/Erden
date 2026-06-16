@@ -20,6 +20,7 @@ class MercadoPagoController extends Controller
         $companyId = null;
         $codeVerifier = null;
         $redirectUriFromState = null;
+        $source = null;
         
         if ($stateParam) {
             try {
@@ -27,6 +28,7 @@ class MercadoPagoController extends Controller
                 $companyId = $stateData["companyId"] ?? null;
                 $codeVerifier = $stateData["codeVerifier"] ?? null;
                 $redirectUriFromState = $stateData["redirectUri"] ?? null;
+                $source = $stateData["source"] ?? null;
             } catch (\Exception $e) {
                 Log::warning("[MercadoPago] Error decoding state", ["error" => $e->getMessage()]);
             }
@@ -105,10 +107,21 @@ class MercadoPagoController extends Controller
                 ["name" => "mp_access_token"],
                 ["value" => $accessToken, "type" => "string", "updated_at" => now(), "created_at" => now()]
             );
+
+            if ($source === 'quota') {
+                DB::table('quota_configs')->updateOrInsert(
+                    ['name' => 'mp_access_token'],
+                    ['value' => $accessToken, 'type' => 'string', 'updated_at' => now(), 'created_at' => now()]
+                );
+            }
             
             Config::set("database.connections.mysql.database", env("DB_DATABASE", "erden"));
             DB::purge("mysql");
             DB::reconnect("mysql");
+
+            if ($source === 'quota') {
+                return redirect()->away('/oauth?token=' . urlencode($accessToken) . '&company_id=' . $company->id . '&company_name=' . urlencode($company->name));
+            }
             
             return $this->successHtml($accessToken, $company);
             

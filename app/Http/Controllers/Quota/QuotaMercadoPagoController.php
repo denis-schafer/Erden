@@ -61,7 +61,10 @@ class QuotaMercadoPagoController extends Controller
         }
 
         $totalAmount = $quotas->sum('amount');
-        $description = 'Pago de cuotas - ' . $quotas->first()->dni ?? '';
+
+        $partner = DB::table('users')->find($userId);
+        $dni = $partner->dni ?? '';
+        $description = 'Pago de cuotas' . ($dni ? " - {$dni}" : '');
 
         $accessToken = DB::table('quota_configs')->where('name', 'mp_access_token')->value('value');
 

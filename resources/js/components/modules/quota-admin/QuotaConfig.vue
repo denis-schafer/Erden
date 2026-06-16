@@ -6,7 +6,7 @@
             <div class="card mb-4">
                 <div class="card-header">Configuración General</div>
                 <div class="card-body">
-                    <div v-for="cfg in configs" :key="cfg.id" v-if="cfg.name !== 'default_cashier_id'" class="row mb-3 align-items-center">
+                    <div v-for="cfg in visibleConfigs" :key="cfg.id" class="row mb-3 align-items-center">
                         <div class="col-md-4">
                             <strong>{{ getLabel(cfg.name) }}</strong>
                         </div>
@@ -59,7 +59,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue';
+import { ref, computed, onMounted } from 'vue';
 import axios from 'axios';
 import { toast } from '../../../utils/toast';
 
@@ -67,6 +67,8 @@ const configs = ref([]);
 const loading = ref(true);
 const cashiers = ref([]);
 const defaultCashierId = ref('');
+
+const visibleConfigs = computed(() => configs.value.filter(c => c.name !== 'default_cashier_id'));
 
 const getLabel = (name) => {
     const labels = {

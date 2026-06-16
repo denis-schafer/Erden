@@ -68,6 +68,11 @@ class QuotaMercadoPagoController extends Controller
 
         $accessToken = DB::table('quota_configs')->where('name', 'mp_access_token')->value('value');
 
+        // Fallback to POS configs table (some OAuth flows save there)
+        if (empty($accessToken)) {
+            $accessToken = DB::table('configs')->where('name', 'mp_access_token')->value('value');
+        }
+
         if (empty($accessToken)) {
             return response()->json(['message' => 'MercadoPago no configurado'], 400);
         }

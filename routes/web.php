@@ -290,6 +290,7 @@ Route::middleware(['web', 'setDatabase'])->prefix('quota')->group(function () {
     Route::get('/config', [\App\Http\Controllers\Quota\QuotaConfigController::class, 'index'])->middleware('permission:quota-config_read');
     Route::put('/config/{id}', [\App\Http\Controllers\Quota\QuotaConfigController::class, 'update'])->middleware('permission:quota-config_update');
     Route::get('/config/mp-oauth-url', [\App\Http\Controllers\Quota\QuotaConfigController::class, 'getMpOAuthUrl'])->middleware('permission:quota-config_update');
+    Route::get('/config/cashiers', [\App\Http\Controllers\Quota\QuotaConfigController::class, 'cashiers'])->middleware('permission:quota-config_read');
     Route::get('/config/mp-client-id', [\App\Http\Controllers\Quota\QuotaConfigController::class, 'getMpClientId']);
 
     Route::middleware(['permission:quota-users_read'])->group(function () {

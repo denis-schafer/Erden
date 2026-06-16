@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Quota;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Log;
 
 class QuotaConfigController extends Controller
@@ -69,6 +70,21 @@ class QuotaConfigController extends Controller
         $oauthUrl = "{$authUrl}?response_type=code&client_id={$clientId}&redirect_uri=" . urlencode($redirectUri) . "&state={$stateData}";
 
         return response()->json(['url' => $oauthUrl]);
+    }
+
+    public function cashiers()
+    {
+        $users = DB::table('users')
+            ->where('role_id', 2)
+            ->where(function ($q) {
+                if (Schema::hasColumn('users', 'deleted_at')) {
+                    $q->whereNull('deleted_at');
+                }
+            })
+            ->orderBy('name')
+            ->get(['id', 'name', 'username']);
+
+        return response()->json($users);
     }
 
     public function getMpClientId(Request $request)

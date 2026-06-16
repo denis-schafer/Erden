@@ -186,6 +186,12 @@ class QuotaItemController extends Controller
 
         $sessionUser = $request->session()->get('user');
         $userId = $sessionUser['id'] ?? null;
+        $roleId = $sessionUser['role_id'] ?? null;
+
+        // Only admin or the user who collected the payment can toggle rendered
+        if ($roleId !== 1 && $quota->paid_by !== $userId) {
+            return response()->json(['message' => 'Solo quien cobró la cuota puede rendirla'], 403);
+        }
 
         $newRendered = !$quota->rendered;
 

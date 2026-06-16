@@ -22,6 +22,27 @@
                 </div>
             </div>
 
+            <div class="card mb-4">
+                <div class="card-header">Usuario por Defecto (Portal MP)</div>
+                <div class="card-body">
+                    <div class="row align-items-center">
+                        <div class="col-md-5">
+                            <strong>Cashier para pagos de socios</strong>
+                            <p class="text-muted small mb-0">Las cuotas pagadas vía portal se asignarán a este usuario.</p>
+                        </div>
+                        <div class="col-md-5">
+                            <select class="form-select" v-model="defaultCashierId">
+                                <option value="">Seleccionar cashier...</option>
+                                <option v-for="u in cashiers" :key="u.id" :value="String(u.id)">{{ u.name }} ({{ u.username }})</option>
+                            </select>
+                        </div>
+                        <div class="col-md-2">
+                            <button class="btn btn-sm btn-primary" @click="saveDefaultCashier">Guardar</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
             <div class="card">
                 <div class="card-header">MercadoPago</div>
                 <div class="card-body">
@@ -44,12 +65,15 @@ import { toast } from '../../../utils/toast';
 
 const configs = ref([]);
 const loading = ref(true);
+const cashiers = ref([]);
+const defaultCashierId = ref('');
 
 const getLabel = (name) => {
     const labels = {
         business_name: 'Nombre del Natatorio',
         redirect_uri: 'Redirect URI MP',
         mp_access_token: 'Access Token MP',
+        default_cashier_id: 'Cashier por defecto (portal)',
     };
     return labels[name] || name;
 };
@@ -58,8 +82,17 @@ const loadConfigs = async () => {
     try {
         const { data } = await axios.get('/quota/config');
         configs.value = data;
+        const cfg = data.find(c => c.name === 'default_cashier_id');
+        if (cfg) defaultCashierId.value = cfg.value || '';
     } catch (e) { console.error(e); }
     finally { loading.value = false; }
+};
+
+const loadCashiers = async () => {
+    try {
+        const { data } = await axios.get('/quota/config/cashiers');
+        cashiers.value = data;
+    } catch (e) { console.error(e); }
 };
 
 const saveConfig = async (cfg) => {
@@ -71,7 +104,22 @@ const saveConfig = async (cfg) => {
     }
 };
 
-onMounted(loadConfigs);
+const saveDefaultCashier = async () => {
+    const cfg = configs.value.find(c => c.name === 'default_cashier_id');
+    if (cfg) {
+        try {
+            await axios.put(`/quota/config/${cfg.id}`, { value: defaultCashierId.value });
+            toast.success('Cashier por defecto guardado');
+        } catch (e) {
+            toast.error('Error al guardar');
+        }
+    }
+};
+
+onMounted(() => {
+    loadConfigs();
+    loadCashiers();
+});
 </script>
 
 <style scoped>

@@ -13,6 +13,7 @@ class ConfigSeeder extends Seeder
             ['name' => 'business_name', 'value' => 'Natatorio', 'type' => 'string'],
     ['name' => 'redirect_uri',  'value' => 'https://www.erden.com.ar/mp/callback', 'type' => 'string'],
             ['name' => 'mp_access_token', 'value' => '', 'type' => 'string'],
+            ['name' => 'default_cashier_id', 'value' => '', 'type' => 'string'],
         ];
 
         foreach ($configs as $config) {

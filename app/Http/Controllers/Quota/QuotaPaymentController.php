@@ -81,6 +81,12 @@ class QuotaPaymentController extends Controller
 
         $sessionUser = $request->session()->get('user');
         $userId = $sessionUser['id'] ?? null;
+        $roleId = $sessionUser['role_id'] ?? null;
+
+        // Only admin or the user who collected the payment can render it
+        if ($roleId !== 1 && $payment->paid_by !== $userId) {
+            return response()->json(['message' => 'Solo quien cobró puede rendir este pago'], 403);
+        }
 
         $validated = $request->validate([
             'amount' => 'nullable|numeric|min:0.01|max:' . $payment->total_amount,

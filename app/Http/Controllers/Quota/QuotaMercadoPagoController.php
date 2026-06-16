@@ -117,11 +117,16 @@ class QuotaMercadoPagoController extends Controller
             }
 
             $now = now();
+            $defaultCashierId = DB::table('quota_configs')
+                ->where('name', 'default_cashier_id')
+                ->value('value');
+
             $paymentId = DB::table('quota_payments')->insertGetId([
                 'partner_id' => $userId,
                 'total_amount' => $totalAmount,
                 'payment_method' => 'mercadopago',
                 'mp_preference_id' => $preferenceId,
+                'paid_by' => $defaultCashierId ?: null,
                 'paid_at' => $now,
                 'created_at' => $now,
                 'updated_at' => $now,
@@ -136,6 +141,7 @@ class QuotaMercadoPagoController extends Controller
 
                 DB::table('quotas')->where('id', $quota->id)->update([
                     'mp_preference_id' => $preferenceId,
+                    'paid_by' => $defaultCashierId ?: null,
                     'updated_at' => $now,
                 ]);
             }

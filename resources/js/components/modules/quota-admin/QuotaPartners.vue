@@ -7,8 +7,8 @@
                     <span v-if="generatingAll" class="spinner-border spinner-border-sm me-1"></span>
                     <i v-else class="bi bi-calendar-plus"></i> {{ generatingAll ? 'Generando...' : 'Generar cuotas del año' }}
                 </button>
-                <button class="btn btn-outline-success btn-sm me-2" @click="sendWhatsAppAll">
-                    <i class="bi bi-whatsapp"></i> Notificar
+                <button class="btn btn-outline-success btn-sm me-2" @click="downloadWhatsAppCSV">
+                    <i class="bi bi-download"></i> Exportar WhatsApp
                 </button>
                 <button class="btn btn-outline-primary btn-sm me-2" @click="showImport = true">
                     <i class="bi bi-upload"></i> Importar
@@ -268,27 +268,49 @@ const onImported = () => {
     loadPartners();
 };
 
+const cleanPhone = (phone) => {
+    if (!phone) return '';
+    return phone.replace(/\D/g, '');
+};
+
 const sendWhatsApp = (partner) => {
     const origin = window.location.origin;
     const companyName = authStore.company?.name || '';
     const msg = encodeURIComponent(
         `Hola, ingresá al portal de socios para gestionar tus cuotas: ${origin}/asociados/${companyName}/${partner.dni}`
     );
-    window.open(`https://web.whatsapp.com/send?text=${msg}`, '_blank');
+    const phone = cleanPhone(partner.phone);
+    const url = phone
+        ? `https://web.whatsapp.com/send?phone=${phone}&text=${msg}`
+        : `https://web.whatsapp.com/send?text=${msg}`;
+    window.open(url, '_blank');
 };
 
-const sendWhatsAppAll = () => {
+const downloadWhatsAppCSV = () => {
     const origin = window.location.origin;
     const companyName = authStore.company?.name || '';
     const enabled = partners.value.data?.filter(p => p.enable) || [];
     if (enabled.length === 0) {
-        toast.warning('No hay socios activos para notificar');
+        toast.warning('No hay socios activos para exportar');
         return;
     }
-    const msg = encodeURIComponent(
-        `Estimados socios, recuerden que pueden ingresar al portal de socios para gestionar sus cuotas.\n\nIngresen con su DNI como usuario y contraseña en:\n${origin}/asociados/${companyName}`
-    );
-    window.open(`https://web.whatsapp.com/send?text=${msg}`, '_blank');
+
+    const rows = enabled.map(p => {
+        const msg = `Hola, ingresá al portal de socios para gestionar tus cuotas: ${origin}/asociados/${companyName}/${p.dni}`;
+        return [p.first_name, p.last_name, p.phone || '', msg];
+    });
+
+    let csv = '\uFEFFNombre,Apellido,Telefono,Mensaje\n';
+    rows.forEach(r => {
+        csv += r.map(c => `"${String(c).replace(/"/g, '""')}"`).join(',') + '\n';
+    });
+
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.download = `whatsapp_${companyName}_${new Date().toISOString().slice(0, 10)}.csv`;
+    link.click();
+    URL.revokeObjectURL(link.href);
 };
 
 const onGenerated = () => {

@@ -95,7 +95,7 @@ class OAuthController extends Controller
             'source' => 'quota',
         ]));
         $authUrl = 'https://auth.mercadopago.com/authorization';
-        $oauthUrl = "{$authUrl}?response_type=code&client_id={$mpClientId}&redirect_uri=" . urlencode($redirectUri) . "&state={$stateData}&code_challenge={$codeChallenge}&code_challenge_method=S256";
+        $oauthUrl = "{$authUrl}?response_type=code&client_id={$mpClientId}&redirect_uri=" . urlencode($redirectUri) . "&state=" . urlencode($stateData) . "&code_challenge=" . urlencode($codeChallenge) . "&code_challenge_method=S256";
 
         return response()->json(['url' => $oauthUrl]);
     }

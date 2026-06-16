@@ -87,7 +87,7 @@ class OAuthController extends Controller
 
         $codeVerifier = $this->generateCodeVerifier();
         $codeChallenge = $this->generateCodeChallenge($codeVerifier);
-        $redirectUri = 'https://www.erden.com.ar/quota/mp/callback';
+        $redirectUri = 'https://www.erden.com.ar/mp/callback';
         $stateData = base64_encode(json_encode([
             'companyId' => (int) $companyId,
             'codeVerifier' => $codeVerifier,

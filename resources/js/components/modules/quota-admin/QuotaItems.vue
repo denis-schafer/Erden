@@ -67,11 +67,11 @@
                             <th class="sortable" @click="sortBy('status')">
                                 Estado <span v-if="sortField === 'status'" class="sort-indicator">{{ sortDir === 'asc' ? '▲' : '▼' }}</span>
                             </th>
-                            <th class="sortable" @click="sortBy('payment_method')">
+                            <th v-if="canRender" class="sortable" @click="sortBy('payment_method')">
                                 Pago <span v-if="sortField === 'payment_method'" class="sort-indicator">{{ sortDir === 'asc' ? '▲' : '▼' }}</span>
                             </th>
-                            <th>Rendido</th>
-                            <th>Acciones</th>
+                            <th v-if="canRender">Rendido</th>
+                            <th v-if="canRender">Acciones</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -93,12 +93,12 @@
                                     {{ item.status === 'paid' ? 'Pagada' : 'Pendiente' }}
                                 </span>
                             </td>
-                            <td>{{ item.payment_method || '-' }}</td>
-                            <td>
+                            <td v-if="canRender">{{ item.payment_method || '-' }}</td>
+                            <td v-if="canRender">
                                 <span v-if="item.rendered" class="text-success"><i class="bi bi-check-circle-fill"></i></span>
                                 <span v-else class="text-warning"><i class="bi bi-hourglass-split"></i></span>
                             </td>
-                            <td>
+                            <td v-if="canRender">
                                 <button v-if="item.status === 'paid'" class="btn btn-sm" :class="item.rendered ? 'btn-outline-warning' : 'btn-outline-info'"
                                     @click="toggleRendered(item)" title="Rendir/Desrendir">
                                     <i class="bi" :class="item.rendered ? 'bi-arrow-return-left' : 'bi-check2-square'"></i>
@@ -106,7 +106,7 @@
                             </td>
                         </tr>
                         <tr v-if="!items.data?.length">
-                            <td colspan="12" class="text-center text-muted">No hay cuotas</td>
+                            <td :colspan="canRender ? 12 : 9" class="text-center text-muted">No hay cuotas</td>
                         </tr>
                     </tbody>
                 </table>
@@ -177,6 +177,9 @@
 import { ref, computed, onMounted, onUnmounted } from 'vue';
 import axios from 'axios';
 import { toast } from '../../../utils/toast';
+import { useAuthStore } from '../../../stores/auth';
+
+const authStore = useAuthStore();
 
 const items = ref({ data: [], current_page: 1, last_page: 1 });
 const loading = ref(true);
@@ -192,6 +195,8 @@ const sortField = ref('');
 const sortDir = ref('asc');
 
 const allSelected = computed(() => items.value.data?.length > 0 && items.value.data.every(i => i.status !== 'pending' || selectedIds.value.includes(i.id)));
+
+const canRender = computed(() => authStore.hasPermission('quota-items_rendered'));
 
 const formatNumber = (n) => parseFloat(n || 0).toLocaleString('es-AR', { minimumFractionDigits: 2 });
 

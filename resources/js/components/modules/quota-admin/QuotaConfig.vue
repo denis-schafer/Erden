@@ -6,7 +6,7 @@
             <div class="card mb-4">
                 <div class="card-header">Configuración General</div>
                 <div class="card-body">
-                    <div v-for="cfg in configs" :key="cfg.id" class="row mb-3 align-items-center">
+                    <div v-for="cfg in configs" :key="cfg.id" v-if="cfg.name !== 'default_cashier_id'" class="row mb-3 align-items-center">
                         <div class="col-md-4">
                             <strong>{{ getLabel(cfg.name) }}</strong>
                         </div>
@@ -105,14 +105,17 @@ const saveConfig = async (cfg) => {
 };
 
 const saveDefaultCashier = async () => {
-    const cfg = configs.value.find(c => c.name === 'default_cashier_id');
-    if (cfg) {
-        try {
+    try {
+        let cfg = configs.value.find(c => c.name === 'default_cashier_id');
+        if (cfg) {
             await axios.put(`/quota/config/${cfg.id}`, { value: defaultCashierId.value });
-            toast.success('Cashier por defecto guardado');
-        } catch (e) {
-            toast.error('Error al guardar');
+        } else {
+            await axios.post('/quota/config', { name: 'default_cashier_id', value: defaultCashierId.value, type: 'string' });
+            loadConfigs();
         }
+        toast.success('Cashier por defecto guardado');
+    } catch (e) {
+        toast.error('Error al guardar');
     }
 };
 

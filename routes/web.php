@@ -272,6 +272,17 @@ Route::middleware(['web', 'setDatabase'])->prefix('quota')->group(function () {
     Route::post('/items/pay', [\App\Http\Controllers\Quota\QuotaItemController::class, 'pay'])->middleware('permission:quota-items_pay');
     Route::post('/items/{id}/toggle-rendered', [\App\Http\Controllers\Quota\QuotaItemController::class, 'toggleRendered'])->middleware('permission:quota-items_rendered');
 
+    Route::get('/daily-rates', [\App\Http\Controllers\Quota\QuotaDailyRateController::class, 'index'])->middleware('permission:quota-daily_read|quota-plans_read');
+    Route::post('/daily-rates', [\App\Http\Controllers\Quota\QuotaDailyRateController::class, 'store'])->middleware('permission:quota-plans_create');
+    Route::put('/daily-rates/{id}', [\App\Http\Controllers\Quota\QuotaDailyRateController::class, 'update'])->middleware('permission:quota-plans_update');
+    Route::delete('/daily-rates/{id}', [\App\Http\Controllers\Quota\QuotaDailyRateController::class, 'destroy'])->middleware('permission:quota-plans_delete');
+
+    Route::get('/daily-charges', [\App\Http\Controllers\Quota\QuotaDailyChargeController::class, 'index'])->middleware('permission:quota-daily_read');
+    Route::post('/daily-charges', [\App\Http\Controllers\Quota\QuotaDailyChargeController::class, 'store'])->middleware('permission:quota-daily_create');
+    Route::get('/daily-summary', [\App\Http\Controllers\Quota\QuotaDailySummaryController::class, 'index'])->middleware('permission:quota-daily_read');
+    Route::post('/daily-charges/{id}/render', [\App\Http\Controllers\Quota\QuotaDailyChargeController::class, 'render'])->middleware('permission:quota-daily_create');
+    Route::post('/daily-charges/{id}/unrender', [\App\Http\Controllers\Quota\QuotaDailyChargeController::class, 'unrender'])->middleware('permission:quota-daily_create');
+
     Route::get('/payments', [\App\Http\Controllers\Quota\QuotaPaymentController::class, 'index'])->middleware('permission:quota-payments_read');
     Route::post('/payments/{id}/render', [\App\Http\Controllers\Quota\QuotaPaymentController::class, 'render'])->middleware('permission:quota-payments_rendered');
     Route::get('/payments/cashier-balance', [\App\Http\Controllers\Quota\QuotaPaymentController::class, 'cashierBalance'])->middleware('permission:quota-payments_read');
@@ -324,5 +335,13 @@ Route::middleware(['web', 'setDatabase'])->prefix('asociados')->group(function (
     Route::post('/mp/create-preference', [\App\Http\Controllers\Quota\QuotaMercadoPagoController::class, 'createPreference']);
 });
 
+// OAuth public routes
+Route::get('/oauth/lookup', [\App\Http\Controllers\OAuthController::class, 'lookup']);
+Route::get('/oauth/authorize', [\App\Http\Controllers\OAuthController::class, 'authorizeUrl']);
+Route::post('/oauth/assign', [\App\Http\Controllers\OAuthController::class, 'assign']);
+
 // Portal SPA catch-all
 Route::get('/asociados', [SpaController::class, 'index']);
+
+// OAuth SPA catch-all
+Route::get('/oauth', [SpaController::class, 'index']);

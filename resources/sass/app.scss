@@ -12,13 +12,11 @@ body {
 
 #app {
     height: 100vh;
-    overflow: hidden;
 }
 
 #app.portal-mode {
     height: auto;
     min-height: 100dvh;
-    overflow: auto;
 }
 
 .card {

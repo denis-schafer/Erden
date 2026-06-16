@@ -68,6 +68,7 @@ import QuotaPartners from '../modules/quota-admin/QuotaPartners.vue';
 import QuotaPlans from '../modules/quota-admin/QuotaPlans.vue';
 import QuotaItems from '../modules/quota-admin/QuotaItems.vue';
 import QuotaPayments from '../modules/quota-admin/QuotaPayments.vue';
+import QuotaDailyCharge from '../modules/quota-admin/QuotaDailyCharge.vue';
 import QuotaConfig from '../modules/quota-admin/QuotaConfig.vue';
 import QuotaStatistics from '../modules/quota-admin/QuotaStatistics.vue';
 import QuotaUsers from '../modules/quota-admin/QuotaUsers.vue';
@@ -104,6 +105,7 @@ const componentMap = {
     'quota-plans': markRaw(QuotaPlans),
     'quota-items': markRaw(QuotaItems),
     'quota-payments': markRaw(QuotaPayments),
+    'quota-daily': markRaw(QuotaDailyCharge),
     'quota-config': markRaw(QuotaConfig),
     'quota-statistics': markRaw(QuotaStatistics),
     'quota-users': markRaw(QuotaUsers)

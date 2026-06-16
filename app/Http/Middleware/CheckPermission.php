@@ -34,7 +34,17 @@ class CheckPermission
             "[" . date('Y-m-d H:i:s') . "] CHECK PERMISSION: url={$request->path()}, check={$permission}, permissions=" . json_encode($permissions) . ", is_global_admin=" . ($isGlobalAdmin ? 'true' : 'false') . "\n", 
             FILE_APPEND);
         
-        $hasAccess = $isGlobalAdmin || in_array('*', $permissions) || in_array($permission, $permissions);
+        // Support pipe-separated permissions (e.g. "quota-daily_read|quota-plans_read")
+        $requiredPermissions = explode('|', $permission);
+        $hasAccess = $isGlobalAdmin || in_array('*', $permissions);
+        if (!$hasAccess) {
+            foreach ($requiredPermissions as $perm) {
+                if (in_array($perm, $permissions)) {
+                    $hasAccess = true;
+                    break;
+                }
+            }
+        }
         
         if ($hasAccess) {
             return $next($request);

@@ -107,7 +107,7 @@ class QuotaUserController extends Controller
     public function roles()
     {
         $roles = DB::table('roles')
-            ->whereIn('name', ['admin', 'cashier', 'stats'])
+            ->whereIn('name', ['admin', 'cashier', 'stats', 'limited_collector'])
             ->get();
 
         return response()->json($roles);

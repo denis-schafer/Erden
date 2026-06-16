@@ -2,7 +2,8 @@
     <div id="app" :class="{ 'portal-mode': isPortalRoute }">
         <ConfirmationDialog ref="confirmDialog" />
         <Toast />
-        <QuotaPortalLayout v-if="isPortalRoute" />
+        <QuotaOAuth v-if="isOAuthRoute" />
+        <QuotaPortalLayout v-else-if="isPortalRoute" />
         <template v-else>
             <Login 
                 v-if="!isAuthenticated && !showCompanySelector" 
@@ -27,6 +28,7 @@ import Login from './components/modules/Login.vue';
 import CompanySelector from './components/modules/CompanySelector.vue';
 import MainLayout from './components/layout/MainLayout.vue';
 import QuotaPortalLayout from './components/layout/QuotaPortalLayout.vue';
+import QuotaOAuth from './components/modules/quota-admin/QuotaOAuth.vue';
 import ConfirmationDialog from './components/layout/ConfirmationDialog.vue';
 import Toast from './components/layout/Toast.vue';
 
@@ -66,8 +68,12 @@ const handleCompanySelected = () => {
         return window.location.pathname === '/asociados';
     });
 
+    const isOAuthRoute = computed(() => {
+        return window.location.pathname === '/oauth';
+    });
+
     onMounted(() => {
-        if (isPortalRoute.value) return;
+        if (isPortalRoute.value || isOAuthRoute.value) return;
 
         const token = localStorage.getItem('token');
         const user = localStorage.getItem('user');

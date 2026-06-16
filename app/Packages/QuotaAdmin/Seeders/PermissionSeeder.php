@@ -36,6 +36,8 @@ class PermissionSeeder extends Seeder
             ['name' => 'Crear Usuario', 'slug' => 'quota-users_create', 'module' => 'quota-users', 'action' => 'create'],
             ['name' => 'Editar Usuario', 'slug' => 'quota-users_update', 'module' => 'quota-users', 'action' => 'update'],
             ['name' => 'Eliminar Usuario', 'slug' => 'quota-users_delete', 'module' => 'quota-users', 'action' => 'delete'],
+            ['name' => 'Ver Cobro Diario', 'slug' => 'quota-daily_read', 'module' => 'quota-daily', 'action' => 'read'],
+            ['name' => 'Crear Cobro Diario', 'slug' => 'quota-daily_create', 'module' => 'quota-daily', 'action' => 'create'],
         ];
 
         foreach ($permissions as $perm) {

@@ -75,7 +75,7 @@
                         </tr>
                     </thead>
                     <tbody>
-                        <tr v-for="item in items.data" :key="item.id" :class="item.status === 'paid' ? 'table-success' : ''">
+                        <tr v-for="item in items.data" :key="item.id" :class="item.rendered ? 'table-success' : (item.status === 'paid' ? 'table-info' : '')">
                             <td>
                                 <input type="checkbox" :checked="selectedIds.includes(item.id)" :value="item.id"
                                     :disabled="item.status !== 'pending'"
@@ -95,8 +95,8 @@
                             </td>
                             <td>{{ item.payment_method || '-' }}</td>
                             <td>
-                                <i v-if="item.rendered" class="bi bi-check-circle-fill text-success"></i>
-                                <i v-else class="bi bi-x-circle-fill text-muted"></i>
+                                <span v-if="item.rendered" class="text-success"><i class="bi bi-check-circle-fill"></i></span>
+                                <span v-else class="text-warning"><i class="bi bi-hourglass-split"></i></span>
                             </td>
                             <td>
                                 <button v-if="item.status === 'paid'" class="btn btn-sm" :class="item.rendered ? 'btn-outline-warning' : 'btn-outline-info'"

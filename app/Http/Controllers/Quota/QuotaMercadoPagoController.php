@@ -321,16 +321,7 @@ class QuotaMercadoPagoController extends Controller
                 return $this->errorHtml("No se recibió access_token");
             }
 
-            Config::set('database.connections.mysql.database', $company->db);
-            DB::purge('mysql');
-            DB::reconnect('mysql');
-
-            DB::table('quota_configs')->updateOrInsert(
-                ['name' => 'mp_access_token'],
-                ['value' => $accessToken, 'type' => 'string', 'updated_at' => now(), 'created_at' => now()]
-            );
-
-            return $this->successHtml($accessToken, $company);
+            return redirect()->away('/oauth?token=' . urlencode($accessToken) . '&company_id=' . $company->id . '&company_name=' . urlencode($company->name));
         } catch (\Exception $e) {
             Log::error('[QuotaMP Callback] Error: ' . $e->getMessage());
             return $this->errorHtml("Error interno");

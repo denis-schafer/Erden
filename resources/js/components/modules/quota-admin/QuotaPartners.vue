@@ -3,7 +3,7 @@
         <div class="d-flex justify-content-between align-items-center mb-3">
             <h4 class="mb-0">Socios</h4>
             <div>
-                <button class="btn btn-outline-success btn-sm me-2" @click="generateAllForYear" :disabled="generatingAll">
+                <button v-if="authStore.hasPermission('quota-plans_generate')" class="btn btn-outline-success btn-sm me-2" @click="generateAllForYear" :disabled="generatingAll">
                     <span v-if="generatingAll" class="spinner-border spinner-border-sm me-1"></span>
                     <i v-else class="bi bi-calendar-plus"></i> {{ generatingAll ? 'Generando...' : 'Generar cuotas del año' }}
                 </button>
@@ -154,11 +154,13 @@
 import { ref, onMounted } from 'vue';
 import axios from 'axios';
 import { toast } from '../../../utils/toast';
+import { useAuthStore } from '../../../stores/auth';
 import ConfirmModal from '../../../components/ConfirmModal.vue';
 import QuotaPartnerForm from './QuotaPartnerForm.vue';
 import QuotaPartnerImport from './QuotaPartnerImport.vue';
 import QuotaPartnerGenerateQuotas from './QuotaPartnerGenerateQuotas.vue';
 
+const authStore = useAuthStore();
 const partners = ref({ data: [], current_page: 1, last_page: 1 });
 const loading = ref(true);
 const showForm = ref(false);

@@ -14,6 +14,7 @@ class RoleSeeder extends Seeder
             ['id' => 2, 'name' => 'cashier'],
             ['id' => 3, 'name' => 'stats'],
             ['id' => 4, 'name' => 'partner'],
+            ['id' => 5, 'name' => 'limited_collector'],
         ];
 
         foreach ($roles as $role) {
@@ -24,7 +25,7 @@ class RoleSeeder extends Seeder
         }
 
         if ($this->command) {
-            $this->command->info('Roles seeded: admin, cashier, stats, partner');
+            $this->command->info('Roles seeded: admin, cashier, stats, partner, limited_collector');
         }
     }
 }

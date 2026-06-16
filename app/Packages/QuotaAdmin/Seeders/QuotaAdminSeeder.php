@@ -31,6 +31,7 @@ class QuotaAdminSeeder extends Seeder
         $cashierRole = DB::table('roles')->where('name', 'cashier')->first();
         $statsRole = DB::table('roles')->where('name', 'stats')->first();
         $partnerRole = DB::table('roles')->where('name', 'partner')->first();
+        $limitedCollectorRole = DB::table('roles')->where('name', 'limited_collector')->first();
 
         if (!$adminRole) return;
 
@@ -52,10 +53,6 @@ class QuotaAdminSeeder extends Seeder
                 'quota-partners_read',
                 'quota-partners_create',
                 'quota-partners_update',
-                'quota-plans_read',
-                'quota-plans_create',
-                'quota-plans_update',
-                'quota-plans_generate',
                 'quota-items_read',
                 'quota-items_pay',
                 'quota-items_rendered',
@@ -119,6 +116,29 @@ class QuotaAdminSeeder extends Seeder
             }
         }
 
+        // Limited collector permissions (bañero)
+        if ($limitedCollectorRole) {
+            $limitedCollectorSlugs = [
+                'menu_read',
+                'quota-dashboard_read',
+                'quota-items_read',
+                'quota-items_pay',
+                'quota-daily_read',
+                'quota-daily_create',
+            ];
+
+            DB::table('role_permission')->where('role_id', $limitedCollectorRole->id)->delete();
+            foreach ($limitedCollectorSlugs as $slug) {
+                $perm = DB::table('permissions')->where('slug', $slug)->first();
+                if ($perm) {
+                    DB::table('role_permission')->insert([
+                        'role_id' => $limitedCollectorRole->id,
+                        'permission_id' => $perm->id,
+                    ]);
+                }
+            }
+        }
+
         if ($this->command) {
             $this->command->info('QuotaAdmin role permissions seeded');
         }
@@ -134,10 +154,11 @@ class QuotaAdminSeeder extends Seeder
             ['name' => 'Socios', 'route' => 'quota-partners', 'icon' => 'bi-people', 'description' => 'Gestión de socios', 'is_special' => false, 'order' => 1, 'package' => 'quota_admin'],
             ['name' => 'Planes', 'route' => 'quota-plans', 'icon' => 'bi-calendar3', 'description' => 'Planes de cuotas', 'is_special' => false, 'order' => 2, 'package' => 'quota_admin'],
             ['name' => 'Cuotas', 'route' => 'quota-items', 'icon' => 'bi-credit-card', 'description' => 'Gestión de cuotas', 'is_special' => false, 'order' => 3, 'package' => 'quota_admin'],
-            ['name' => 'Pagos', 'route' => 'quota-payments', 'icon' => 'bi-cash-coin', 'description' => 'Historial de pagos', 'is_special' => false, 'order' => 4, 'package' => 'quota_admin'],
-            ['name' => 'Configuración', 'route' => 'quota-config', 'icon' => 'bi-sliders', 'description' => 'Configuración del módulo', 'is_special' => false, 'order' => 5, 'package' => 'quota_admin'],
-            ['name' => 'Estadísticas', 'route' => 'quota-statistics', 'icon' => 'bi-bar-chart', 'description' => 'Estadísticas y reportes', 'is_special' => false, 'order' => 6, 'package' => 'quota_admin'],
-            ['name' => 'Usuarios', 'route' => 'quota-users', 'icon' => 'bi-person-badge', 'description' => 'Gestión de usuarios del sistema', 'is_special' => false, 'order' => 7, 'package' => 'quota_admin'],
+            ['name' => 'Cobro Diario', 'route' => 'quota-daily', 'icon' => 'bi-calendar-day', 'description' => 'Cobro diario a no socios', 'is_special' => false, 'order' => 4, 'package' => 'quota_admin'],
+            ['name' => 'Pagos', 'route' => 'quota-payments', 'icon' => 'bi-cash-coin', 'description' => 'Historial de pagos', 'is_special' => false, 'order' => 5, 'package' => 'quota_admin'],
+            ['name' => 'Configuración', 'route' => 'quota-config', 'icon' => 'bi-sliders', 'description' => 'Configuración del módulo', 'is_special' => false, 'order' => 6, 'package' => 'quota_admin'],
+            ['name' => 'Estadísticas', 'route' => 'quota-statistics', 'icon' => 'bi-bar-chart', 'description' => 'Estadísticas y reportes', 'is_special' => false, 'order' => 7, 'package' => 'quota_admin'],
+            ['name' => 'Usuarios', 'route' => 'quota-users', 'icon' => 'bi-person-badge', 'description' => 'Gestión de usuarios del sistema', 'is_special' => false, 'order' => 8, 'package' => 'quota_admin'],
         ];
 
         foreach ($modules as $module) {

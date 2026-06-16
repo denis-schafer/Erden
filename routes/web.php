@@ -322,7 +322,6 @@ Route::middleware(['web', 'setDatabase'])->prefix('quota')->group(function () {
 
 // MP OAuth & Webhook for Quota (standalone, outside SPA group)
 Route::get('/quota/mp/callback', [\App\Http\Controllers\Quota\QuotaMercadoPagoController::class, 'callback']);
-Route::post('/quota/mp/webhook', [\App\Http\Controllers\Quota\QuotaMercadoPagoController::class, 'webhook'])->withoutMiddleware([\Illuminate\Foundation\Http\Middleware\VerifyCsrfToken::class]);
 
 // Partner Portal public lookup
 Route::get('/asociados/lookup-company', [\App\Http\Controllers\Quota\QuotaAuthController::class, 'lookupCompany']);

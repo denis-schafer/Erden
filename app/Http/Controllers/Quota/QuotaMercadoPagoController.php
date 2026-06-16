@@ -78,6 +78,7 @@ class QuotaMercadoPagoController extends Controller
         }
 
         $externalReference = $companyDb . '-' . $userId . '-' . time();
+        $notificationUrl = url('/mp/webhook?company_db=' . $companyDb);
 
         try {
             $mpResponse = Http::withToken($accessToken)->post('https://api.mercadopago.com/checkout/preferences', [
@@ -90,6 +91,7 @@ class QuotaMercadoPagoController extends Controller
                     ]
                 ],
                 'external_reference' => $externalReference,
+                'notification_url' => $notificationUrl,
                 'back_urls' => [
                     'success' => url('/asociados?status=success'),
                     'failure' => url('/asociados?status=failure'),
@@ -148,113 +150,6 @@ class QuotaMercadoPagoController extends Controller
             Log::error('[QuotaMP] Exception: ' . $e->getMessage());
             return response()->json(['message' => 'Error de conexión con MercadoPago'], 500);
         }
-    }
-
-    public function webhook(Request $request)
-    {
-        Log::info('[QuotaMP Webhook] Received:', $request->all());
-
-        $payload = $request->all();
-        $topic = $payload['topic'] ?? $request->query('topic');
-
-        if ($topic !== 'payment') {
-            return response()->json(['status' => 'ok']);
-        }
-
-        $data = $payload['data'] ?? [];
-        $paymentId = $data['id'] ?? null;
-
-        if (!$paymentId) {
-            $resource = $payload['resource'] ?? null;
-            $paymentId = is_numeric($resource) ? $resource : null;
-        }
-
-        if (!$paymentId) {
-            return response()->json(['status' => 'ok']);
-        }
-
-        $companyDb = $request->query('company_db');
-        if ($companyDb) {
-            Config::set('database.connections.mysql.database', $companyDb);
-            DB::purge('mysql');
-            DB::reconnect('mysql');
-        }
-
-        $accessToken = DB::table('quota_configs')->where('name', 'mp_access_token')->value('value');
-        if (!$accessToken) {
-            return response()->json(['status' => 'ok']);
-        }
-
-        try {
-            $mpResponse = Http::withToken($accessToken)
-                ->get("https://api.mercadopago.com/v1/payments/{$paymentId}");
-
-            if ($mpResponse->failed()) {
-                return response()->json(['status' => 'ok']);
-            }
-
-            $payment = $mpResponse->json();
-
-            if (($payment['status'] ?? '') !== 'approved') {
-                return response()->json(['status' => 'ok']);
-            }
-
-            $preferenceId = $payment['order']['id'] ?? null;
-
-            $quotaPayment = DB::table('quota_payments')
-                ->where('mp_preference_id', $preferenceId)
-                ->first();
-
-            if (!$quotaPayment) {
-                $externalRef = $payment['external_reference'] ?? '';
-                $quotaPayment = DB::table('quota_payments')
-                    ->where('id', function ($q) use ($externalRef) {
-                        // Parse external_reference: companyDb-userId-timestamp
-                        $parts = explode('-', $externalRef);
-                        if (count($parts) >= 2) {
-                            $q->select(DB::raw('MAX(id)'))
-                                ->from('quota_payments')
-                                ->where('partner_id', $parts[1] ?? 0);
-                        }
-                    })
-                    ->first();
-            }
-
-            if (!$quotaPayment) {
-                return response()->json(['status' => 'ok']);
-            }
-
-            DB::table('quota_payments')->where('id', $quotaPayment->id)->update([
-                'mp_payment_id' => $paymentId,
-                'mp_status' => 'approved',
-                'paid_at' => now(),
-                'updated_at' => now(),
-            ]);
-
-            $items = DB::table('quota_payment_items')
-                ->where('quota_payment_id', $quotaPayment->id)
-                ->get();
-
-            foreach ($items as $item) {
-                DB::table('quotas')->where('id', $item->quota_id)->update([
-                    'status' => 'paid',
-                    'payment_method' => 'mercadopago',
-                    'mp_payment_id' => $paymentId,
-                    'paid_at' => now(),
-                    'updated_at' => now(),
-                ]);
-            }
-
-            Log::info('[QuotaMP Webhook] Payment processed', [
-                'payment_id' => $paymentId,
-                'quota_payment_id' => $quotaPayment->id,
-                'items_count' => $items->count(),
-            ]);
-        } catch (\Exception $e) {
-            Log::error('[QuotaMP Webhook] Error: ' . $e->getMessage());
-        }
-
-        return response()->json(['status' => 'ok']);
     }
 
     public function callback(Request $request)

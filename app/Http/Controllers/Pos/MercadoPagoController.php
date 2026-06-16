@@ -572,13 +572,55 @@ class MercadoPagoController extends Controller
             
             $paymentStatus = $payment['status'] ?? '';
             $externalRef = $payment['external_reference'] ?? '';
+            $preferenceId = $payment['preference_id'] ?? null;
             
             Log::info('[MP Webhook] Payment status: ' . $paymentStatus);
             Log::info('[MP Webhook] External reference: ' . $externalRef);
+            Log::info('[MP Webhook] Preference ID: ' . ($preferenceId ?? 'NULL'));
             
             if ($paymentStatus !== 'approved') {
                 Log::info('[MP Webhook] Payment not approved, ignoring');
                 return response()->json(['status' => 'ok']);
+            }
+            
+            // Check if this is a Quota payment
+            if ($preferenceId) {
+                $quotaPayment = DB::table('quota_payments')
+                    ->where('mp_preference_id', $preferenceId)
+                    ->first();
+                
+                if ($quotaPayment) {
+                    Log::info('[MP Webhook] Quota payment found, processing...');
+                    
+                    DB::table('quota_payments')->where('id', $quotaPayment->id)->update([
+                        'mp_payment_id' => $paymentId,
+                        'mp_status' => 'approved',
+                        'paid_at' => now(),
+                        'updated_at' => now(),
+                    ]);
+                    
+                    $items = DB::table('quota_payment_items')
+                        ->where('quota_payment_id', $quotaPayment->id)
+                        ->get();
+                    
+                    foreach ($items as $item) {
+                        DB::table('quotas')->where('id', $item->quota_id)->update([
+                            'status' => 'paid',
+                            'payment_method' => 'mercadopago',
+                            'mp_payment_id' => $paymentId,
+                            'paid_at' => now(),
+                            'updated_at' => now(),
+                        ]);
+                    }
+                    
+                    Log::info('[MP Webhook] Quota payment processed', [
+                        'payment_id' => $paymentId,
+                        'quota_payment_id' => $quotaPayment->id,
+                        'items_count' => $items->count(),
+                    ]);
+                    
+                    return response()->json(['status' => 'ok']);
+                }
             }
             
             // Parsear external_reference: companyDb-operatorId-orderId

@@ -3,7 +3,7 @@
         <div class="d-flex justify-content-between align-items-center mb-3">
             <h4 class="mb-0">Cuotas</h4>
             <div>
-                <button class="btn btn-success btn-sm me-2" @click="showPayModal = true" :disabled="!selectedIds.length">
+                <button v-if="canRender" class="btn btn-success btn-sm me-2" @click="showPayModal = true" :disabled="!selectedIds.length">
                     <i class="bi bi-cash"></i> Cobrar Seleccionadas ({{ selectedIds.length }})
                 </button>
             </div>
@@ -27,7 +27,7 @@
                     <option value="pool_fee">Dcho Pileta</option>
                 </select>
             </div>
-            <div class="col-md-2">
+            <div v-if="canRender" class="col-md-2">
                 <select class="form-select form-select-sm" v-model="filters.rendered" @change="onFilterChange">
                     <option value="">Todos</option>
                     <option value="false">No Rendidas</option>

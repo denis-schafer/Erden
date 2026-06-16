@@ -14,6 +14,7 @@ class ConfigSeeder extends Seeder
     ['name' => 'redirect_uri',  'value' => 'https://www.erden.com.ar/mp/callback', 'type' => 'string'],
             ['name' => 'mp_access_token', 'value' => '', 'type' => 'string'],
             ['name' => 'default_cashier_id', 'value' => '', 'type' => 'string'],
+            ['name' => 'whatsapp_message_template', 'value' => 'Hola %name%, recordá que podés gestionar tus cuotas en el portal de socios.', 'type' => 'text'],
         ];
 
         foreach ($configs as $config) {

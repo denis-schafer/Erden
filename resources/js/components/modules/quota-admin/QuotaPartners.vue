@@ -7,7 +7,7 @@
                     <span v-if="generatingAll" class="spinner-border spinner-border-sm me-1"></span>
                     <i v-else class="bi bi-calendar-plus"></i> {{ generatingAll ? 'Generando...' : 'Generar cuotas del año' }}
                 </button>
-                <button class="btn btn-outline-success btn-sm me-2" @click="downloadWhatsAppCSV">
+                <button class="btn btn-outline-success btn-sm me-2" @click="downloadWhatsAppXLSX">
                     <i class="bi bi-download"></i> Exportar WhatsApp
                 </button>
                 <button class="btn btn-outline-primary btn-sm me-2" @click="showImport = true">
@@ -161,6 +161,7 @@ import { ref, onMounted } from 'vue';
 import axios from 'axios';
 import { toast } from '../../../utils/toast';
 import { useAuthStore } from '../../../stores/auth';
+import * as XLSX from 'xlsx';
 import ConfirmModal from '../../../components/ConfirmModal.vue';
 import QuotaPartnerForm from './QuotaPartnerForm.vue';
 import QuotaPartnerImport from './QuotaPartnerImport.vue';
@@ -168,6 +169,7 @@ import QuotaPartnerGenerateQuotas from './QuotaPartnerGenerateQuotas.vue';
 
 const authStore = useAuthStore();
 const partners = ref({ data: [], current_page: 1, last_page: 1 });
+const whatsappTemplate = ref('Hola %name%, recordá que podés gestionar tus cuotas en el portal de socios.');
 const loading = ref(true);
 const showForm = ref(false);
 const showImport = ref(false);
@@ -268,17 +270,37 @@ const onImported = () => {
     loadPartners();
 };
 
+const getMonthName = (m) => {
+    const names = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
+    return names[m - 1] || '';
+};
+
+const replaceTemplate = (tpl, partner) => {
+    const now = new Date();
+    return tpl
+        .replace(/%name%/g, partner.first_name || '')
+        .replace(/%last_name%/g, partner.last_name || '')
+        .replace(/%month%/g, getMonthName(now.getMonth() + 1))
+        .replace(/%year%/g, now.getFullYear())
+        .replace(/%amount%/g, `$${parseFloat(partner.total_debt || 0).toLocaleString('es-AR', { minimumFractionDigits: 2 })}`);
+};
+
+const loadWhatsappTemplate = async () => {
+    try {
+        const { data } = await axios.get('/quota/config');
+        const cfg = data.find(c => c.name === 'whatsapp_message_template');
+        if (cfg && cfg.value) whatsappTemplate.value = cfg.value;
+    } catch (e) { /* use default */ }
+};
+
 const cleanPhone = (phone) => {
     if (!phone) return '';
     return phone.replace(/\D/g, '');
 };
 
 const sendWhatsApp = (partner) => {
-    const origin = window.location.origin;
-    const companyName = authStore.company?.name || '';
-    const msg = encodeURIComponent(
-        `Hola, ingresá al portal de socios para gestionar tus cuotas: ${origin}/asociados/${companyName}/${partner.dni}`
-    );
+    const tpl = replaceTemplate(whatsappTemplate.value, partner);
+    const msg = encodeURIComponent(tpl);
     const phone = cleanPhone(partner.phone);
     const url = phone
         ? `https://web.whatsapp.com/send?phone=${phone}&text=${msg}`
@@ -286,31 +308,24 @@ const sendWhatsApp = (partner) => {
     window.open(url, '_blank');
 };
 
-const downloadWhatsAppCSV = () => {
-    const origin = window.location.origin;
-    const companyName = authStore.company?.name || '';
+const downloadWhatsAppXLSX = () => {
     const enabled = partners.value.data?.filter(p => p.enable) || [];
     if (enabled.length === 0) {
         toast.warning('No hay socios activos para exportar');
         return;
     }
 
-    const rows = enabled.map(p => {
-        const msg = `Hola, ingresá al portal de socios para gestionar tus cuotas: ${origin}/asociados/${companyName}/${p.dni}`;
-        return [p.first_name, p.last_name, p.phone || '', msg];
-    });
+    const data = enabled.map(p => ({
+        Nombre: p.first_name || '',
+        Apellido: p.last_name || '',
+        Telefono: p.phone || '',
+        Mensaje: replaceTemplate(whatsappTemplate.value, p),
+    }));
 
-    let csv = '\uFEFFNombre,Apellido,Telefono,Mensaje\n';
-    rows.forEach(r => {
-        csv += r.map(c => `"${String(c).replace(/"/g, '""')}"`).join(',') + '\n';
-    });
-
-    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-    const link = document.createElement('a');
-    link.href = URL.createObjectURL(blob);
-    link.download = `whatsapp_${companyName}_${new Date().toISOString().slice(0, 10)}.csv`;
-    link.click();
-    URL.revokeObjectURL(link.href);
+    const ws = XLSX.utils.json_to_sheet(data);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'WhatsApp');
+    XLSX.writeFile(wb, `whatsapp_${authStore.company?.name || 'socios'}_${new Date().toISOString().slice(0, 10)}.xlsx`);
 };
 
 const onGenerated = () => {
@@ -346,5 +361,8 @@ const confirmYearModal = () => {
     });
 };
 
-onMounted(loadPartners);
+onMounted(() => {
+    loadPartners();
+    loadWhatsappTemplate();
+});
 </script>

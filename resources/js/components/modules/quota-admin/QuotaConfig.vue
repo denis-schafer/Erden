@@ -43,6 +43,28 @@
                 </div>
             </div>
 
+            <div class="card mb-4">
+                <div class="card-header">Mensaje WhatsApp</div>
+                <div class="card-body">
+                    <p class="text-muted small mb-2">
+                        Variables disponibles:
+                        <code>%name%</code> (nombre),
+                        <code>%last_name%</code> (apellido),
+                        <code>%month%</code> (mes actual),
+                        <code>%year%</code> (año actual),
+                        <code>%amount%</code> (deuda total)
+                    </p>
+                    <div class="row align-items-start">
+                        <div class="col-md-10 mb-2">
+                            <textarea class="form-control form-control-sm" rows="3" v-model="whatsappTemplate"></textarea>
+                        </div>
+                        <div class="col-md-2">
+                            <button class="btn btn-sm btn-primary" @click="saveWhatsappTemplate">Guardar</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
             <div class="card">
                 <div class="card-header">MercadoPago</div>
                 <div class="card-body">
@@ -67,8 +89,9 @@ const configs = ref([]);
 const loading = ref(true);
 const cashiers = ref([]);
 const defaultCashierId = ref('');
+const whatsappTemplate = ref('');
 
-const visibleConfigs = computed(() => configs.value.filter(c => c.name !== 'default_cashier_id'));
+const visibleConfigs = computed(() => configs.value.filter(c => c.name !== 'default_cashier_id' && c.name !== 'whatsapp_message_template'));
 
 const getLabel = (name) => {
     const labels = {
@@ -86,6 +109,8 @@ const loadConfigs = async () => {
         configs.value = data;
         const cfg = data.find(c => c.name === 'default_cashier_id');
         if (cfg) defaultCashierId.value = cfg.value || '';
+        const tpl = data.find(c => c.name === 'whatsapp_message_template');
+        if (tpl) whatsappTemplate.value = tpl.value || '';
     } catch (e) { console.error(e); }
     finally { loading.value = false; }
 };
@@ -116,6 +141,21 @@ const saveDefaultCashier = async () => {
             loadConfigs();
         }
         toast.success('Cashier por defecto guardado');
+    } catch (e) {
+        toast.error('Error al guardar');
+    }
+};
+
+const saveWhatsappTemplate = async () => {
+    try {
+        let cfg = configs.value.find(c => c.name === 'whatsapp_message_template');
+        if (cfg) {
+            await axios.put(`/quota/config/${cfg.id}`, { value: whatsappTemplate.value });
+        } else {
+            await axios.post('/quota/config', { name: 'whatsapp_message_template', value: whatsappTemplate.value, type: 'text' });
+            loadConfigs();
+        }
+        toast.success('Plantilla WhatsApp guardada');
     } catch (e) {
         toast.error('Error al guardar');
     }

@@ -3,7 +3,7 @@
         <ConfirmationDialog ref="confirmDialog" />
         <Toast />
         <QuotaOAuth v-if="isOAuthRoute" />
-        <QuotaPortalLayout v-else-if="isPortalRoute" />
+        <QuotaPortalLayout v-else-if="isPortalRoute" :company-name="portalCompanyName" :dni="portalDni" />
         <template v-else>
             <Login 
                 v-if="!isAuthenticated && !showCompanySelector" 
@@ -65,7 +65,17 @@ const handleCompanySelected = () => {
     };
 
     const isPortalRoute = computed(() => {
-        return window.location.pathname === '/asociados';
+        return window.location.pathname === '/asociados' || window.location.pathname.startsWith('/asociados/');
+    });
+
+    const portalCompanyName = computed(() => {
+        const parts = window.location.pathname.split('/').filter(Boolean);
+        return parts[1] || '';
+    });
+
+    const portalDni = computed(() => {
+        const parts = window.location.pathname.split('/').filter(Boolean);
+        return parts[2] || '';
     });
 
     const isOAuthRoute = computed(() => {

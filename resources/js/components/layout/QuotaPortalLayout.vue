@@ -2,6 +2,8 @@
     <div class="portal-layout">
         <QuotaPortalLogin
             v-if="!isAuthenticated"
+            :initial-company-name="companyName"
+            :initial-dni="dni"
             @login-success="handleLoginSuccess"
         />
         <QuotaPartnerDashboard
@@ -15,6 +17,11 @@
 import { ref, computed, onMounted } from 'vue';
 import QuotaPortalLogin from '../modules/quota-admin/QuotaPortalLogin.vue';
 import QuotaPartnerDashboard from '../modules/quota-admin/QuotaPartnerDashboard.vue';
+
+const props = defineProps({
+    companyName: { type: String, default: '' },
+    dni: { type: String, default: '' },
+});
 
 const token = ref(null);
 const user = ref(null);

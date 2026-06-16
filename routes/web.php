@@ -324,6 +324,9 @@ Route::middleware(['web', 'setDatabase'])->prefix('quota')->group(function () {
 Route::get('/quota/mp/callback', [\App\Http\Controllers\Quota\QuotaMercadoPagoController::class, 'callback']);
 Route::post('/quota/mp/webhook', [\App\Http\Controllers\Quota\QuotaMercadoPagoController::class, 'webhook'])->withoutMiddleware([\Illuminate\Foundation\Http\Middleware\VerifyCsrfToken::class]);
 
+// Partner Portal public lookup
+Route::get('/asociados/lookup-company', [\App\Http\Controllers\Quota\QuotaAuthController::class, 'lookupCompany']);
+
 // Partner Portal API Routes (token-based auth, within setDatabase for company context)
 Route::middleware(['web', 'setDatabase'])->prefix('asociados')->group(function () {
     Route::post('/login', [\App\Http\Controllers\Quota\QuotaAuthController::class, 'login']);
@@ -340,8 +343,8 @@ Route::get('/oauth/lookup', [\App\Http\Controllers\OAuthController::class, 'look
 Route::get('/oauth/authorize', [\App\Http\Controllers\OAuthController::class, 'authorizeUrl']);
 Route::post('/oauth/assign', [\App\Http\Controllers\OAuthController::class, 'assign']);
 
-// Portal SPA catch-all
-Route::get('/asociados', [SpaController::class, 'index']);
+// Portal SPA catch-all (must be after lookup-company)
+Route::get('/asociados/{name?}/{dni?}', [SpaController::class, 'index']);
 
 // OAuth SPA catch-all
 Route::get('/oauth', [SpaController::class, 'index']);

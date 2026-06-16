@@ -11,6 +11,37 @@ use Illuminate\Support\Facades\Schema;
 
 class QuotaAuthController extends Controller
 {
+    public function lookupCompany(Request $request)
+    {
+        $name = $request->get('name');
+
+        if (empty($name)) {
+            return response()->json(['error' => 'Ingrese un nombre de empresa'], 400);
+        }
+
+        $company = DB::connection('mysql_parent')
+            ->table('companies')
+            ->whereRaw('LOWER(name) LIKE ?', ['%' . strtolower($name) . '%'])
+            ->whereExists(function ($q) {
+                $q->select(DB::raw(1))
+                    ->from('company_modules')
+                    ->join('modules', 'company_modules.module_id', '=', 'modules.id')
+                    ->whereColumn('company_modules.company_id', 'companies.id')
+                    ->where('modules.package', 'quota_admin');
+            })
+            ->first();
+
+        if (!$company) {
+            return response()->json(['error' => 'Empresa no encontrada o no tiene el módulo Cuotas'], 404);
+        }
+
+        return response()->json([
+            'id' => $company->id,
+            'name' => $company->name,
+            'db' => $company->db,
+        ]);
+    }
+
     public function login(Request $request)
     {
         $credentials = $request->validate([

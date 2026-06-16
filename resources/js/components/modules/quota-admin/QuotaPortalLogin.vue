@@ -3,20 +3,27 @@
         <div class="login-card">
             <div class="text-center mb-4">
                 <h3>Portal de Socios</h3>
-                <p class="text-muted">{{ businessName }}</p>
+                <p v-if="businessName" class="text-muted">{{ businessName }}</p>
             </div>
-            <form @submit.prevent="login">
-                <div v-if="step === 'company'" class="mb-3">
-                    <label class="form-label">Seleccionar Natatorio</label>
-                    <select class="form-select" v-model="selectedCompany" required>
-                        <option value="" disabled>Seleccione...</option>
-                        <option v-for="c in companies" :key="c.id" :value="c.db">{{ c.name }}</option>
-                    </select>
-                    <button type="button" class="btn btn-primary w-100 mt-3" @click="selectCompany" :disabled="!selectedCompany">
-                        Continuar
-                    </button>
+
+            <div v-if="error" class="alert alert-danger py-2">{{ error }}</div>
+
+            <template v-if="step === 'company'">
+                <div class="mb-3">
+                    <label class="form-label">Nombre del Natatorio</label>
+                    <div class="input-group">
+                        <input class="form-control" v-model="companyInput" placeholder="Ej: elOasis"
+                            @keyup.enter="searchCompany" :disabled="searching">
+                        <button class="btn btn-primary" @click="searchCompany" :disabled="searching">
+                            <span v-if="searching" class="spinner-border spinner-border-sm"></span>
+                            <span v-else>Buscar</span>
+                        </button>
+                    </div>
                 </div>
-                <template v-if="step === 'login'">
+            </template>
+
+            <template v-if="step === 'login'">
+                <form @submit.prevent="login">
                     <div class="mb-3">
                         <label class="form-label">DNI</label>
                         <input class="form-control" v-model="form.dni" required placeholder="Ingrese su DNI" :disabled="authenticating">
@@ -25,13 +32,40 @@
                         <label class="form-label">Contraseña</label>
                         <input type="password" class="form-control" v-model="form.password" required placeholder="Ingrese su contraseña" :disabled="authenticating">
                     </div>
-                    <div v-if="error" class="alert alert-danger py-2">{{ error }}</div>
                     <button type="submit" class="btn btn-primary w-100" :disabled="authenticating">
                         <span v-if="authenticating" class="spinner-border spinner-border-sm me-1"></span>
                         Ingresar
                     </button>
-                </template>
-            </form>
+                </form>
+            </template>
+
+            <template v-if="step === 'auto-login'">
+                <div class="text-center py-4">
+                    <div class="spinner-border text-primary mb-3"></div>
+                    <p>Ingresando automáticamente...</p>
+                    <p class="text-muted small">DNI: {{ form.dni }}</p>
+                </div>
+            </template>
+
+            <template v-if="step === 'login-password'">
+                <p class="text-muted small mb-3">
+                    El usuario cambió su contraseña. Ingresá la nueva.
+                </p>
+                <form @submit.prevent="login">
+                    <div class="mb-3">
+                        <label class="form-label">DNI</label>
+                        <input class="form-control" v-model="form.dni" disabled>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Contraseña</label>
+                        <input type="password" class="form-control" v-model="form.password" required placeholder="Nueva contraseña" :disabled="authenticating" autofocus>
+                    </div>
+                    <button type="submit" class="btn btn-primary w-100" :disabled="authenticating">
+                        <span v-if="authenticating" class="spinner-border spinner-border-sm me-1"></span>
+                        Ingresar
+                    </button>
+                </form>
+            </template>
         </div>
     </div>
 </template>
@@ -41,39 +75,45 @@ import { ref, onMounted } from 'vue';
 import axios from 'axios';
 
 const emit = defineEmits(['login-success']);
+
+const props = defineProps({
+    initialCompanyName: { type: String, default: '' },
+    initialDni: { type: String, default: '' },
+});
+
 const step = ref('company');
-const companies = ref([]);
+const companyInput = ref('');
+const businessName = ref('');
 const selectedCompany = ref('');
-const businessName = ref('Natatorio');
+const searching = ref(false);
 const authenticating = ref(false);
 const error = ref('');
 const form = ref({ dni: '', password: '' });
 
-const loadCompanies = async () => {
+const searchCompany = async () => {
+    if (!companyInput.value.trim()) return;
+    searching.value = true;
+    error.value = '';
     try {
-        const { data } = await axios.get('/quota/companies');
-        companies.value = data;
-        if (data.length === 1) {
-            selectedCompany.value = data[0].db;
-            businessName.value = data[0].name;
-            step.value = 'login';
-        }
-    } catch (e) {
+        const { data } = await axios.get('/asociados/lookup-company', { params: { name: companyInput.value.trim() } });
+        selectedCompany.value = data.db;
+        businessName.value = data.name;
         step.value = 'login';
+    } catch (e) {
+        error.value = e.response?.data?.error || 'Empresa no encontrada';
+    } finally {
+        searching.value = false;
     }
-};
-
-const selectCompany = () => {
-    const c = companies.value.find(c => c.db === selectedCompany.value);
-    if (c) businessName.value = c.name;
-    step.value = 'login';
 };
 
 const login = async () => {
     authenticating.value = true;
     error.value = '';
     try {
-        const { data } = await axios.post('/asociados/login', form.value, {
+        const { data } = await axios.post('/asociados/login', {
+            dni: form.value.dni,
+            password: form.value.password,
+        }, {
             headers: { 'X-Company-Db': selectedCompany.value },
         });
         emit('login-success', { ...data, company_db: selectedCompany.value });
@@ -84,7 +124,48 @@ const login = async () => {
     }
 };
 
-onMounted(loadCompanies);
+const tryAutoLogin = async () => {
+    step.value = 'auto-login';
+    authenticating.value = true;
+    error.value = '';
+    try {
+        const { data } = await axios.post('/asociados/login', {
+            dni: form.value.dni,
+            password: form.value.dni,
+        }, {
+            headers: { 'X-Company-Db': selectedCompany.value },
+        });
+        emit('login-success', { ...data, company_db: selectedCompany.value });
+    } catch (e) {
+        step.value = 'login-password';
+        authenticating.value = false;
+    }
+};
+
+onMounted(async () => {
+    if (props.initialCompanyName) {
+        companyInput.value = props.initialCompanyName;
+        searching.value = true;
+        try {
+            const { data } = await axios.get('/asociados/lookup-company', { params: { name: props.initialCompanyName } });
+            selectedCompany.value = data.db;
+            businessName.value = data.name;
+
+            if (props.initialDni) {
+                form.value.dni = props.initialDni;
+                await tryAutoLogin();
+            } else {
+                step.value = 'login';
+            }
+        } catch (e) {
+            error.value = 'Empresa no encontrada';
+            step.value = 'company';
+        } finally {
+            searching.value = false;
+        }
+    }
+    // If no initialCompanyName, stay on 'company' step (user inputs name manually)
+});
 </script>
 
 <style scoped>

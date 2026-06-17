@@ -58,6 +58,7 @@ class QuotaAdminSeeder extends Seeder
                 'quota-items_rendered',
                 'quota-payments_read',
                 'quota-payments_rendered',
+                'quota-config_read',
                 'quota-statistics_read',
             ];
 

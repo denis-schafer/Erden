@@ -32,6 +32,11 @@ const portalConfig = ref({});
 
 const isAuthenticated = computed(() => token.value && user.value);
 
+const hexToRgb = (hex) => {
+    const c = hex.replace('#', '');
+    return `${parseInt(c.substring(0, 2), 16)}, ${parseInt(c.substring(2, 4), 16)}, ${parseInt(c.substring(4, 6), 16)}`;
+};
+
 const portalStyle = computed(() => {
     const primary = portalConfig.value.primary_color || '#667eea';
     const secondary = portalConfig.value.secondary_color || '#764ba2';
@@ -41,8 +46,9 @@ const portalStyle = computed(() => {
         '--portal-secondary': secondary,
     };
     if (bg) {
-        style.background = `linear-gradient(135deg, ${primary} 0%, ${secondary} 100%), url(${bg}) center/cover no-repeat`;
-        style.backgroundBlendMode = 'overlay';
+        const pr = hexToRgb(primary);
+        const sr = hexToRgb(secondary);
+        style.background = `linear-gradient(135deg, rgba(${pr}, 0.8) 0%, rgba(${sr}, 0.8) 100%), url(${bg}) center/cover no-repeat`;
     }
     return style;
 });

@@ -9,6 +9,15 @@ class ConfigSeeder extends Seeder
 {
     public function run(): void
     {
+        // NEVER overwrite existing configs — only seed if table is empty
+        $count = DB::table('quota_configs')->count();
+        if ($count > 0) {
+            if ($this->command) {
+                $this->command->info('QuotaAdmin configs already exist — skipping seeder to preserve data.');
+            }
+            return;
+        }
+
         $configs = [
             ['name' => 'business_name', 'value' => 'Natatorio', 'type' => 'string'],
     ['name' => 'redirect_uri',  'value' => 'https://www.erden.com.ar/mp/callback', 'type' => 'string'],
@@ -22,10 +31,7 @@ class ConfigSeeder extends Seeder
         ];
 
         foreach ($configs as $config) {
-            $existing = DB::table('quota_configs')->where('name', $config['name'])->first();
-            if (!$existing) {
-                DB::table('quota_configs')->insert(array_merge($config, ['created_at' => now(), 'updated_at' => now()]));
-            }
+            DB::table('quota_configs')->insert(array_merge($config, ['created_at' => now(), 'updated_at' => now()]));
         }
 
         if ($this->command) {

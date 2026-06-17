@@ -1,5 +1,7 @@
 <template>
-    <div class="portal-layout" :style="bgStyle">
+    <div class="portal-layout" :style="gradientStyle">
+        <img v-if="portalConfig.bg" :src="portalConfig.bg" class="portal-bg-img">
+        <div class="portal-overlay"></div>
         <QuotaPortalLogin
             v-if="!isAuthenticated"
             :initial-company-name="companyName"
@@ -32,20 +34,9 @@ const portalConfig = ref({});
 
 const isAuthenticated = computed(() => token.value && user.value);
 
-const bgStyle = computed(() => {
+const gradientStyle = computed(() => {
     const primary = portalConfig.value.primary_color || '#667eea';
     const secondary = portalConfig.value.secondary_color || '#764ba2';
-    const bgUrl = portalConfig.value.bg;
-
-    if (bgUrl) {
-        return {
-            backgroundImage: `url(${bgUrl})`,
-            backgroundSize: 'cover',
-            backgroundPosition: 'center',
-            backgroundRepeat: 'no-repeat',
-        };
-    }
-
     return {
         background: `linear-gradient(135deg, ${primary} 0%, ${secondary} 100%)`,
     };
@@ -85,7 +76,29 @@ onMounted(() => {
 
 <style scoped>
 .portal-layout {
+    position: relative;
     min-height: 100vh;
     min-height: 100dvh;
+    background: linear-gradient(135deg, var(--portal-primary, #667eea) 0%, var(--portal-secondary, #764ba2) 100%);
+}
+.portal-bg-img {
+    position: fixed;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    z-index: 0;
+    pointer-events: none;
+}
+.portal-overlay {
+    position: fixed;
+    inset: 0;
+    background: linear-gradient(135deg, rgba(102, 126, 234, 0.6) 0%, rgba(118, 75, 162, 0.6) 100%);
+    z-index: 1;
+    pointer-events: none;
+}
+.portal-layout > :not(.portal-bg-img):not(.portal-overlay) {
+    position: relative;
+    z-index: 2;
 }
 </style>

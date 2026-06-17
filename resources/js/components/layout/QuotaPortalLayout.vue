@@ -1,5 +1,5 @@
 <template>
-    <div class="portal-layout" :style="portalStyle" :class="{ 'has-bg': portalConfig.bg }">
+    <div class="portal-layout" :style="portalStyle">
         <QuotaPortalLogin
             v-if="!isAuthenticated"
             :initial-company-name="companyName"
@@ -32,11 +32,20 @@ const portalConfig = ref({});
 
 const isAuthenticated = computed(() => token.value && user.value);
 
-const portalStyle = computed(() => ({
-    '--portal-primary': portalConfig.value.primary_color || '#667eea',
-    '--portal-secondary': portalConfig.value.secondary_color || '#764ba2',
-    '--portal-bg': portalConfig.value.bg ? `url(${portalConfig.value.bg})` : 'none',
-}));
+const portalStyle = computed(() => {
+    const primary = portalConfig.value.primary_color || '#667eea';
+    const secondary = portalConfig.value.secondary_color || '#764ba2';
+    const bg = portalConfig.value.bg;
+    const style = {
+        '--portal-primary': primary,
+        '--portal-secondary': secondary,
+    };
+    if (bg) {
+        style.background = `linear-gradient(135deg, ${primary} 0%, ${secondary} 100%), url(${bg}) center/cover no-repeat`;
+        style.backgroundBlendMode = 'overlay';
+    }
+    return style;
+});
 
 const handleLoginSuccess = (data) => {
     token.value = data.token;
@@ -75,11 +84,5 @@ onMounted(() => {
     min-height: 100vh;
     min-height: 100dvh;
     background: linear-gradient(135deg, var(--portal-primary, #667eea) 0%, var(--portal-secondary, #764ba2) 100%);
-}
-.portal-layout.has-bg {
-    background:
-        linear-gradient(135deg, var(--portal-primary, #667eea) 0%, var(--portal-secondary, #764ba2) 100%),
-        var(--portal-bg) center/cover no-repeat;
-    background-blend-mode: overlay;
 }
 </style>

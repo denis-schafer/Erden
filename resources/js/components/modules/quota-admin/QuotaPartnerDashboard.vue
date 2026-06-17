@@ -341,7 +341,6 @@ onMounted(() => {
 .partner-dashboard {
     min-height: 100vh;
     min-height: 100dvh;
-    background: #f0f2f5;
 }
 .dashboard-header {
     background: linear-gradient(135deg, var(--portal-primary, #667eea) 0%, var(--portal-secondary, #764ba2) 100%);

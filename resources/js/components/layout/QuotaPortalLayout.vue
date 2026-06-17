@@ -1,16 +1,19 @@
 <template>
-    <div class="portal-layout" :style="portalStyle">
-        <QuotaPortalLogin
-            v-if="!isAuthenticated"
-            :initial-company-name="companyName"
-            :initial-dni="dni"
-            @login-success="handleLoginSuccess"
-        />
-        <QuotaPartnerDashboard
-            v-else
-            :portal-config="portalConfig"
-            @logout="handleLogout"
-        />
+    <div class="portal-layout" :style="{ '--portal-primary': primaryColor, '--portal-secondary': secondaryColor }">
+        <div v-if="portalConfig.bg" class="portal-bg" :style="{ backgroundImage: `url(${portalConfig.bg})` }"></div>
+        <div class="portal-content">
+            <QuotaPortalLogin
+                v-if="!isAuthenticated"
+                :initial-company-name="companyName"
+                :initial-dni="dni"
+                @login-success="handleLoginSuccess"
+            />
+            <QuotaPartnerDashboard
+                v-else
+                :portal-config="portalConfig"
+                @logout="handleLogout"
+            />
+        </div>
     </div>
 </template>
 
@@ -32,26 +35,8 @@ const portalConfig = ref({});
 
 const isAuthenticated = computed(() => token.value && user.value);
 
-const hexToRgb = (hex) => {
-    const c = hex.replace('#', '');
-    return `${parseInt(c.substring(0, 2), 16)}, ${parseInt(c.substring(2, 4), 16)}, ${parseInt(c.substring(4, 6), 16)}`;
-};
-
-const portalStyle = computed(() => {
-    const primary = portalConfig.value.primary_color || '#667eea';
-    const secondary = portalConfig.value.secondary_color || '#764ba2';
-    const bg = portalConfig.value.bg;
-    const style = {
-        '--portal-primary': primary,
-        '--portal-secondary': secondary,
-    };
-    if (bg) {
-        const pr = hexToRgb(primary);
-        const sr = hexToRgb(secondary);
-        style.background = `linear-gradient(135deg, rgba(${pr}, 0.8) 0%, rgba(${sr}, 0.8) 100%), url(${bg}) center/cover no-repeat`;
-    }
-    return style;
-});
+const primaryColor = computed(() => portalConfig.value.primary_color || '#667eea');
+const secondaryColor = computed(() => portalConfig.value.secondary_color || '#764ba2');
 
 const handleLoginSuccess = (data) => {
     token.value = data.token;
@@ -87,8 +72,23 @@ onMounted(() => {
 
 <style scoped>
 .portal-layout {
+    position: relative;
     min-height: 100vh;
     min-height: 100dvh;
     background: linear-gradient(135deg, var(--portal-primary, #667eea) 0%, var(--portal-secondary, #764ba2) 100%);
+}
+.portal-bg {
+    position: fixed;
+    inset: 0;
+    background-size: cover;
+    background-position: center;
+    background-repeat: no-repeat;
+    opacity: 0.2;
+    z-index: 0;
+    pointer-events: none;
+}
+.portal-content {
+    position: relative;
+    z-index: 1;
 }
 </style>

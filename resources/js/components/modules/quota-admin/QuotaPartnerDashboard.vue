@@ -160,7 +160,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue';
+import { ref, computed, watch, onMounted } from 'vue';
 import axios from 'axios';
 import { toast } from '../../../utils/toast';
 
@@ -169,6 +169,10 @@ const emit = defineEmits(['logout']);
 const props = defineProps({
     portalConfig: { type: Object, default: () => ({}) },
 });
+
+watch(() => props.portalConfig, (val) => {
+    if (val) portalLogo.value = val.logo || '';
+}, { immediate: true, deep: true });
 
 const user = ref(null);
 const quotas = ref([]);
@@ -332,7 +336,6 @@ const logout = () => {
 };
 
 onMounted(() => {
-    portalLogo.value = props.portalConfig?.logo || '';
     loadData();
 });
 </script>

@@ -50,6 +50,8 @@ const handleLoginSuccess = (data) => {
     localStorage.setItem('quota_token', data.token);
     localStorage.setItem('quota_user', JSON.stringify(data.user));
     localStorage.setItem('quota_company_db', data.company_db);
+    const savedConfig = localStorage.getItem('portal_config');
+    if (savedConfig) portalConfig.value = JSON.parse(savedConfig);
 };
 
 const handleLogout = () => {

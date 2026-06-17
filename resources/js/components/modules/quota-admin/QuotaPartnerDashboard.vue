@@ -127,6 +127,10 @@
                             {{ mpProcessing ? 'Aguarde...' : 'Pagar $' + formatNumber(totalSelectedAmount) + ' con MercadoPago' }}
                         </button>
                     </div>
+                    <div class="card-footer text-center">
+                        <img v-if="testImgUrl" :src="testImgUrl" style="max-width: 200px; border: 2px solid red;">
+                        <p class="text-muted small mt-1">Test imagen</p>
+                    </div>
                 </div>
 
                 <div v-if="showProfileModal" class="modal fade show d-block" tabindex="-1"
@@ -243,6 +247,8 @@ const sortBy = (field) => {
         sortDir.value = 'asc';
     }
 };
+
+const testImgUrl = computed(() => props.portalConfig?.bg || null);
 
 const formatNumber = (n) => parseFloat(n || 0).toLocaleString('es-AR', { minimumFractionDigits: 2 });
 

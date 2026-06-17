@@ -52,7 +52,8 @@
                         <code>%last_name%</code> (apellido),
                         <code>%month%</code> (mes actual),
                         <code>%year%</code> (año actual),
-                        <code>%amount%</code> (deuda total)
+                        <code>%amount%</code> (deuda total),
+                        <code>%portal%</code> (link al portal del socio)
                     </p>
                     <div class="row align-items-start">
                         <div class="col-md-10 mb-2">

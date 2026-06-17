@@ -277,12 +277,16 @@ const getMonthName = (m) => {
 
 const replaceTemplate = (tpl, partner) => {
     const now = new Date();
+    const origin = window.location.origin;
+    const companyName = authStore.company?.name || '';
+    const portalUrl = `${origin}/asociados/${companyName}/${partner.dni}`;
     return tpl
         .replace(/%name%/g, partner.first_name || '')
         .replace(/%last_name%/g, partner.last_name || '')
         .replace(/%month%/g, getMonthName(now.getMonth() + 1))
         .replace(/%year%/g, now.getFullYear())
-        .replace(/%amount%/g, `$${parseFloat(partner.total_debt || 0).toLocaleString('es-AR', { minimumFractionDigits: 2 })}`);
+        .replace(/%amount%/g, `$${parseFloat(partner.total_debt || 0).toLocaleString('es-AR', { minimumFractionDigits: 2 })}`)
+        .replace(/%portal%/g, portalUrl);
 };
 
 const loadWhatsappTemplate = async () => {

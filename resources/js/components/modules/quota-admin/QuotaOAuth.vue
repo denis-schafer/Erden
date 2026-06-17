@@ -49,6 +49,23 @@
                     <button class="btn btn-link w-100 mt-2" @click="reset">Buscar otra empresa</button>
                 </template>
 
+                <template v-if="step === 'error'">
+                    <div class="text-center py-3">
+                        <i class="bi bi-exclamation-triangle-fill text-warning" style="font-size: 3rem;"></i>
+                        <h5 class="mt-2 text-warning">Error de autenticación</h5>
+                        <p class="text-muted small">{{ errorMsg }}</p>
+                        <p class="text-muted small">Asegurate de estar logueado en MercadoPago ({{ isMobile ? 'app' : 'web' }}) y volvé a intentar.</p>
+                        <div class="mt-3">
+                            <a :href="lastOauthUrl" class="btn btn-success me-2">
+                                <i class="bi bi-arrow-repeat"></i> Reintentar
+                            </a>
+                            <button class="btn btn-link" @click="reset">
+                                Buscar otra empresa
+                            </button>
+                        </div>
+                    </div>
+                </template>
+
                 <template v-if="step === 'done'">
                     <div class="text-center py-3">
                         <i class="bi bi-check-circle-fill text-success" style="font-size: 3rem;"></i>
@@ -80,6 +97,9 @@ const company = ref({});
 const token = ref('');
 const companyName = ref('');
 const companyId = ref(null);
+const errorMsg = ref('');
+const lastOauthUrl = ref('');
+const isMobile = ref(false);
 
 const lookupCompany = async () => {
     if (!searchName.value.trim()) return;
@@ -102,6 +122,8 @@ const connectMP = async () => {
     error.value = '';
     try {
         const { data } = await axios.get('/oauth/authorize', { params: { company_id: company.value.id } });
+        lastOauthUrl.value = data.url;
+        localStorage.setItem('oauth_last_url', data.url);
         window.location.href = data.url;
     } catch (e) {
         error.value = e.response?.data?.error || 'Error al conectar con MercadoPago';
@@ -145,13 +167,28 @@ const reset = () => {
     companyId.value = null;
     error.value = '';
     success.value = '';
+    errorMsg.value = '';
+    lastOauthUrl.value = '';
+    localStorage.removeItem('oauth_last_url');
 };
 
 onMounted(() => {
+    isMobile.value = /Android|iPhone|iPad|iPod|webOS|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+
     const params = new URLSearchParams(window.location.search);
     const t = params.get('token');
     const cid = params.get('company_id');
     const cname = params.get('company_name');
+    const err = params.get('error');
+
+    if (err) {
+        errorMsg.value = params.get('error_description') || 'No se pudo autenticar con MercadoPago';
+        const saved = localStorage.getItem('oauth_last_url');
+        if (saved) lastOauthUrl.value = saved;
+        step.value = 'error';
+        return;
+    }
+
     if (t && cid && cname) {
         token.value = t;
         companyId.value = cid;

@@ -78,12 +78,12 @@ onMounted(() => {
     background: linear-gradient(135deg, var(--portal-primary, #667eea) 0%, var(--portal-secondary, #764ba2) 100%);
 }
 .portal-bg {
-    position: fixed;
+    position: absolute;
     inset: 0;
     background-size: cover;
     background-position: center;
     background-repeat: no-repeat;
-    opacity: 0.2;
+    opacity: 0.25;
     z-index: 0;
     pointer-events: none;
 }

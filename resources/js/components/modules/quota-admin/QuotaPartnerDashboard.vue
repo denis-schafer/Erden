@@ -170,10 +170,6 @@ const props = defineProps({
     portalConfig: { type: Object, default: () => ({}) },
 });
 
-watch(() => props.portalConfig, (val) => {
-    if (val) portalLogo.value = val.logo || '';
-}, { immediate: true, deep: true });
-
 const user = ref(null);
 const quotas = ref([]);
 const summary = ref({ total: 0, paid: 0, pending: 0, total_pending_amount: 0 });
@@ -181,6 +177,11 @@ const selectedQuotas = ref([]);
 const loading = ref(true);
 const mpProcessing = ref(false);
 const portalLogo = ref('');
+
+watch(() => props.portalConfig, (val) => {
+    if (val) portalLogo.value = val.logo || '';
+}, { immediate: true, deep: true });
+
 const showProfileModal = ref(false);
 const profile = ref({ phone: '' });
 const passwordForm = ref({ current: '', new_pass: '' });

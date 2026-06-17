@@ -1,5 +1,5 @@
 <template>
-    <div class="portal-layout">
+    <div class="portal-layout" :style="portalStyle">
         <QuotaPortalLogin
             v-if="!isAuthenticated"
             :initial-company-name="companyName"
@@ -8,6 +8,7 @@
         />
         <QuotaPartnerDashboard
             v-else
+            :portal-config="portalConfig"
             @logout="handleLogout"
         />
     </div>
@@ -15,6 +16,7 @@
 
 <script setup>
 import { ref, computed, onMounted } from 'vue';
+import axios from 'axios';
 import QuotaPortalLogin from '../modules/quota-admin/QuotaPortalLogin.vue';
 import QuotaPartnerDashboard from '../modules/quota-admin/QuotaPartnerDashboard.vue';
 
@@ -26,8 +28,16 @@ const props = defineProps({
 const token = ref(null);
 const user = ref(null);
 const companyDb = ref(null);
+const portalConfig = ref({});
 
 const isAuthenticated = computed(() => token.value && user.value);
+
+const portalStyle = computed(() => ({
+    '--portal-primary': portalConfig.value.primary_color || '#667eea',
+    '--portal-secondary': portalConfig.value.secondary_color || '#764ba2',
+    '--portal-logo': portalConfig.value.logo ? `url(${portalConfig.value.logo})` : 'none',
+    '--portal-bg': portalConfig.value.bg ? `url(${portalConfig.value.bg})` : 'none',
+}));
 
 const handleLoginSuccess = (data) => {
     token.value = data.token;
@@ -55,6 +65,8 @@ onMounted(() => {
         token.value = savedToken;
         user.value = JSON.parse(savedUser);
         companyDb.value = savedCompanyDb;
+        const savedConfig = localStorage.getItem('portal_config');
+        if (savedConfig) portalConfig.value = JSON.parse(savedConfig);
     }
 });
 </script>
@@ -62,6 +74,7 @@ onMounted(() => {
 <style scoped>
 .portal-layout {
     min-height: 100vh;
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    min-height: 100dvh;
+    background: linear-gradient(135deg, var(--portal-primary, #667eea) 0%, var(--portal-secondary, #764ba2) 100%);
 }
 </style>

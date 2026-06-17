@@ -291,6 +291,7 @@ Route::middleware(['web', 'setDatabase'])->prefix('quota')->group(function () {
     Route::put('/config/{id}', [\App\Http\Controllers\Quota\QuotaConfigController::class, 'update'])->middleware('permission:quota-config_update');
     Route::get('/config/mp-oauth-url', [\App\Http\Controllers\Quota\QuotaConfigController::class, 'getMpOAuthUrl'])->middleware('permission:quota-config_update');
     Route::get('/config/cashiers', [\App\Http\Controllers\Quota\QuotaConfigController::class, 'cashiers'])->middleware('permission:quota-config_read');
+    Route::post('/config/upload', [\App\Http\Controllers\Quota\QuotaConfigController::class, 'upload'])->middleware('permission:quota-config_update');
     Route::get('/config/mp-client-id', [\App\Http\Controllers\Quota\QuotaConfigController::class, 'getMpClientId']);
 
     Route::middleware(['permission:quota-users_read'])->group(function () {
@@ -326,6 +327,9 @@ Route::get('/quota/mp/callback', [\App\Http\Controllers\Quota\QuotaMercadoPagoCo
 
 // Partner Portal public lookup
 Route::get('/asociados/lookup-company', [\App\Http\Controllers\Quota\QuotaAuthController::class, 'lookupCompany']);
+
+// Portal branding config (public)
+Route::get('/portal/config', [\App\Http\Controllers\Quota\QuotaConfigController::class, 'portalConfig']);
 
 // Partner Portal API Routes (token-based auth, within setDatabase for company context)
 Route::middleware(['web', 'setDatabase'])->prefix('asociados')->group(function () {

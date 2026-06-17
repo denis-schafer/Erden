@@ -66,6 +66,48 @@
                 </div>
             </div>
 
+            <div class="card mb-4">
+                <div class="card-header">Personalización del Portal</div>
+                <div class="card-body">
+                    <div class="row mb-3 align-items-center">
+                        <div class="col-md-4"><strong>Logo</strong></div>
+                        <div class="col-md-6">
+                            <input class="form-control form-control-sm" type="file" accept="image/*" @change="uploadImage('portal_logo', $event)">
+                            <div v-if="portalLogo" class="mt-2">
+                                <img :src="portalLogo" style="max-height: 60px;">
+                            </div>
+                        </div>
+                    </div>
+                    <div class="row mb-3 align-items-center">
+                        <div class="col-md-4"><strong>Fondo</strong></div>
+                        <div class="col-md-6">
+                            <input class="form-control form-control-sm" type="file" accept="image/*" @change="uploadImage('portal_bg', $event)">
+                            <div v-if="portalBg" class="mt-2">
+                                <img :src="portalBg" style="max-height: 60px;">
+                            </div>
+                        </div>
+                    </div>
+                    <div class="row mb-3 align-items-center">
+                        <div class="col-md-4"><strong>Color primario</strong></div>
+                        <div class="col-md-6">
+                            <input type="color" class="form-control form-control-color" v-model="primaryColor" style="width: 60px; height: 38px;">
+                        </div>
+                        <div class="col-md-2">
+                            <button class="btn btn-sm btn-primary" @click="saveColor('portal_primary_color', primaryColor)">Guardar</button>
+                        </div>
+                    </div>
+                    <div class="row mb-3 align-items-center">
+                        <div class="col-md-4"><strong>Color secundario</strong></div>
+                        <div class="col-md-6">
+                            <input type="color" class="form-control form-control-color" v-model="secondaryColor" style="width: 60px; height: 38px;">
+                        </div>
+                        <div class="col-md-2">
+                            <button class="btn btn-sm btn-primary" @click="saveColor('portal_secondary_color', secondaryColor)">Guardar</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
             <div class="card">
                 <div class="card-header">MercadoPago</div>
                 <div class="card-body">
@@ -91,8 +133,14 @@ const loading = ref(true);
 const cashiers = ref([]);
 const defaultCashierId = ref('');
 const whatsappTemplate = ref('');
+const portalLogo = ref('');
+const portalBg = ref('');
+const primaryColor = ref('#667eea');
+const secondaryColor = ref('#764ba2');
 
-const visibleConfigs = computed(() => configs.value.filter(c => c.name !== 'default_cashier_id' && c.name !== 'whatsapp_message_template'));
+const visibleConfigs = computed(() => configs.value.filter(c =>
+    !['default_cashier_id', 'whatsapp_message_template', 'portal_logo', 'portal_bg', 'portal_primary_color', 'portal_secondary_color'].includes(c.name)
+));
 
 const getLabel = (name) => {
     const labels = {
@@ -108,10 +156,13 @@ const loadConfigs = async () => {
     try {
         const { data } = await axios.get('/quota/config');
         configs.value = data;
-        const cfg = data.find(c => c.name === 'default_cashier_id');
-        if (cfg) defaultCashierId.value = cfg.value || '';
-        const tpl = data.find(c => c.name === 'whatsapp_message_template');
-        if (tpl) whatsappTemplate.value = tpl.value || '';
+        const getVal = (name) => { const c = data.find(x => x.name === name); return c ? c.value || '' : ''; };
+        defaultCashierId.value = getVal('default_cashier_id');
+        whatsappTemplate.value = getVal('whatsapp_message_template');
+        portalLogo.value = getVal('portal_logo');
+        portalBg.value = getVal('portal_bg');
+        primaryColor.value = getVal('portal_primary_color') || '#667eea';
+        secondaryColor.value = getVal('portal_secondary_color') || '#764ba2';
     } catch (e) { console.error(e); }
     finally { loading.value = false; }
 };
@@ -157,6 +208,37 @@ const saveWhatsappTemplate = async () => {
             loadConfigs();
         }
         toast.success('Plantilla WhatsApp guardada');
+    } catch (e) {
+        toast.error('Error al guardar');
+    }
+};
+
+const uploadImage = async (name, event) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    const formData = new FormData();
+    formData.append('name', name);
+    formData.append('file', file);
+    try {
+        const { data } = await axios.post('/quota/config/upload', formData);
+        if (name === 'portal_logo') portalLogo.value = data.url;
+        else portalBg.value = data.url;
+        toast.success('Imagen subida');
+    } catch (e) {
+        toast.error('Error al subir imagen');
+    }
+};
+
+const saveColor = async (name, value) => {
+    try {
+        const cfg = configs.value.find(c => c.name === name);
+        if (cfg) {
+            await axios.put(`/quota/config/${cfg.id}`, { value });
+        } else {
+            await axios.post('/quota/config', { name, value, type: 'string' });
+            loadConfigs();
+        }
+        toast.success('Color guardado');
     } catch (e) {
         toast.error('Error al guardar');
     }

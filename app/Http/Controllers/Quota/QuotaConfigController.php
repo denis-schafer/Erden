@@ -5,8 +5,10 @@ namespace App\Http\Controllers\Quota;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Storage;
 
 class QuotaConfigController extends Controller
 {
@@ -85,6 +87,51 @@ class QuotaConfigController extends Controller
             ->get(['id', 'name', 'username']);
 
         return response()->json($users);
+    }
+
+    public function portalConfig(Request $request)
+    {
+        $companyDb = $request->get('company_db');
+
+        if ($companyDb) {
+            Config::set('database.connections.mysql.database', $companyDb);
+            DB::purge('mysql');
+            DB::reconnect('mysql');
+        }
+
+        $names = ['portal_logo', 'portal_bg', 'portal_primary_color', 'portal_secondary_color'];
+        $configs = DB::table('quota_configs')
+            ->whereIn('name', $names)
+            ->pluck('value', 'name')
+            ->toArray();
+
+        return response()->json([
+            'logo' => $configs['portal_logo'] ?? '',
+            'bg' => $configs['portal_bg'] ?? '',
+            'primary_color' => $configs['portal_primary_color'] ?? '#667eea',
+            'secondary_color' => $configs['portal_secondary_color'] ?? '#764ba2',
+        ]);
+    }
+
+    public function upload(Request $request)
+    {
+        $validated = $request->validate([
+            'name' => 'required|string|in:portal_logo,portal_bg',
+            'file' => 'required|image|max:2048',
+        ]);
+
+        $path = $request->file('file')->store('portal', 'public');
+
+        DB::table('quota_configs')->updateOrInsert(
+            ['name' => $validated['name']],
+            ['value' => Storage::url($path), 'type' => 'string', 'updated_at' => now(), 'created_at' => now()]
+        );
+
+        return response()->json([
+            'success' => true,
+            'url' => Storage::url($path),
+            'message' => 'Imagen subida correctamente',
+        ]);
     }
 
     public function getMpClientId(Request $request)

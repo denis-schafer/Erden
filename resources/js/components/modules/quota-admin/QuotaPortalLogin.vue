@@ -2,6 +2,7 @@
     <div class="portal-login">
         <div class="login-card">
             <div class="text-center mb-4">
+                <img v-if="portalLogo" :src="portalLogo" style="max-height: 60px; margin-bottom: 10px;">
                 <h3>Portal de Socios</h3>
                 <p v-if="businessName" class="text-muted">{{ businessName }}</p>
             </div>
@@ -89,6 +90,15 @@ const searching = ref(false);
 const authenticating = ref(false);
 const error = ref('');
 const form = ref({ dni: '', password: '' });
+const portalLogo = ref('');
+
+const loadPortalConfig = async (companyDb) => {
+    try {
+        const { data } = await axios.get('/portal/config', { params: { company_db: companyDb } });
+        portalLogo.value = data.logo || '';
+        localStorage.setItem('portal_config', JSON.stringify(data));
+    } catch (e) { /* defaults */ }
+};
 
 const searchCompany = async () => {
     if (!companyInput.value.trim()) return;
@@ -98,6 +108,7 @@ const searchCompany = async () => {
         const { data } = await axios.get('/asociados/lookup-company', { params: { name: companyInput.value.trim() } });
         selectedCompany.value = data.db;
         businessName.value = data.name;
+        await loadPortalConfig(data.db);
         step.value = 'login';
     } catch (e) {
         error.value = e.response?.data?.error || 'Empresa no encontrada';
@@ -150,6 +161,7 @@ onMounted(async () => {
             const { data } = await axios.get('/asociados/lookup-company', { params: { name: props.initialCompanyName } });
             selectedCompany.value = data.db;
             businessName.value = data.name;
+            await loadPortalConfig(data.db);
 
             if (props.initialDni) {
                 form.value.dni = props.initialDni;

@@ -15,6 +15,10 @@ class ConfigSeeder extends Seeder
             ['name' => 'mp_access_token', 'value' => '', 'type' => 'string'],
             ['name' => 'default_cashier_id', 'value' => '', 'type' => 'string'],
             ['name' => 'whatsapp_message_template', 'value' => 'Hola %name%, recordá que podés gestionar tus cuotas en el portal de socios.', 'type' => 'text'],
+            ['name' => 'portal_logo', 'value' => '', 'type' => 'string'],
+            ['name' => 'portal_bg', 'value' => '', 'type' => 'string'],
+            ['name' => 'portal_primary_color', 'value' => '#667eea', 'type' => 'string'],
+            ['name' => 'portal_secondary_color', 'value' => '#764ba2', 'type' => 'string'],
         ];
 
         foreach ($configs as $config) {

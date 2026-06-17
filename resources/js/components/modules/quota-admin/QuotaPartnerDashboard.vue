@@ -3,9 +3,12 @@
         <div class="dashboard-header">
             <div class="container">
                 <div class="d-flex justify-content-between align-items-center py-3">
-                    <div>
-                        <h4 class="mb-0 text-white">Bienvenido, {{ user?.first_name }}</h4>
-                        <small class="text-white-50">DNI: {{ user?.dni }}</small>
+                    <div class="d-flex align-items-center gap-3">
+                        <img v-if="portalLogo" :src="portalLogo" style="height: 40px;">
+                        <div>
+                            <h4 class="mb-0 text-white">Bienvenido, {{ user?.first_name }}</h4>
+                            <small class="text-white-50">DNI: {{ user?.dni }}</small>
+                        </div>
                     </div>
                     <div class="dropdown">
                         <button class="btn btn-outline-light btn-sm dropdown-toggle" data-bs-toggle="dropdown" title="Perfil">
@@ -162,12 +165,17 @@ import { toast } from '../../../utils/toast';
 
 const emit = defineEmits(['logout']);
 
+const props = defineProps({
+    portalConfig: { type: Object, default: () => ({}) },
+});
+
 const user = ref(null);
 const quotas = ref([]);
 const summary = ref({ total: 0, paid: 0, pending: 0, total_pending_amount: 0 });
 const selectedQuotas = ref([]);
 const loading = ref(true);
 const mpProcessing = ref(false);
+const portalLogo = ref('');
 const showProfileModal = ref(false);
 const profile = ref({ phone: '' });
 const passwordForm = ref({ current: '', new_pass: '' });
@@ -322,7 +330,10 @@ const logout = () => {
     emit('logout');
 };
 
-onMounted(loadData);
+onMounted(() => {
+    portalLogo.value = props.portalConfig?.logo || '';
+    loadData();
+});
 </script>
 
 <style scoped>
@@ -332,7 +343,7 @@ onMounted(loadData);
     background: #f0f2f5;
 }
 .dashboard-header {
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    background: linear-gradient(135deg, var(--portal-primary, #667eea) 0%, var(--portal-secondary, #764ba2) 100%);
 }
 .sortable { cursor: pointer; user-select: none; white-space: nowrap; }
 .sortable:hover { background-color: rgba(0,0,0,0.05); }

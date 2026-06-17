@@ -18,10 +18,10 @@ class ConfigSeeder extends Seeder
         ];
 
         foreach ($configs as $config) {
-            DB::table('quota_configs')->updateOrInsert(
-                ['name' => $config['name']],
-                array_merge($config, ['created_at' => now(), 'updated_at' => now()])
-            );
+            $existing = DB::table('quota_configs')->where('name', $config['name'])->first();
+            if (!$existing) {
+                DB::table('quota_configs')->insert(array_merge($config, ['created_at' => now(), 'updated_at' => now()]));
+            }
         }
 
         if ($this->command) {

@@ -146,8 +146,6 @@ class QuotaAdminSeeder extends Seeder
 
     protected function seedModules(): void
     {
-        DB::table('modules')->where('package', 'quota_admin')->delete();
-
         $modules = [
             ['name' => 'Menu', 'route' => 'menu', 'icon' => 'bi-list', 'description' => 'Menú principal', 'is_special' => true, 'order' => 0, 'package' => null],
             ['name' => 'Dashboard', 'route' => 'quota-dashboard', 'icon' => 'bi-speedometer2', 'description' => 'Dashboard de cuotas', 'is_special' => true, 'order' => 0, 'package' => 'quota_admin'],

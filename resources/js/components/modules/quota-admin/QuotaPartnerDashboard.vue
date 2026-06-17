@@ -118,15 +118,12 @@
                         </div>
                     </div>
                     <div class="card-footer text-end">
-                        <button class="btn btn-primary" @click="paySelected" :disabled="!selectedQuotas.length">
-                            <i class="bi bi-wallet2 me-1"></i> Pagar ${{ formatNumber(totalSelectedAmount) }} con MercadoPago
+                        <button class="btn btn-primary" @click="paySelected" :disabled="!selectedQuotas.length || mpProcessing">
+                            <span v-if="mpProcessing" class="spinner-border spinner-border-sm me-1"></span>
+                            <i v-else class="bi bi-wallet2 me-1"></i>
+                            {{ mpProcessing ? 'Aguarde...' : 'Pagar $' + formatNumber(totalSelectedAmount) + ' con MercadoPago' }}
                         </button>
                     </div>
-                </div>
-
-                <div v-if="mpProcessing" class="mt-3 text-center">
-                    <div class="spinner-border text-primary"></div>
-                    <p class="mt-2">Redirigiendo a MercadoPago...</p>
                 </div>
 
                 <div v-if="showProfileModal" class="modal fade show d-block" tabindex="-1"

@@ -80,10 +80,11 @@ onMounted(() => {
 .portal-bg {
     position: absolute;
     inset: 0;
-    background-size: cover;
+    background-size: contain;
     background-position: center;
     background-repeat: no-repeat;
-    opacity: 0.25;
+    background-color: red;
+    opacity: 1;
     z-index: 0;
     pointer-events: none;
 }

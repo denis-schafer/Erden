@@ -35,6 +35,6 @@ body {
 html, body {
     overscroll-behavior: none;
 }
-input, select, textarea, button {
+.form-control, .form-select, .form-check-input, input, select, textarea, button {
     font-size: 16px;
 }

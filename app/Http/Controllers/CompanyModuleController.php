@@ -208,7 +208,7 @@ class CompanyModuleController extends Controller
             'permissions', 'role_user', 'model_has_permissions', 'model_has_roles',
             'role_has_permissions', 'modules', 'users', 'roles',
             'pos_orders', 'pos_status_orders', 'pos_configs', 'pos_products', 'pos_categories',
-            'pos_permissions', 'pos_modules', 'pos_users', 'pos_roles', 'migrations'
+            'pos_permissions', 'pos_modules', 'pos_users', 'pos_roles',
         ];
         
         try {
@@ -223,6 +223,8 @@ class CompanyModuleController extends Controller
             }
             
             DB::statement('SET FOREIGN_KEY_CHECKS=1');
+
+            $this->deleteMigrationRecords('app/Packages/Pos/Migrations');
             
             Log::info('[CompanyModuleController] uninstallPosPackage: Tablas POS eliminadas (incluyendo migrations)');
         } catch (\Exception $e) {
@@ -440,6 +442,8 @@ class CompanyModuleController extends Controller
 
             DB::statement('SET FOREIGN_KEY_CHECKS=1');
 
+            $this->deleteMigrationRecords('app/Packages/QuotaAdmin/Migrations');
+
             Log::info('[CompanyModuleController] uninstallQuotaAdminPackage: Tablas quota_* eliminadas');
         } catch (\Exception $e) {
             try { DB::statement('SET FOREIGN_KEY_CHECKS=1'); } catch (\Exception $e2) {}
@@ -562,6 +566,8 @@ class CompanyModuleController extends Controller
 
             DB::statement('SET FOREIGN_KEY_CHECKS=1');
 
+            $this->deleteMigrationRecords('app/Packages/HairSalon/Migrations');
+
             Log::info('[CompanyModuleController] uninstallHairSalonPackage: Tablas hairsalon_* eliminadas');
         } catch (\Exception $e) {
             try { DB::statement('SET FOREIGN_KEY_CHECKS=1'); } catch (\Exception $e2) {}
@@ -604,6 +610,22 @@ class CompanyModuleController extends Controller
         }
 
         Log::info('[CompanyModuleController] runHairSalonMigrations: FIN');
+    }
+
+    protected function deleteMigrationRecords(string $migrationsPath): void
+    {
+        $fullPath = base_path($migrationsPath);
+        if (!is_dir($fullPath)) return;
+
+        $files = glob($fullPath . '/*.php');
+        foreach ($files as $file) {
+            $migrationName = basename($file, '.php');
+            try {
+                DB::table('migrations')->where('migration', $migrationName)->delete();
+            } catch (\Exception $e) {
+                Log::warning('[CompanyModuleController] deleteMigrationRecords: Error deleting ' . $migrationName . ': ' . $e->getMessage());
+            }
+        }
     }
 
     protected function runHairSalonSeeders(Company $company): void

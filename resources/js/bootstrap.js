@@ -65,6 +65,12 @@ const initWebSockets = async () => {
             }));
         });
 
+        usersChannel.listen('.ModulesReordered', (event) => {
+            window.dispatchEvent(new CustomEvent('modules-reordered', {
+                detail: { userId: event.userId, orders: event.orders }
+            }));
+        });
+
         usersChannel.listen('.OrderPaid', (event) => {
             console.log('[Echo] OrderPaid received on users channel:', JSON.stringify(event));
             window.dispatchEvent(new CustomEvent('order-paid', {

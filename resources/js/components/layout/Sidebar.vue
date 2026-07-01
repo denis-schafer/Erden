@@ -317,6 +317,13 @@ onMounted(() => {
     window.addEventListener('hairsalon-config-updated', () => { loadTheme(); });
     window.addEventListener('quota-config-updated', () => { loadTheme(); });
     window.addEventListener('pos-config-updated', () => { loadTheme(); });
+    window.addEventListener('modules-reordered', (event) => {
+        const { userId, orders } = event.detail;
+        if (userId !== authStore.user?.id) return;
+        const ordered = orders.map(o => authStore.modules.find(m => m.route === o.route)).filter(Boolean);
+        const others = authStore.modules.filter(m => !ordered.includes(m));
+        authStore.modules = [...others.filter(m => m.route === 'menu'), ...ordered, ...others.filter(m => m.route !== 'menu' && !ordered.includes(m))];
+    });
 });
 </script>
 

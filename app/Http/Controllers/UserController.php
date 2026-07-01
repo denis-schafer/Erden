@@ -7,6 +7,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Str;
+use App\Events\ModulesReordered;
 use App\Models\GlobalUser;
 
 class UserController extends Controller
@@ -253,6 +254,12 @@ class UserController extends Controller
             return ($orderMap[$a['route'] ?? ''] ?? 999) - ($orderMap[$b['route'] ?? ''] ?? 999);
         });
         $request->session()->put('modules', $sessionModules);
+
+        try {
+            broadcast(new ModulesReordered($userId, $validated['modules']));
+        } catch (\Exception $e) {
+            \Log::warning('Broadcast ModulesReordered failed: ' . $e->getMessage());
+        }
 
         return response()->json(['success' => true]);
     }

@@ -329,12 +329,14 @@ $request->session()->put('user', [
             return response()->json(['authenticated' => false]);
         }
 
+        $modules = $this->applyUserModuleOrder($request->session()->get('modules', []));
+
         return response()->json([
             'authenticated' => true,
             'user' => $user,
             'company' => $company,
             'permissions' => $request->session()->get('permissions', []),
-            'modules' => $request->session()->get('modules', []),
+            'modules' => $modules,
             'is_global_admin' => $request->session()->get('is_global_admin', false),
             'is_parent_db' => $request->session()->get('is_parent_db', false)
         ]);

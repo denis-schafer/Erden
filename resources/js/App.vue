@@ -24,6 +24,7 @@
 <script setup>
 import { ref, computed, onMounted, provide } from 'vue';
 import { useAuthStore } from './stores/auth';
+import api from './services/api';
 import Login from './components/modules/Login.vue';
 import CompanySelector from './components/modules/CompanySelector.vue';
 import MainLayout from './components/layout/MainLayout.vue';
@@ -97,6 +98,16 @@ const handleCompanySelected = () => {
             authStore.permissions = JSON.parse(localStorage.getItem('permissions') || '[]');
             authStore.isGlobalAdmin = localStorage.getItem('isGlobalAdmin') === 'true';
             authStore.isParentDb = localStorage.getItem('isParentDb') === 'true';
+            
+            // Sync fresh module order from server in background
+            setTimeout(() => {
+                api.get('/session').then(res => {
+                    if (res.data?.modules) {
+                        authStore.modules = res.data.modules;
+                        localStorage.setItem('modules', JSON.stringify(res.data.modules));
+                    }
+                }).catch(() => {});
+            }, 500);
         }
     });
 </script>

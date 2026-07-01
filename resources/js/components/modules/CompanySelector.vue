@@ -1,12 +1,5 @@
 <template>
     <div class="company-selector-container">
-        <div class="smoke-bubble bubble-1"></div>
-        <div class="smoke-bubble bubble-2"></div>
-
-        <svg class="waves" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1440 320" preserveAspectRatio="none">
-            <path class="wave-1" fill="rgba(255,255,255,0.04)" d="M0,224L48,213.3C96,203,192,181,288,181.3C384,181,480,203,576,218.7C672,235,768,245,864,229.3C960,213,1056,171,1152,154.7C1248,139,1344,149,1392,154.7L1440,160L1440,320L1392,320C1344,320,1248,320,1152,320C1056,320,960,320,864,320C768,320,672,320,576,320C480,320,384,320,288,320C192,320,96,320,48,320L0,320Z"></path>
-        </svg>
-
         <div class="selector-card">
             <div class="selector-header">
                 <div class="selector-logo" v-html="logoSvg"></div>
@@ -155,121 +148,54 @@ const logout = async () => {
     display: flex;
     align-items: center;
     justify-content: center;
-    position: relative;
-    overflow: hidden;
-    background: linear-gradient(135deg, #0d2137 0%, #1a6d91 50%, #2391c1 100%);
-    background-size: 400% 400%;
-    animation: gradientShift 20s ease infinite;
-}
-
-@keyframes gradientShift {
-    0% { background-position: 0% 50%; }
-    25% { background-position: 100% 0%; }
-    50% { background-position: 100% 100%; }
-    75% { background-position: 0% 100%; }
-    100% { background-position: 0% 50%; }
-}
-
-.smoke-bubble {
-    position: absolute;
-    border-radius: 50%;
-    filter: blur(80px);
-    pointer-events: none;
-    z-index: 0;
-}
-
-.bubble-1 {
-    width: 400px;
-    height: 400px;
-    background: radial-gradient(circle, rgba(77,184,232,0.12) 0%, transparent 70%);
-    top: -100px;
-    right: -80px;
-    animation: float1 25s ease-in-out infinite;
-}
-
-.bubble-2 {
-    width: 350px;
-    height: 350px;
-    background: radial-gradient(circle, rgba(255,255,255,0.05) 0%, transparent 70%);
-    bottom: -80px;
-    left: -60px;
-    animation: float2 30s ease-in-out infinite;
-}
-
-@keyframes float1 {
-    0%, 100% { transform: translate(0, 0) scale(1); }
-    50% { transform: translate(-40px, 30px) scale(1.1); }
-}
-
-@keyframes float2 {
-    0%, 100% { transform: translate(0, 0) scale(1); }
-    50% { transform: translate(50px, -40px) scale(0.9); }
-}
-
-.waves {
-    position: absolute;
-    bottom: 0;
-    left: 0;
-    width: 100%;
-    height: 150px;
-    z-index: 0;
-    pointer-events: none;
-}
-
-.wave-1 {
-    animation: waveAnim 10s ease-in-out infinite alternate;
-}
-
-@keyframes waveAnim {
-    0% { transform: translateX(0); }
-    100% { transform: translateX(-40px); }
+    padding: 1.5rem;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
 }
 
 .selector-card {
     width: 100%;
     max-width: 420px;
-    border-radius: 20px;
-    overflow: hidden;
-    box-shadow: 0 25px 80px rgba(0,0,0,0.35);
-    animation: cardEnter 0.6s ease-out;
-    position: relative;
-    z-index: 1;
+    background: #fff;
+    border-radius: 12px;
+    box-shadow: 0 10px 40px rgba(0,0,0,0.15);
+    animation: cardEnter 0.5s ease-out;
 }
 
 @keyframes cardEnter {
-    from { opacity: 0; transform: translateY(40px) scale(0.96); }
-    to { opacity: 1; transform: translateY(0) scale(1); }
+    from { opacity: 0; transform: translateY(20px); }
+    to { opacity: 1; transform: translateY(0); }
 }
 
 .selector-header {
     background: linear-gradient(135deg, #0a1628 0%, #1a4a6e 50%, #1a6d91 100%);
-    padding: 2.5rem 2rem 2rem;
+    padding: 0.5rem 2rem;
     text-align: center;
+    line-height: 0;
+    border-radius: 12px 12px 0 0;
 }
 
 .selector-logo {
     display: flex;
     justify-content: center;
     align-items: center;
-    min-height: 40px;
 }
 
 .selector-logo svg {
     display: block;
     width: 100%;
-    max-width: 160px;
+    max-width: 140px;
     height: auto;
-    margin: 0;
+    margin-top: 5px;
 }
 
 .selector-body {
-    background: #fff;
     padding: 2rem;
+    border-radius: 0 0 12px 12px;
 }
 
 .selector-subtitle {
     color: #6c757d;
-    font-size: 0.95rem;
+    font-size: 0.9rem;
     text-align: center;
     margin-bottom: 1.5rem;
 }

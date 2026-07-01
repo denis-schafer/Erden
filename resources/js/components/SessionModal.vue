@@ -42,7 +42,11 @@ const formattedTime = computed(() => {
 
 const extendSession = async () => {
     try {
-        await api.post('/refresh-session');
+        const r = await api.post('/refresh-session');
+        if (r.data?.expires_at) {
+            const expiresAt = new Date(r.data.expires_at).getTime();
+            localStorage.setItem('session_expiry', expiresAt.toString());
+        }
         resetCountdown();
     } catch (error) {
         console.error('Error extending session:', error);

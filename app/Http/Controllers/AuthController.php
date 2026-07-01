@@ -456,11 +456,7 @@ private function getPermissions($globalUser)
             $hasPackageColumn = Schema::hasColumn('modules', 'package');
             $modules = DB::table('modules')->orderBy('order')->get();
             
-            file_put_contents(storage_path('logs/debug.log'), 
-                "[" . date('Y-m-d H:i:s') . "] getLocalModules: found " . count($modules) . " modules\n", 
-                FILE_APPEND);
-            
-            return $modules->map(function($item) use ($hasPackageColumn) {
+            $result = $modules->map(function($item) use ($hasPackageColumn) {
                 return [
                     'id' => $item->id,
                     'name' => $item->name,
@@ -472,6 +468,10 @@ private function getPermissions($globalUser)
                     'package' => $hasPackageColumn ? ($item->package ?? 'pos') : 'pos'
                 ];
             })->toArray();
+            
+            $result = $this->applyUserModuleOrder($result);
+            
+            return $result;
         } catch (\Exception $e) {
             file_put_contents(storage_path('logs/debug.log'), 
                 "[" . date('Y-m-d H:i:s') . "] getLocalModules error: " . $e->getMessage() . "\n", 
@@ -498,6 +498,44 @@ private function getPermissions($globalUser)
                 'order' => $item->order
             ];
         })->toArray();
+    }
+
+    private function applyUserModuleOrder(array $modules): array
+    {
+        $userId = session('user.id');
+        if (!$userId) return $modules;
+
+        try {
+            if (!Schema::hasTable('user_module_orders')) return $modules;
+
+            $orders = DB::table('user_module_orders')
+                ->where('user_id', $userId)
+                ->orderBy('sort_order')
+                ->pluck('sort_order', 'module_route')
+                ->toArray();
+
+            if (empty($orders)) return $modules;
+
+            // Assign custom order, keeping default order for unconfigured modules
+            $ordered = [];
+            $remaining = [];
+
+            foreach ($modules as $m) {
+                if (isset($orders[$m['route']])) {
+                    $ordered[] = $m;
+                } else {
+                    $remaining[] = $m;
+                }
+            }
+
+            usort($ordered, function ($a, $b) use ($orders) {
+                return ($orders[$a['route']] ?? 0) - ($orders[$b['route']] ?? 0);
+            });
+
+            return array_merge($ordered, $remaining);
+        } catch (\Exception $e) {
+            return $modules;
+        }
     }
 
     private function getPermissionsFromRole($role)

@@ -46,6 +46,24 @@ class ModuleInstall extends Command
             'migrations_path' => 'app/Packages/QuotaAdmin/Migrations',
             'seeder_class' => 'App\Packages\QuotaAdmin\Seeders\QuotaAdminSeeder',
         ],
+        'hairsalon' => [
+            'name' => 'Peluquería',
+            'modules' => [
+                ['name' => 'Menu', 'route' => 'menu', 'icon' => 'bi-list', 'is_special' => 1, 'order' => 0, 'package' => null],
+                ['name' => 'Dashboard', 'route' => 'hairsalon-dashboard', 'icon' => 'bi-speedometer2', 'is_special' => 1, 'order' => 0, 'package' => 'hairsalon'],
+                ['name' => 'Clientes', 'route' => 'hairsalon-clients', 'icon' => 'bi-people', 'is_special' => 0, 'order' => 1, 'package' => 'hairsalon'],
+                ['name' => 'Servicios', 'route' => 'hairsalon-services', 'icon' => 'bi-scissors', 'is_special' => 0, 'order' => 2, 'package' => 'hairsalon'],
+                ['name' => 'Caja', 'route' => 'hairsalon-cashier', 'icon' => 'bi-cart3', 'is_special' => 0, 'order' => 3, 'package' => 'hairsalon'],
+                ['name' => 'Finanzas', 'route' => 'hairsalon-finances', 'icon' => 'bi-cash-stack', 'is_special' => 0, 'order' => 4, 'package' => 'hairsalon'],
+                ['name' => 'Productos', 'route' => 'hairsalon-products', 'icon' => 'bi-box-seam', 'is_special' => 0, 'order' => 5, 'package' => 'hairsalon'],
+                ['name' => 'Usuarios', 'route' => 'hairsalon-users', 'icon' => 'bi-person-badge', 'is_special' => 0, 'order' => 6, 'package' => 'hairsalon'],
+                ['name' => 'Estadísticas', 'route' => 'hairsalon-statistics', 'icon' => 'bi-bar-chart', 'is_special' => 0, 'order' => 7, 'package' => 'hairsalon'],
+                ['name' => 'Log', 'route' => 'hairsalon-log', 'icon' => 'bi-journal-text', 'is_special' => 0, 'order' => 8, 'package' => 'hairsalon'],
+                ['name' => 'Configuración', 'route' => 'hairsalon-config', 'icon' => 'bi-sliders', 'is_special' => 0, 'order' => 9, 'package' => 'hairsalon'],
+            ],
+            'migrations_path' => 'app/Packages/HairSalon/Migrations',
+            'seeder_class' => 'App\Packages\HairSalon\Seeders\HairSalonSeeder',
+        ],
     ];
 
     public function handle(): int
@@ -169,6 +187,18 @@ class ModuleInstall extends Command
             '2026_04_07_000006_create_orders_table' => ['pos_orders'],
             '2026_04_07_000007_create_modules_table' => ['modules'],
             '2026_04_07_000008_create_permissions_table' => ['pos_permissions'],
+            '2026_06_24_000001_create_hairsalon_configs_table' => ['hairsalon_configs'],
+            '2026_06_24_000002_create_hairsalon_clients_table' => ['hairsalon_clients'],
+            '2026_06_24_000003_create_hairsalon_service_categories_table' => ['hairsalon_service_categories'],
+            '2026_06_24_000004_create_hairsalon_services_table' => ['hairsalon_services'],
+            '2026_06_24_000005_create_hairsalon_jobs_table' => ['hairsalon_jobs'],
+            '2026_06_24_000006_create_hairsalon_job_services_table' => ['hairsalon_job_services'],
+            '2026_06_24_000007_create_hairsalon_cash_movements_table' => ['hairsalon_cash_movements'],
+            '2026_06_24_000008_create_hairsalon_cash_registers_table' => ['hairsalon_cash_registers'],
+            '2026_06_24_000009_create_hairsalon_products_table' => ['hairsalon_products'],
+            '2026_06_24_000010_create_hairsalon_stock_movements_table' => ['hairsalon_stock_movements'],
+            // 000011 is ALTER TABLE, not CREATE - excluded intentionally
+            '2026_06_24_000014_create_hairsalon_appointments_table' => ['hairsalon_appointments'],
         ];
         
         if (!isset($tablesMap[$migrationName])) {

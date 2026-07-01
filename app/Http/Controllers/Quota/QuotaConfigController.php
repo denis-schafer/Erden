@@ -3,12 +3,14 @@
 namespace App\Http\Controllers\Quota;
 
 use App\Http\Controllers\Controller;
+use App\Events\QuotaConfigUpdated;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 
 class QuotaConfigController extends Controller
 {
@@ -30,8 +32,55 @@ class QuotaConfigController extends Controller
         ]);
 
         $config = DB::table('quota_configs')->where('id', $id)->first();
+        broadcast(new QuotaConfigUpdated($config));
 
-        return response()->json(['success' => true, 'message' => 'Configuración actualizada']);
+        return response()->json(['success' => true, 'config' => $config]);
+    }
+
+    public function upload(Request $request)
+    {
+        $validated = $request->validate([
+            'name' => 'required|string|in:portal_logo,portal_bg,logo,background_image',
+            'file' => 'required|image|max:2048',
+        ]);
+
+        $file = $request->file('file');
+        $filename = Str::slug(pathinfo($file->getClientOriginalName(), PATHINFO_FILENAME)) . '-' . time() . '.' . $file->getClientOriginalExtension();
+        $folder = in_array($validated['name'], ['logo', 'portal_logo']) ? 'logo' : 'background';
+        $dir = storage_path('app/public/quota/' . $folder);
+        if (!is_dir($dir)) {
+            mkdir($dir, 0755, true);
+        }
+        $file->move($dir, $filename);
+        $url = '/storage/quota/' . $folder . '/' . $filename;
+
+        DB::table('quota_configs')->updateOrInsert(
+            ['name' => $validated['name']],
+            ['value' => $url, 'type' => 'image', 'updated_at' => now(), 'created_at' => now()]
+        );
+
+        $config = DB::table('quota_configs')->where('name', $validated['name'])->first();
+        broadcast(new QuotaConfigUpdated($config));
+
+        return response()->json(['success' => true, 'url' => $url]);
+    }
+
+    public function deleteImage(Request $request, $id)
+    {
+        $config = DB::table('quota_configs')->find($id);
+        if (!$config) {
+            return response()->json(['message' => 'Config no encontrada'], 404);
+        }
+
+        DB::table('quota_configs')->where('id', $id)->update([
+            'value' => '',
+            'updated_at' => now(),
+        ]);
+
+        $config = DB::table('quota_configs')->find($id);
+        broadcast(new QuotaConfigUpdated($config));
+
+        return response()->json(['success' => true]);
     }
 
     public function getMpOAuthUrl(Request $request)
@@ -110,27 +159,6 @@ class QuotaConfigController extends Controller
             'bg' => $configs['portal_bg'] ?? '',
             'primary_color' => $configs['portal_primary_color'] ?? '#667eea',
             'secondary_color' => $configs['portal_secondary_color'] ?? '#764ba2',
-        ]);
-    }
-
-    public function upload(Request $request)
-    {
-        $validated = $request->validate([
-            'name' => 'required|string|in:portal_logo,portal_bg',
-            'file' => 'required|image|max:2048',
-        ]);
-
-        $path = $request->file('file')->store('portal', 'public');
-
-        DB::table('quota_configs')->updateOrInsert(
-            ['name' => $validated['name']],
-            ['value' => Storage::url($path), 'type' => 'string', 'updated_at' => now(), 'created_at' => now()]
-        );
-
-        return response()->json([
-            'success' => true,
-            'url' => Storage::url($path),
-            'message' => 'Imagen subida correctamente',
         ]);
     }
 

@@ -64,6 +64,7 @@ Route::get('/debug-session', function () {
 Route::middleware(['web', 'setDatabase'])->group(function () {
     Route::get('/session', [AuthController::class, 'getSession']);
     Route::put('/profile', [UserController::class, 'profile']);
+    Route::post('/user/modules/reorder', [App\Http\Controllers\UserController::class, 'reorderModules']);
     
     Route::middleware(['permission:admin-modules'])->group(function () {
         Route::resource('admin/modules', ModuleController::class)->parameters(['modules' => 'id']);
@@ -159,7 +160,10 @@ Route::middleware(['web', 'setDatabase'])->group(function () {
         Route::post('/terminals/{id}/set-mode', [App\Http\Controllers\Pos\PosUserController::class, 'setTerminalMode']);
         
         Route::get('/configs', [App\Http\Controllers\Pos\PosConfigController::class, 'index']);
+        Route::post('/configs', [App\Http\Controllers\Pos\PosConfigController::class, 'store']);
         Route::put('/configs/{id}', [App\Http\Controllers\Pos\PosConfigController::class, 'update']);
+        Route::post('/config/upload', [App\Http\Controllers\Pos\PosConfigController::class, 'upload']);
+        Route::post('/configs/{id}/delete-image', [App\Http\Controllers\Pos\PosConfigController::class, 'deleteImage']);
 
         // Test mode
         Route::get('/test-mode/status', [App\Http\Controllers\Pos\PosTestModeController::class, 'status']);
@@ -225,6 +229,12 @@ Route::middleware(['web', 'setDatabase'])->group(function () {
         Route::get('/', [App\Http\Controllers\Pos\PosConfigController::class, 'webhookCode']);
         Route::put('/', [App\Http\Controllers\Pos\PosConfigController::class, 'updateWebhookCode']);
     });
+
+    // Session refresh - debe estar dentro del grupo web+setDatabase para tener sesión activa
+    Route::post('/refresh-session', function () {
+        session()->put('last_activity', now());
+        return response()->json(['success' => true, 'expires_at' => now()->addMinutes(config('session.lifetime'))]);
+    })->middleware('auth');
 });
 
 // Sync Push API (autenticado por API key, fuera del grupo SPA para evitar CSRF)
@@ -242,11 +252,6 @@ Route::prefix('pos')->middleware('printAgentAuth')->group(function () {
 Route::get('/configs', [App\Http\Controllers\ConfigController::class, 'index']);
 Route::put('/configs/{id}', [App\Http\Controllers\ConfigController::class, 'update']);
 Route::get('/configs/target/{target}', [App\Http\Controllers\ConfigController::class, 'getByTarget']);
-
-Route::post('/refresh-session', function () {
-    session()->put('last_activity', now());
-    return response()->json(['success' => true, 'expires_at' => now()->addMinutes(config('session.lifetime'))]);
-})->middleware('auth');
 
 // ==================== Quota Admin Routes ====================
 Route::middleware(['web', 'setDatabase'])->prefix('quota')->group(function () {
@@ -292,6 +297,7 @@ Route::middleware(['web', 'setDatabase'])->prefix('quota')->group(function () {
     Route::get('/config/mp-oauth-url', [\App\Http\Controllers\Quota\QuotaConfigController::class, 'getMpOAuthUrl'])->middleware('permission:quota-config_update');
     Route::get('/config/cashiers', [\App\Http\Controllers\Quota\QuotaConfigController::class, 'cashiers'])->middleware('permission:quota-config_read');
     Route::post('/config/upload', [\App\Http\Controllers\Quota\QuotaConfigController::class, 'upload'])->middleware('permission:quota-config_update');
+    Route::post('/config/{id}/delete-image', [\App\Http\Controllers\Quota\QuotaConfigController::class, 'deleteImage'])->middleware('permission:quota-config_update');
     Route::get('/config/mp-client-id', [\App\Http\Controllers\Quota\QuotaConfigController::class, 'getMpClientId']);
 
     Route::middleware(['permission:quota-users_read'])->group(function () {
@@ -346,6 +352,71 @@ Route::middleware(['web', 'setDatabase'])->prefix('asociados')->group(function (
 Route::get('/oauth/lookup', [\App\Http\Controllers\OAuthController::class, 'lookup']);
 Route::get('/oauth/authorize', [\App\Http\Controllers\OAuthController::class, 'authorizeUrl']);
 Route::post('/oauth/assign', [\App\Http\Controllers\OAuthController::class, 'assign']);
+
+// ==================== HairSalon Routes ====================
+Route::middleware(['web', 'setDatabase'])->prefix('hairsalon')->group(function () {
+    Route::get('/dashboard', [\App\Http\Controllers\HairSalon\HairSalonDashboardController::class, 'index'])->middleware('permission:hairsalon-dashboard_read');
+
+    Route::get('/clients', [\App\Http\Controllers\HairSalon\HairSalonClientController::class, 'index'])->middleware('permission:hairsalon-clients_read');
+    Route::post('/clients', [\App\Http\Controllers\HairSalon\HairSalonClientController::class, 'store'])->middleware('permission:hairsalon-clients_create');
+    Route::put('/clients/{id}', [\App\Http\Controllers\HairSalon\HairSalonClientController::class, 'update'])->middleware('permission:hairsalon-clients_update');
+    Route::delete('/clients/{id}', [\App\Http\Controllers\HairSalon\HairSalonClientController::class, 'destroy'])->middleware('permission:hairsalon-clients_delete');
+    Route::get('/clients/{id}/jobs', [\App\Http\Controllers\HairSalon\HairSalonClientController::class, 'jobs'])->middleware('permission:hairsalon-clients_read');
+
+    Route::get('/services', [\App\Http\Controllers\HairSalon\HairSalonServiceController::class, 'index'])->middleware('permission:hairsalon-services_read');
+    Route::post('/services', [\App\Http\Controllers\HairSalon\HairSalonServiceController::class, 'store'])->middleware('permission:hairsalon-services_create');
+    Route::put('/services/{id}', [\App\Http\Controllers\HairSalon\HairSalonServiceController::class, 'update'])->middleware('permission:hairsalon-services_update');
+    Route::delete('/services/{id}', [\App\Http\Controllers\HairSalon\HairSalonServiceController::class, 'destroy'])->middleware('permission:hairsalon-services_delete');
+    Route::get('/services/categories', [\App\Http\Controllers\HairSalon\HairSalonServiceController::class, 'categories']);
+    Route::post('/services/categories', [\App\Http\Controllers\HairSalon\HairSalonServiceController::class, 'storeCategory']);
+    Route::put('/services/categories/{id}', [\App\Http\Controllers\HairSalon\HairSalonServiceController::class, 'updateCategory']);
+    Route::delete('/services/categories/{id}', [\App\Http\Controllers\HairSalon\HairSalonServiceController::class, 'destroyCategory']);
+
+    Route::post('/cashier', [\App\Http\Controllers\HairSalon\HairSalonCashierController::class, 'store'])->middleware('permission:hairsalon-cashier_create');
+    Route::get('/cashier/{id}', [\App\Http\Controllers\HairSalon\HairSalonCashierController::class, 'show'])->middleware('permission:hairsalon-cashier_read');
+    Route::get('/cashier/user', [\App\Http\Controllers\HairSalon\HairSalonCashierController::class, 'currentUser']);
+
+    Route::get('/finances', [\App\Http\Controllers\HairSalon\HairSalonFinanceController::class, 'index'])->middleware('permission:hairsalon-finances_read');
+    Route::get('/finances/summary', [\App\Http\Controllers\HairSalon\HairSalonFinanceController::class, 'summary'])->middleware('permission:hairsalon-finances_read');
+    Route::get('/finances/{id}', [\App\Http\Controllers\HairSalon\HairSalonFinanceController::class, 'show'])->middleware('permission:hairsalon-finances_read');
+    Route::post('/finances/expenses', [\App\Http\Controllers\HairSalon\HairSalonFinanceController::class, 'storeExpense'])->middleware('permission:hairsalon-finances_read');
+
+    Route::get('/products', [\App\Http\Controllers\HairSalon\HairSalonProductController::class, 'index'])->middleware('permission:hairsalon-products_read');
+    Route::post('/products', [\App\Http\Controllers\HairSalon\HairSalonProductController::class, 'store'])->middleware('permission:hairsalon-products_create');
+    Route::put('/products/{id}', [\App\Http\Controllers\HairSalon\HairSalonProductController::class, 'update'])->middleware('permission:hairsalon-products_update');
+    Route::delete('/products/{id}', [\App\Http\Controllers\HairSalon\HairSalonProductController::class, 'destroy'])->middleware('permission:hairsalon-products_delete');
+    Route::post('/products/{id}/stock', [\App\Http\Controllers\HairSalon\HairSalonProductController::class, 'adjustStock']);
+    Route::get('/products/{id}/movements', [\App\Http\Controllers\HairSalon\HairSalonProductController::class, 'movements']);
+
+    Route::get('/config', [\App\Http\Controllers\HairSalon\HairSalonConfigController::class, 'index'])->middleware('permission:hairsalon-config_read');
+    Route::put('/config/{id}', [\App\Http\Controllers\HairSalon\HairSalonConfigController::class, 'update'])->middleware('permission:hairsalon-config_update');
+    Route::post('/config/upload', [\App\Http\Controllers\HairSalon\HairSalonConfigController::class, 'upload'])->middleware('permission:hairsalon-config_update');
+
+    Route::middleware(['permission:hairsalon-statistics_read'])->group(function () {
+        Route::get('/statistics/summary', [\App\Http\Controllers\HairSalon\HairSalonStatisticsController::class, 'summary']);
+        Route::get('/statistics/sales-by-period', [\App\Http\Controllers\HairSalon\HairSalonStatisticsController::class, 'salesByPeriod']);
+        Route::get('/statistics/services-by-interval', [\App\Http\Controllers\HairSalon\HairSalonStatisticsController::class, 'servicesByInterval']);
+        Route::get('/statistics/export', [\App\Http\Controllers\HairSalon\HairSalonStatisticsController::class, 'export'])->middleware('permission:hairsalon-statistics_export');
+    });
+
+    Route::middleware(['permission:hairsalon-log_read'])->group(function () {
+        Route::get('/log', [\App\Http\Controllers\HairSalon\HairSalonLogController::class, 'index']);
+        Route::get('/log/entries', [\App\Http\Controllers\HairSalon\HairSalonLogController::class, 'getLogs']);
+    });
+
+    Route::get('/appointments', [\App\Http\Controllers\HairSalon\HairSalonAppointmentController::class, 'index'])->middleware('permission:hairsalon-appointments_read');
+    Route::post('/appointments', [\App\Http\Controllers\HairSalon\HairSalonAppointmentController::class, 'store'])->middleware('permission:hairsalon-appointments_create');
+    Route::put('/appointments/{id}', [\App\Http\Controllers\HairSalon\HairSalonAppointmentController::class, 'update'])->middleware('permission:hairsalon-appointments_update');
+    Route::patch('/appointments/{id}/status', [\App\Http\Controllers\HairSalon\HairSalonAppointmentController::class, 'updateStatus'])->middleware('permission:hairsalon-appointments_update');
+    Route::delete('/appointments/{id}', [\App\Http\Controllers\HairSalon\HairSalonAppointmentController::class, 'destroy'])->middleware('permission:hairsalon-appointments_delete');
+
+    Route::get('/users', [\App\Http\Controllers\HairSalon\HairSalonUserController::class, 'index'])->middleware('permission:hairsalon-users_read');
+    Route::get('/users/roles', [\App\Http\Controllers\HairSalon\HairSalonUserController::class, 'roles']);
+    Route::post('/users', [\App\Http\Controllers\HairSalon\HairSalonUserController::class, 'store'])->middleware('permission:hairsalon-users_create');
+    Route::put('/users/{id}', [\App\Http\Controllers\HairSalon\HairSalonUserController::class, 'update'])->middleware('permission:hairsalon-users_update');
+    Route::post('/users/{id}/toggle-status', [\App\Http\Controllers\HairSalon\HairSalonUserController::class, 'toggleStatus']);
+    Route::delete('/users/{id}', [\App\Http\Controllers\HairSalon\HairSalonUserController::class, 'destroy'])->middleware('permission:hairsalon-users_delete');
+});
 
 // Portal SPA catch-all (must be after lookup-company)
 Route::get('/asociados/{name?}/{dni?}', [SpaController::class, 'index']);

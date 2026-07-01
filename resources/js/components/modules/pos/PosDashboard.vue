@@ -333,7 +333,12 @@ onUnmounted(() => {
     height: 100%;
     padding: 1rem;
     overflow-y: auto;
-    background: #f8f9fa;
+    background-color: #f8f9fa;
+    background-image: var(--bg-image, none);
+    background-position: center;
+    background-size: cover;
+    background-repeat: no-repeat;
+    background-attachment: fixed;
 }
 
 .stat-card {

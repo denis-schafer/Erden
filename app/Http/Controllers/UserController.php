@@ -213,4 +213,43 @@ class UserController extends Controller
             return response()->json(['message' => 'Perfil actualizado']);
         }
     }
+
+    public function reorderModules(Request $request)
+    {
+        $userId = session('user.id');
+        if (!$userId) {
+            return response()->json(['message' => 'Usuario no autenticado'], 401);
+        }
+
+        $validated = $request->validate([
+            'modules' => 'required|array',
+            'modules.*.route' => 'required|string|max:255',
+            'modules.*.order' => 'required|integer|min:0',
+        ]);
+
+        DB::table('user_module_orders')->where('user_id', $userId)->delete();
+
+        foreach ($validated['modules'] as $module) {
+            DB::table('user_module_orders')->insert([
+                'user_id' => $userId,
+                'module_route' => $module['route'],
+                'sort_order' => $module['order'],
+                'created_at' => now(),
+                'updated_at' => now(),
+            ]);
+        }
+
+        // Update session with new order
+        $sessionModules = $request->session()->get('modules', []);
+        $orderMap = [];
+        foreach ($validated['modules'] as $m) {
+            $orderMap[$m['route']] = $m['order'];
+        }
+        usort($sessionModules, function ($a, $b) use ($orderMap) {
+            return ($orderMap[$a['route'] ?? ''] ?? 999) - ($orderMap[$b['route'] ?? ''] ?? 999);
+        });
+        $request->session()->put('modules', $sessionModules);
+
+        return response()->json(['success' => true]);
+    }
 }

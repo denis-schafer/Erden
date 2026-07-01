@@ -1,21 +1,10 @@
 <template>
     <div class="login-container">
-        <div class="smoke-bubble bubble-1"></div>
-        <div class="smoke-bubble bubble-2"></div>
-        <div class="smoke-bubble bubble-3"></div>
-        <div class="smoke-bubble bubble-4"></div>
-
-        <svg class="waves" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1440 320" preserveAspectRatio="none">
-            <path class="wave-1" fill="rgba(255,255,255,0.04)" d="M0,224L48,213.3C96,203,192,181,288,181.3C384,181,480,203,576,218.7C672,235,768,245,864,229.3C960,213,1056,171,1152,154.7C1248,139,1344,149,1392,154.7L1440,160L1440,320L1392,320C1344,320,1248,320,1152,320C1056,320,960,320,864,320C768,320,672,320,576,320C480,320,384,320,288,320C192,320,96,320,48,320L0,320Z"></path>
-            <path class="wave-2" fill="rgba(255,255,255,0.03)" d="M0,192L48,181.3C96,171,192,149,288,138.7C384,128,480,128,576,138.7C672,149,768,171,864,165.3C960,160,1056,128,1152,117.3C1248,107,1344,117,1392,122.7L1440,128L1440,320L1392,320C1344,320,1248,320,1152,320C1056,320,960,320,864,320C768,320,672,320,576,320C480,320,384,320,288,320C192,320,96,320,48,320L0,320Z"></path>
-        </svg>
-
         <div class="login-card">
             <div class="login-header">
                 <div class="login-logo" v-html="logoSvg"></div>
             </div>
             <div class="login-body">
-                <p class="login-subtitle">Sistema de Gestión</p>
                 <form @submit.prevent="handleLogin">
                     <div class="form-group">
                         <label class="form-label">Usuario</label>
@@ -158,164 +147,54 @@ const handleLogin = async () => {
     display: flex;
     align-items: center;
     justify-content: center;
-    position: relative;
-    overflow: hidden;
-    background: linear-gradient(135deg, #0d2137 0%, #1a6d91 50%, #2391c1 100%);
-    background-size: 400% 400%;
-    animation: gradientShift 20s ease infinite;
-}
-
-@keyframes gradientShift {
-    0% { background-position: 0% 50%; }
-    25% { background-position: 100% 0%; }
-    50% { background-position: 100% 100%; }
-    75% { background-position: 0% 100%; }
-    100% { background-position: 0% 50%; }
-}
-
-.smoke-bubble {
-    position: absolute;
-    border-radius: 50%;
-    filter: blur(80px);
-    pointer-events: none;
-    z-index: 0;
-}
-
-.bubble-1 {
-    width: 500px;
-    height: 500px;
-    background: radial-gradient(circle, rgba(77,184,232,0.15) 0%, transparent 70%);
-    top: -150px;
-    right: -100px;
-    animation: float1 25s ease-in-out infinite;
-}
-
-.bubble-2 {
-    width: 400px;
-    height: 400px;
-    background: radial-gradient(circle, rgba(35,145,193,0.12) 0%, transparent 70%);
-    bottom: -100px;
-    left: -80px;
-    animation: float2 30s ease-in-out infinite;
-}
-
-.bubble-3 {
-    width: 300px;
-    height: 300px;
-    background: radial-gradient(circle, rgba(255,255,255,0.06) 0%, transparent 70%);
-    top: 40%;
-    left: 60%;
-    animation: float3 20s ease-in-out infinite;
-}
-
-.bubble-4 {
-    width: 350px;
-    height: 350px;
-    background: radial-gradient(circle, rgba(77,184,232,0.08) 0%, transparent 70%);
-    top: 20%;
-    left: 10%;
-    animation: float4 28s ease-in-out infinite;
-}
-
-@keyframes float1 {
-    0%, 100% { transform: translate(0, 0) scale(1); }
-    33% { transform: translate(60px, -40px) scale(1.1); }
-    66% { transform: translate(-30px, 30px) scale(0.9); }
-}
-
-@keyframes float2 {
-    0%, 100% { transform: translate(0, 0) scale(1); }
-    33% { transform: translate(-50px, -30px) scale(1.15); }
-    66% { transform: translate(40px, 20px) scale(0.85); }
-}
-
-@keyframes float3 {
-    0%, 100% { transform: translate(0, 0) scale(1); }
-    50% { transform: translate(-40px, 50px) scale(1.2); }
-}
-
-@keyframes float4 {
-    0%, 100% { transform: translate(0, 0) scale(1); }
-    50% { transform: translate(50px, -60px) scale(0.9); }
-}
-
-.waves {
-    position: absolute;
-    bottom: 0;
-    left: 0;
-    width: 100%;
-    height: 200px;
-    z-index: 0;
-    pointer-events: none;
-}
-
-.wave-1 {
-    animation: waveAnim 8s ease-in-out infinite alternate;
-}
-
-.wave-2 {
-    animation: waveAnim 12s ease-in-out infinite alternate-reverse;
-}
-
-@keyframes waveAnim {
-    0% { transform: translateX(0); }
-    100% { transform: translateX(-50px); }
+    padding: 1.5rem;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
 }
 
 .login-card {
     width: 100%;
     max-width: 420px;
-    border-radius: 20px;
+    background: #fff;
+    border-radius: 12px;
     overflow: hidden;
-    box-shadow: 0 25px 80px rgba(0,0,0,0.35);
-    animation: cardEnter 0.6s ease-out;
-    position: relative;
-    z-index: 1;
+    box-shadow: 0 10px 40px rgba(0,0,0,0.15);
+    animation: cardEnter 0.5s ease-out;
 }
 
 @keyframes cardEnter {
     from {
         opacity: 0;
-        transform: translateY(40px) scale(0.96);
+        transform: translateY(20px);
     }
     to {
         opacity: 1;
-        transform: translateY(0) scale(1);
+        transform: translateY(0);
     }
 }
 
 .login-header {
     background: linear-gradient(135deg, #0a1628 0%, #1a4a6e 50%, #1a6d91 100%);
-    padding: 2.5rem 2rem 2rem;
+    padding: 0.5rem 2rem;
     text-align: center;
-    position: relative;
+    line-height: 0;
 }
 
 .login-logo {
     display: flex;
     justify-content: center;
     align-items: center;
-    min-height: 50px;
 }
 
 .login-logo svg {
     display: block;
     width: 100%;
-    max-width: 180px;
+    max-width: 140px;
     height: auto;
-    margin: 0;
+    margin-top: 5px;
 }
 
 .login-body {
-    background: #fff;
     padding: 2rem;
-}
-
-.login-subtitle {
-    color: #6c757d;
-    font-size: 0.95rem;
-    text-align: center;
-    margin-bottom: 1.5rem;
 }
 
 .form-group {
@@ -386,23 +265,6 @@ const handleLogin = async () => {
     align-items: center;
     justify-content: center;
     gap: 8px;
-    position: relative;
-    overflow: hidden;
-}
-
-.btn-login::before {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: -100%;
-    width: 100%;
-    height: 100%;
-    background: linear-gradient(90deg, transparent, rgba(255,255,255,0.15), transparent);
-    transition: left 0.5s;
-}
-
-.btn-login:hover::before {
-    left: 100%;
 }
 
 .btn-login:hover {

@@ -372,6 +372,41 @@
         </div>
     </div>
 
+    <!-- Personalización del Sistema -->
+    <div class="mt-4">
+        <div class="setting-card"><div class="setting-header"><h6 class="setting-title"><i class="bi bi-palette me-1"></i> Personalización del Sistema</h6></div>
+            <div class="setting-description"><small class="text-muted">Personalizá los colores, logo y fondo del sistema.</small></div>
+            <div class="mt-3">
+                <div class="row mb-3 align-items-center"><div class="col-md-4"><strong>Color del menú</strong></div>
+                    <div class="col-md-6"><input type="color" class="form-control form-control-color" v-model="themePrimary" style="width:60px;height:38px;"></div>
+                    <div class="col-md-2"><button class="btn btn-sm btn-primary" @click="saveThemeColor('primary_color', themePrimary)">Guardar</button></div>
+                </div>
+                <div class="row mb-3 align-items-center"><div class="col-md-4"><strong>Color de acento</strong></div>
+                    <div class="col-md-6"><input type="color" class="form-control form-control-color" v-model="themeAccent" style="width:60px;height:38px;"></div>
+                    <div class="col-md-2"><button class="btn btn-sm btn-primary" @click="saveThemeColor('secondary_color', themeAccent)">Guardar</button></div>
+                </div>
+                <div class="row mb-3 align-items-center"><div class="col-md-4"><strong>Logo del sistema</strong></div>
+                    <div class="col-md-6"><input class="form-control form-control-sm" type="file" accept="image/*" @change="uploadThemeImage('logo', $event)">
+                        <div v-if="themeLogo" class="mt-2 d-flex align-items-center gap-2"><img :src="themeLogo" style="max-height:40px;">
+                            <button class="btn btn-sm btn-outline-danger" @click="deleteThemeImage('logo')"><i class="bi bi-trash"></i></button></div>
+                    </div>
+                </div>
+                <div class="row mb-3 align-items-center"><div class="col-md-4"><strong>Fondo del Dashboard</strong></div>
+                    <div class="col-md-6"><input class="form-control form-control-sm" type="file" accept="image/*" @change="uploadThemeImage('background_image', $event)">
+                        <div v-if="themeBg" class="mt-2 d-flex align-items-center gap-2"><img :src="themeBg" style="max-height:40px;">
+                            <button class="btn btn-sm btn-outline-danger" @click="deleteThemeImage('background_image')"><i class="bi bi-trash"></i></button></div>
+                    </div>
+                </div>
+                <div class="row mb-3 align-items-center"><div class="col-md-4"><strong>Arrastrar módulos</strong></div>
+                    <div class="col-md-6"><div class="form-check form-switch">
+                        <input class="form-check-input" type="checkbox" :checked="themeDragDrop === '1'" @change="toggleThemeDragDrop" id="posThemeDrag">
+                        <label class="form-check-label" for="posThemeDrag">{{ themeDragDrop === '1' ? 'Activado' : 'Desactivado' }}</label>
+                    </div></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <ConfirmModal ref="confirmModal" />
 </template>
 
@@ -381,6 +416,7 @@ import api from '../../../services/api';
 import { useAuthStore } from '../../../stores/auth';
 import ConfirmModal from '../../../components/ConfirmModal.vue';
 import { useCache } from '../../../composables/useCache';
+import { toast } from '../../../utils/toast';
 
 const { fetch, refresh } = useCache();
 
@@ -413,6 +449,79 @@ const backfillTotal = ref(0);
 const backfillQueued = ref(0);
 const backfillError = ref('');
 let backfillPollTimer = null;
+
+// Theme
+const themePrimary = ref('#212529');
+const themeAccent = ref('#6c757d');
+const themeLogo = ref('');
+const themeBg = ref('');
+const themeDragDrop = ref('0');
+
+const loadThemeConfigs = async () => {
+    try {
+        const r = await api.get('/pos/configs');
+        const data = r.data || [];
+        const f = (name, def) => { const c = data.find(x => x.name === name); return c ? c.value || def : def; };
+        themePrimary.value = f('primary_color', '#212529');
+        themeAccent.value = f('secondary_color', '#6c757d');
+        themeLogo.value = f('logo', '');
+        themeBg.value = f('background_image', '');
+        themeDragDrop.value = f('sidebar_drag_drop', '0');
+    } catch {}
+};
+
+const saveThemeColor = async (name, value) => {
+    try {
+        const r = await api.get('/pos/configs');
+        const cfg = (r.data || []).find(c => c.name === name);
+        if (cfg) {
+            await api.put('/pos/configs/' + cfg.id, { value });
+        } else {
+            await api.post('/pos/configs', { name, value, type: 'color' });
+        }
+        toast.success('Color guardado');
+    } catch { toast.error('Error'); }
+};
+
+const uploadThemeImage = async (name, event) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    const fd = new FormData();
+    fd.append('name', name);
+    fd.append('file', file);
+    try {
+        const r = await api.post('/pos/config/upload', fd, { headers: { 'Content-Type': 'multipart/form-data' } });
+        if (name === 'logo') themeLogo.value = r.data.url;
+        else themeBg.value = r.data.url;
+        toast.success('Imagen subida');
+    } catch { toast.error('Error al subir'); }
+};
+
+const deleteThemeImage = async (name) => {
+    try {
+        const r = await api.get('/pos/configs');
+        const cfg = (r.data || []).find(c => c.name === name);
+        if (cfg) await api.post('/pos/configs/' + cfg.id + '/delete-image');
+        if (name === 'logo') themeLogo.value = '';
+        else themeBg.value = '';
+        toast.success('Imagen eliminada');
+    } catch { toast.error('Error'); }
+};
+
+const toggleThemeDragDrop = async () => {
+    const newVal = themeDragDrop.value === '1' ? '0' : '1';
+    themeDragDrop.value = newVal;
+    try {
+        const r = await api.get('/pos/configs');
+        const cfg = (r.data || []).find(c => c.name === 'sidebar_drag_drop');
+        if (cfg) {
+            await api.put('/pos/configs/' + cfg.id, { value: newVal });
+        } else {
+            await api.post('/pos/configs', { name: 'sidebar_drag_drop', value: newVal, type: 'boolean' });
+        }
+        toast.success('Cambiado');
+    } catch { toast.error('Error'); }
+};
 
 const showAgentSection = computed(() => {
     const mode = settings.value.find(s => s.name === 'printing_mode');
@@ -847,6 +956,7 @@ const updateStringSetting = (setting, event) => {
 
 onMounted(async () => {
     loadSettings();
+    loadThemeConfigs();
     window.addEventListener('message', handleMpTokenObtained);
 
     try {

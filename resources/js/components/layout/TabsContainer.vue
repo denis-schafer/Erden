@@ -72,6 +72,17 @@ import QuotaDailyCharge from '../modules/quota-admin/QuotaDailyCharge.vue';
 import QuotaConfig from '../modules/quota-admin/QuotaConfig.vue';
 import QuotaStatistics from '../modules/quota-admin/QuotaStatistics.vue';
 import QuotaUsers from '../modules/quota-admin/QuotaUsers.vue';
+import HairSalonDashboard from '../modules/hairsalon/HairSalonDashboard.vue';
+import HairSalonClients from '../modules/hairsalon/HairSalonClients.vue';
+import HairSalonServices from '../modules/hairsalon/HairSalonServices.vue';
+import HairSalonCashier from '../modules/hairsalon/HairSalonCashier.vue';
+import HairSalonFinances from '../modules/hairsalon/HairSalonFinances.vue';
+import HairSalonProducts from '../modules/hairsalon/HairSalonProducts.vue';
+import HairSalonUsers from '../modules/hairsalon/HairSalonUsers.vue';
+import HairSalonStatistics from '../modules/hairsalon/HairSalonStatistics.vue';
+import HairSalonLog from '../modules/hairsalon/HairSalonLog.vue';
+import HairSalonConfig from '../modules/hairsalon/HairSalonConfig.vue';
+import HairSalonAppointments from '../modules/hairsalon/HairSalonAppointments.vue';
 
 const authStore = useAuthStore();
 
@@ -108,7 +119,18 @@ const componentMap = {
     'quota-daily': markRaw(QuotaDailyCharge),
     'quota-config': markRaw(QuotaConfig),
     'quota-statistics': markRaw(QuotaStatistics),
-    'quota-users': markRaw(QuotaUsers)
+    'quota-users': markRaw(QuotaUsers),
+    'hairsalon-dashboard': markRaw(HairSalonDashboard),
+    'hairsalon-clients': markRaw(HairSalonClients),
+    'hairsalon-services': markRaw(HairSalonServices),
+    'hairsalon-cashier': markRaw(HairSalonCashier),
+    'hairsalon-finances': markRaw(HairSalonFinances),
+    'hairsalon-products': markRaw(HairSalonProducts),
+    'hairsalon-users': markRaw(HairSalonUsers),
+    'hairsalon-statistics': markRaw(HairSalonStatistics),
+    'hairsalon-log': markRaw(HairSalonLog),
+    'hairsalon-config': markRaw(HairSalonConfig),
+    'hairsalon-appointments': markRaw(HairSalonAppointments)
 };
 
 const tabs = ref([
@@ -143,7 +165,7 @@ const initDefaultDashboard = () => {
                 component: markRaw(PosDashboard),
                 fixed: true
             };
-            activeTabId.value = 'pos-dashboard';
+            selectTab('pos-dashboard');
             return;
         }
         const quotaDashModule = authStore.modules.find(m => m.route === 'quota-dashboard');
@@ -154,7 +176,29 @@ const initDefaultDashboard = () => {
                 component: markRaw(QuotaDashboard),
                 fixed: true
             };
-            activeTabId.value = 'quota-dashboard';
+            selectTab('quota-dashboard');
+            return;
+        }
+        const hairsalonDashModule = authStore.modules.find(m => m.route === 'hairsalon-dashboard');
+        if (hairsalonDashModule) {
+            tabs.value[0] = {
+                id: 'hairsalon-dashboard',
+                title: 'Dashboard',
+                component: markRaw(HairSalonDashboard),
+                fixed: true
+            };
+            selectTab('hairsalon-dashboard');
+            return;
+        }
+        const defaultDashboard = authStore.modules.find(m => m.route === 'dashboard');
+        if (defaultDashboard) {
+            tabs.value[0] = {
+                id: 'dashboard',
+                title: 'Dashboard',
+                component: markRaw(Dashboard),
+                fixed: true
+            };
+            selectTab('dashboard');
         }
     }
 };

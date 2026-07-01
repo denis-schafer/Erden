@@ -167,6 +167,7 @@ class MigrationAll extends Command
             ['name' => 'Roles', 'route' => 'roles', 'icon' => 'bi-shield-lock', 'is_special' => 0, 'parent_id' => null, 'order' => 6],
             ['name' => 'POS', 'route' => 'pos', 'icon' => 'bi-cart3', 'is_special' => 1, 'parent_id' => null, 'order' => 50, 'package' => 'pos'],
             ['name' => 'Administración de Cuotas', 'route' => 'quota', 'icon' => 'bi-calendar3', 'is_special' => 1, 'parent_id' => null, 'order' => 60, 'package' => 'quota_admin'],
+            ['name' => 'Peluquería', 'route' => 'hairsalon', 'icon' => 'bi-scissors', 'is_special' => 1, 'parent_id' => null, 'order' => 55, 'package' => 'hairsalon'],
         ];
 
         $this->info('Starting module insertion loop...');
@@ -412,6 +413,7 @@ class MigrationAll extends Command
             'database/migrations/2026_04_03_100004_create_role_permission_table.php',
             'database/migrations/2026_04_03_100007_create_modules_table.php',
             'database/migrations/2026_04_22_000001_drop_mercadopago_enable_qr_column.php',
+            'database/migrations/2026_06_27_000001_create_user_module_orders_table.php',
             // Also runs via POS package migration: 2026_06_02_000002_drop_mercadopago_enable_qr_from_users_table
             // Note: mp_payment_id and mp_transaction_amount columns are added in createPosTables()
         ];
@@ -660,6 +662,9 @@ class MigrationAll extends Command
 
         // Check if QuotaAdmin module is assigned and run QuotaAdmin seeders
         $this->runQuotaAdminSeeders();
+
+        // Check if HairSalon module is assigned and run HairSalon seeders
+        $this->runHairSalonSeeders();
 
         $this->info('Seeders completed.');
     }
@@ -1183,6 +1188,78 @@ class MigrationAll extends Command
             }
         } catch (\Exception $e) {
             $this->warn('Could not sync webhook_code from child config: ' . $e->getMessage());
+        }
+    }
+
+    protected function runHairSalonSeeders(): void
+    {
+        $companyDb = config('database.connections.mysql.database');
+
+        config(['database.connections.mysql.database' => 'erden']);
+        DB::purge('mysql');
+        DB::reconnect('mysql');
+
+        $company = DB::table('companies')
+            ->where('db', $companyDb)
+            ->first();
+
+        if (!$company) {
+            $this->warn("Company with DB '{$companyDb}' not found in parent. Skipping HairSalon seeders.");
+            config(['database.connections.mysql.database' => $companyDb]);
+            DB::purge('mysql');
+            DB::reconnect('mysql');
+            return;
+        }
+
+        $hasHairSalon = DB::table('company_modules')
+            ->join('modules', 'company_modules.module_id', '=', 'modules.id')
+            ->where('company_modules.company_id', $company->id)
+            ->where('modules.package', 'hairsalon')
+            ->exists();
+
+        config(['database.connections.mysql.database' => $companyDb]);
+        DB::purge('mysql');
+        DB::reconnect('mysql');
+
+        if (!$hasHairSalon) {
+            $this->info('HairSalon module not assigned to this company. Skipping.');
+            return;
+        }
+
+        $this->info('HairSalon module detected. Running HairSalon seeders...');
+
+        $this->runHairSalonMigrations();
+
+        $this->call('db:seed', ['--class' => 'App\Packages\HairSalon\Seeders\HairSalonSeeder', '--force' => true]);
+
+        $this->info('HairSalon seeders completed.');
+    }
+
+    protected function runHairSalonMigrations(): void
+    {
+        $migrationsPath = 'app/Packages/HairSalon/Migrations';
+        $fullPath = base_path($migrationsPath);
+
+        if (!is_dir($fullPath)) {
+            $this->warn("HairSalon migrations path not found: {$fullPath}");
+            return;
+        }
+
+        $files = glob($fullPath . '/*.php');
+        sort($files);
+
+        foreach ($files as $file) {
+            $migrationName = basename($file, '.php');
+            try {
+                $this->call('migrate', ['--force' => true, '--path' => $migrationsPath . '/' . basename($file)]);
+                $this->info("Migration {$migrationName} ejecutada.");
+            } catch (\Exception $e) {
+                if (strpos($e->getMessage(), 'already exists') !== false) {
+                    $this->info("Migration {$migrationName} ya aplicada.");
+                } else {
+                    $this->warn("Error en migration {$migrationName}: " . $e->getMessage());
+                }
+            }
         }
     }
 }

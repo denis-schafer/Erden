@@ -5,10 +5,13 @@ namespace App\Http\Controllers\Pos;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Str;
 use Illuminate\Support\Facades\Storage;
-use App\Http\Controllers\Controller;
+use Illuminate\Support\Facades\Config;
+use Illuminate\Support\Facades\Artisan;
+use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Str;
 use App\Events\ConfigUpdated;
+use App\Http\Controllers\Controller;
 
 class PosConfigController extends Controller
 {
@@ -16,6 +19,39 @@ class PosConfigController extends Controller
     {
         $configs = DB::table('configs')->orderBy('id')->get();
         return response()->json($configs);
+    }
+
+    public function store(Request $request)
+    {
+        $validated = $request->validate([
+            'name' => 'required|string',
+            'value' => 'nullable|string',
+            'type' => 'nullable|string',
+        ]);
+
+        DB::table('configs')->updateOrInsert(
+            ['name' => $validated['name']],
+            [
+                'value' => $validated['value'] ?? '',
+                'type' => $validated['type'] ?? 'string',
+                'updated_at' => now()
+            ]
+        );
+
+        $config = DB::table('configs')->where('name', $validated['name'])->first();
+
+        $event = new ConfigUpdated([
+            'name' => $config->name,
+            'value' => $config->value,
+        ]);
+
+        try {
+            broadcast($event);
+        } catch (\Exception $e) {
+            Log::error('Broadcast failed: ' . $e->getMessage());
+        }
+
+        return response()->json(['success' => true, 'message' => 'Configuración guardada']);
     }
 
     public function update(Request $request, $id)
@@ -222,5 +258,49 @@ class PosConfigController extends Controller
             'success' => true,
             'webhook_code' => $webhookCode,
         ]);
+    }
+
+    public function upload(Request $request)
+    {
+        $validated = $request->validate([
+            'name' => 'required|string|in:logo,background_image',
+            'file' => 'required|image|max:2048',
+        ]);
+
+        $file = $request->file('file');
+        $filename = Str::slug(pathinfo($file->getClientOriginalName(), PATHINFO_FILENAME)) . '-' . time() . '.' . $file->getClientOriginalExtension();
+        $folder = $validated['name'] === 'logo' ? 'logo' : 'background';
+        $dir = storage_path('app/public/pos/' . $folder);
+        if (!is_dir($dir)) {
+            mkdir($dir, 0755, true);
+        }
+        $file->move($dir, $filename);
+        $url = '/storage/pos/' . $folder . '/' . $filename;
+
+        DB::table('configs')->updateOrInsert(
+            ['name' => $validated['name']],
+            ['value' => $url, 'type' => 'image', 'updated_at' => now(), 'created_at' => now()]
+        );
+
+        broadcast(new ConfigUpdated(['name' => $validated['name'], 'value' => $url]));
+
+        return response()->json(['success' => true, 'url' => $url]);
+    }
+
+    public function deleteImage($id)
+    {
+        $config = DB::table('configs')->find($id);
+        if (!$config) {
+            return response()->json(['message' => 'Config no encontrada'], 404);
+        }
+
+        DB::table('configs')->where('id', $id)->update([
+            'value' => '',
+            'updated_at' => now(),
+        ]);
+
+        broadcast(new ConfigUpdated(['name' => $config->name, 'value' => '']));
+
+        return response()->json(['success' => true]);
     }
 }

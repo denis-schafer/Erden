@@ -138,6 +138,61 @@ const initWebSockets = async () => {
                 detail: { orderId: event.id }
             }));
         });
+
+        // HairSalon WebSocket events
+        window.Echo.channel('hairsalon').listen('.HairSalonClientUpdated', (event) => {
+            window.dispatchEvent(new CustomEvent('hairsalon-client-changed', {
+                detail: { id: event.id, action: event.action }
+            }));
+        });
+
+        window.Echo.channel('hairsalon').listen('.HairSalonServiceUpdated', (event) => {
+            window.dispatchEvent(new CustomEvent('hairsalon-service-changed', {
+                detail: { id: event.id, action: event.action }
+            }));
+        });
+
+        window.Echo.channel('hairsalon').listen('.HairSalonUserUpdated', (event) => {
+            window.dispatchEvent(new CustomEvent('hairsalon-user-changed', {
+                detail: { id: event.id, action: event.action }
+            }));
+        });
+
+        window.Echo.channel('hairsalon').listen('.HairSalonAppointmentUpdated', (event) => {
+            window.dispatchEvent(new CustomEvent('hairsalon-appointment-changed', {
+                detail: { id: event.id, action: event.action }
+            }));
+        });
+
+        window.Echo.channel('hairsalon').listen('.HairSalonJobCreated', (event) => {
+            window.dispatchEvent(new CustomEvent('hairsalon-job-created', {
+                detail: { id: event.id, total: event.total }
+            }));
+        });
+
+        window.Echo.channel('hairsalon').listen('.HairSalonProductUpdated', (event) => {
+            window.dispatchEvent(new CustomEvent('hairsalon-product-changed', {
+                detail: { id: event.id, action: event.action }
+            }));
+        });
+
+        window.Echo.channel('hairsalon').listen('.HairSalonStockUpdated', (event) => {
+            window.dispatchEvent(new CustomEvent('hairsalon-stock-changed', {
+                detail: { product_id: event.product_id, type: event.type }
+            }));
+        });
+
+        window.Echo.channel('quota').listen('.QuotaConfigUpdated', (event) => {
+            window.dispatchEvent(new CustomEvent('quota-config-updated', {
+                detail: { name: event.name, value: event.value }
+            }));
+        });
+
+        window.Echo.channel('hairsalon').listen('.HairSalonConfigUpdated', (event) => {
+            window.dispatchEvent(new CustomEvent('hairsalon-config-updated', {
+                detail: { name: event.name, value: event.value }
+            }));
+        });
     } catch (e) {
     }
 };

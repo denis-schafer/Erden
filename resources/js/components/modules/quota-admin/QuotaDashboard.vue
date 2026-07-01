@@ -359,5 +359,6 @@ onMounted(async () => {
 </script>
 
 <style scoped>
+.quota-dashboard { min-height: 100%; background-color: #f8f9fa; background-image: var(--bg-image, none); background-position: center; background-size: cover; background-repeat: no-repeat; background-attachment: fixed; }
 .card-header { background: #fff; border-bottom: 1px solid #e9ecef; font-weight: 600; }
 </style>

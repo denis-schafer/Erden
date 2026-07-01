@@ -24,6 +24,12 @@ class ConfigSeeder extends Seeder
             
             // Test mode
             ['name' => 'test_mode', 'value' => '0', 'type' => 'string'],
+            // Theming
+            ['name' => 'primary_color', 'value' => '#212529', 'type' => 'color'],
+            ['name' => 'secondary_color', 'value' => '#6c757d', 'type' => 'color'],
+            ['name' => 'logo', 'value' => '', 'type' => 'image'],
+            ['name' => 'background_image', 'value' => '', 'type' => 'image'],
+            ['name' => 'sidebar_drag_drop', 'value' => '0', 'type' => 'boolean'],
         ];
 
         foreach ($configs as $config) {

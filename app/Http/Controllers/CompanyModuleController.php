@@ -128,6 +128,36 @@ class CompanyModuleController extends Controller
             $this->uninstallQuotaAdminPackage($company);
         }
 
+        // HairSalon package detection
+        $hairsalonModuleIds = Module::where('package', 'hairsalon')->pluck('id')->toArray();
+
+        $currentHairSalonAssigned = DB::connection('mysql_parent')
+            ->table('company_modules as cm')
+            ->join('modules as m', 'cm.module_id', '=', 'm.id')
+            ->where('cm.company_id', $companyId)
+            ->where('m.package', 'hairsalon')
+            ->pluck('cm.module_id')
+            ->toArray();
+
+        $newHairSalonAssigned = array_intersect($moduleIds, $hairsalonModuleIds);
+
+        $hairsalonWasAssigned = !empty($currentHairSalonAssigned);
+        $hairsalonIsAssigned = !empty($newHairSalonAssigned);
+
+        Log::info('[CompanyModuleController] update: hairsalonModuleIds=' . json_encode($hairsalonModuleIds) . ', currentHairSalonAssigned=' . json_encode($currentHairSalonAssigned) . ', newHairSalonAssigned=' . json_encode($newHairSalonAssigned) . ', hairsalonWasAssigned=' . ($hairsalonWasAssigned ? 'yes' : 'no') . ', hairsalonIsAssigned=' . ($hairsalonIsAssigned ? 'yes' : 'no'));
+
+        if ($hairsalonIsAssigned && !$hairsalonWasAssigned) {
+            Log::info('[CompanyModuleController] update: Installing HairSalon package (first time)');
+            $this->installHairSalonPackage($company);
+        } elseif ($hairsalonIsAssigned && $hairsalonWasAssigned) {
+            Log::info('[CompanyModuleController] update: Reinstalling HairSalon package');
+            $this->uninstallHairSalonPackage($company);
+            $this->installHairSalonPackage($company);
+        } elseif ($hairsalonWasAssigned && !$hairsalonIsAssigned) {
+            Log::info('[CompanyModuleController] update: Uninstalling HairSalon package');
+            $this->uninstallHairSalonPackage($company);
+        }
+
         return response()->json(['message' => 'Módulos actualizados correctamente']);
     }
 
@@ -473,5 +503,126 @@ class CompanyModuleController extends Controller
         }
 
         Log::info('[CompanyModuleController] runQuotaAdminSeeders: FIN');
+    }
+
+    protected function installHairSalonPackage(Company $company): void
+    {
+        Log::info('[CompanyModuleController] installHairSalonPackage: INICIO para empresa: ' . $company->name . ' (DB: ' . $company->db . ')');
+
+        $companyDb = $company->db;
+
+        $this->createDatabaseIfNotExists($companyDb);
+
+        config(['database.connections.mysql.database' => $companyDb]);
+        DB::purge('mysql');
+        DB::reconnect('mysql');
+
+        Log::info('[CompanyModuleController] installHairSalonPackage: BD configurada a: ' . $companyDb);
+
+        $this->runHairSalonMigrations();
+        $this->runHairSalonSeeders($company);
+
+        Log::info('[CompanyModuleController] installHairSalonPackage: FIN para empresa: ' . $company->name);
+    }
+
+    protected function uninstallHairSalonPackage(Company $company): void
+    {
+        Log::info('[CompanyModuleController] uninstallHairSalonPackage: INICIO para empresa: ' . $company->name . ' (DB: ' . $company->db . ')');
+
+        $companyDb = $company->db;
+
+        $this->connectToChildDatabase($companyDb);
+
+        $hairsalonTables = [
+            'hairsalon_stock_movements',
+            'hairsalon_products',
+            'hairsalon_cash_registers',
+            'hairsalon_cash_movements',
+            'hairsalon_job_services',
+            'hairsalon_jobs',
+            'hairsalon_services',
+            'hairsalon_service_categories',
+            'hairsalon_clients',
+            'hairsalon_configs',
+        ];
+
+        try {
+            DB::statement('SET FOREIGN_KEY_CHECKS=0');
+
+            foreach ($hairsalonTables as $table) {
+                try {
+                    Schema::dropIfExists($table);
+                } catch (\Exception $e) {
+                    Log::warning('[CompanyModuleController] uninstallHairSalonPackage: Error dropping ' . $table . ': ' . $e->getMessage());
+                }
+            }
+
+            DB::statement('SET FOREIGN_KEY_CHECKS=1');
+
+            Log::info('[CompanyModuleController] uninstallHairSalonPackage: Tablas hairsalon_* eliminadas');
+        } catch (\Exception $e) {
+            try { DB::statement('SET FOREIGN_KEY_CHECKS=1'); } catch (\Exception $e2) {}
+            Log::error('[CompanyModuleController] uninstallHairSalonPackage: Error: ' . $e->getMessage());
+        }
+
+        Log::info('[CompanyModuleController] uninstallHairSalonPackage: FIN para empresa: ' . $company->name);
+    }
+
+    protected function runHairSalonMigrations(): void
+    {
+        Log::info('[CompanyModuleController] runHairSalonMigrations: INICIO');
+
+        $migrationsPath = 'app/Packages/HairSalon/Migrations';
+        $fullPath = base_path($migrationsPath);
+
+        if (!is_dir($fullPath)) {
+            Log::warning('[CompanyModuleController] runHairSalonMigrations: Directorio no encontrado: ' . $fullPath);
+            return;
+        }
+
+        $files = glob($fullPath . '/*.php');
+        sort($files);
+
+        Log::info('[CompanyModuleController] runHairSalonMigrations: Archivos encontrados: ' . count($files));
+
+        foreach ($files as $file) {
+            $migrationName = basename($file);
+            Log::info('[CompanyModuleController] runHairSalonMigrations: Ejecutando: ' . $migrationName);
+            try {
+                $exitCode = Artisan::call('migrate', [
+                    '--force' => true,
+                    '--path' => $migrationsPath . '/' . basename($file),
+                    '--database' => 'mysql'
+                ]);
+                Log::info('[CompanyModuleController] runHairSalonMigrations: Migration ' . $migrationName . ' completada con código: ' . $exitCode);
+            } catch (\Exception $e) {
+                Log::error('[CompanyModuleController] runHairSalonMigrations: Migration ' . $migrationName . ' error: ' . $e->getMessage());
+            }
+        }
+
+        Log::info('[CompanyModuleController] runHairSalonMigrations: FIN');
+    }
+
+    protected function runHairSalonSeeders(Company $company): void
+    {
+        Log::info('[CompanyModuleController] runHairSalonSeeders: INICIO');
+
+        config(['database.connections.mysql.database' => $company->db]);
+        DB::purge('mysql');
+        DB::reconnect('mysql');
+        Log::info('[CompanyModuleController] runHairSalonSeeders: Reconnected to DB: ' . $company->db);
+
+        try {
+            $exitCode = Artisan::call('db:seed', [
+                '--class' => 'App\\Packages\\HairSalon\\Seeders\\HairSalonSeeder',
+                '--force' => true,
+                '--database' => 'mysql'
+            ]);
+            Log::info('[CompanyModuleController] runHairSalonSeeders: HairSalon Seeder executed with code: ' . $exitCode);
+        } catch (\Exception $e) {
+            Log::error('[CompanyModuleController] runHairSalonSeeders: HairSalon Seeder error: ' . $e->getMessage());
+        }
+
+        Log::info('[CompanyModuleController] runHairSalonSeeders: FIN');
     }
 }

@@ -175,6 +175,7 @@ class CompanyModuleController extends Controller
 
         \Log::info('[CompanyModuleController] installPosPackage: BD configurada a: ' . $companyDb);
         
+        \Artisan::call('migrate', ['--path' => 'database/migrations/2026_06_27_000001_create_user_module_orders_table.php']);
         $this->runPosMigrations();
         $this->verifyPosTablesStructure($company);
         $this->runPosSeeders($company);
@@ -402,6 +403,7 @@ class CompanyModuleController extends Controller
 
         Log::info('[CompanyModuleController] installQuotaAdminPackage: BD configurada a: ' . $companyDb);
 
+        \Artisan::call('migrate', ['--path' => 'database/migrations/2026_06_27_000001_create_user_module_orders_table.php']);
         $this->runQuotaAdminMigrations();
         $this->runQuotaAdminSeeders($company);
 
@@ -519,6 +521,7 @@ class CompanyModuleController extends Controller
 
         Log::info('[CompanyModuleController] installHairSalonPackage: BD configurada a: ' . $companyDb);
 
+        \Artisan::call('migrate', ['--path' => 'database/migrations/2026_06_27_000001_create_user_module_orders_table.php']);
         $this->runHairSalonMigrations();
         $this->runHairSalonSeeders($company);
 

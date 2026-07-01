@@ -221,6 +221,10 @@ class UserController extends Controller
             return response()->json(['message' => 'Usuario no autenticado'], 401);
         }
 
+        if (!\Illuminate\Support\Facades\Schema::hasTable('user_module_orders')) {
+            return response()->json(['message' => 'La tabla de ordenamiento no está disponible'], 500);
+        }
+
         $validated = $request->validate([
             'modules' => 'required|array',
             'modules.*.route' => 'required|string|max:255',

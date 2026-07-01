@@ -107,6 +107,9 @@ class ModuleInstall extends Command
         DB::purge('mysql');
         DB::reconnect('mysql');
 
+        $this->info("Running required global migrations");
+        \Artisan::call('migrate', ['--path' => 'database/migrations/2026_06_27_000001_create_user_module_orders_table.php']);
+
         $this->info("Running migrations for package: {$package}");
         $this->runMigrations($packageConfig['migrations_path']);
 

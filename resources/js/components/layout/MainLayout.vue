@@ -9,6 +9,7 @@
             @navigate="handleNavigate"
             @close="closeSidebar"
         />
+        <div v-if="isOverlayVisible" class="sidebar-backdrop" @click="closeSidebar"></div>
         <div class="topbar-wrapper">
             <Topbar 
                 :sidebar-collapsed="isSidebarCollapsed"
@@ -49,7 +50,7 @@ const handleLogout = () => {
     }, 2000);
 };
 
-const isSidebarOpen = ref(true);
+const isSidebarOpen = ref(window.innerWidth >= 992);
 const isOverlayVisible = ref(false);
 const isSidebarCollapsed = ref(false);
 const isMobile = ref(false);
@@ -162,6 +163,16 @@ onUnmounted(() => {
     .sidebar.show {
         transform: translateX(0);
     }
+    .topbar-wrapper {
+        padding-left: 0;
+    }
+}
+
+.sidebar-backdrop {
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.5);
+    z-index: 999;
 }
 
 .topbar-wrapper {

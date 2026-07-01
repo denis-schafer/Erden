@@ -23,7 +23,7 @@
                     </div>
                     <template v-for="hour in hours" :key="hour">
                         <div class="cal-cell time-col time-label">{{ hour }}:00</div>
-                        <div v-for="day in visibleDays" :key="day.date + '-' + hour" class="cal-cell slot-cell"></div>
+                        <div v-for="day in visibleDays" :key="day.date + '-' + hour" class="cal-cell slot-cell" @click="openCreate(day.date, hour)"></div>
                     </template>
                 </div>
                 <div class="appointments-overlay" :style="{ marginTop: headerHeight + 'px' }">
@@ -31,11 +31,11 @@
                         :style="{ left: day.columnLeft + '%', width: day.columnWidth + '%' }">
                         <div v-for="apt in dayAppointments(day.date)" :key="apt.id" class="apt-block"
                             :style="{ top: apt.topPct + '%', height: apt.heightPct + '%', background: apt.color || '#0d6efd' }"
-                            @mousedown="startDrag(apt, $event)">
+                            @mousedown="startDrag(apt, $event)" @touchstart="startDrag(apt, $event)">
                             <div class="apt-time">{{ apt.dayLabel }} {{ formatTime(apt.start_time) }} - {{ apt.endTime }}</div>
                             <div class="apt-client">{{ apt.client_name }}</div>
                             <div class="apt-op">{{ apt.operator_name }}</div>
-                            <div class="apt-resize-handle" @mousedown.stop="startResize(apt, $event)"></div>
+                            <div class="apt-resize-handle" @mousedown.stop="startResize(apt, $event)" @touchstart="startResize(apt, $event)"></div>
                         </div>
                     </div>
                 </div>
@@ -201,6 +201,11 @@ const updateLocalAppointment = (id, updates) => {
     if (idx >= 0) Object.assign(appointments.value[idx], updates);
 };
 
+const getEventPos = (e) => {
+    if (e.touches) return { x: e.touches[0].clientX, y: e.touches[0].clientY };
+    return { x: e.clientX, y: e.clientY };
+};
+
 // Drag — with threshold to distinguish click from drag
 const startDrag = (apt, event) => {
     if (event.target.closest('.apt-resize-handle')) return;
@@ -212,10 +217,11 @@ const startDrag = (apt, event) => {
     const hdr = firstHeader ? firstHeader.offsetHeight : 44;
     headerHeight.value = hdr;
     const aptRect = event.currentTarget.getBoundingClientRect();
-    const offsetY = event.clientY - aptRect.top;
-    const offsetX = event.clientX - aptRect.left;
-    const startX = event.clientX;
-    const startY = event.clientY;
+    const pos = getEventPos(event);
+    const offsetY = pos.y - aptRect.top;
+    const offsetX = pos.x - aptRect.left;
+    const startX = pos.x;
+    const startY = pos.y;
     let hasMoved = false;
     const dragThreshold = 5; // px
 
@@ -228,23 +234,24 @@ const startDrag = (apt, event) => {
     };
 
     const onMove = (e) => {
-        const dx = e.clientX - startX;
-        const dy = e.clientY - startY;
+        const p = getEventPos(e);
+        const dx = p.x - startX;
+        const dy = p.y - startY;
         if (!hasMoved && Math.sqrt(dx*dx + dy*dy) < dragThreshold) return;
         if (!hasMoved) {
             hasMoved = true;
             dragGhost.value = reactive(ghostData);
         }
         if (!dragGhost.value) return;
-        const cardTop = e.clientY - offsetY;
+        const cardTop = p.y - offsetY;
         const snapped = cardTopToTime(cardTop);
         if (!snapped) return;
         const relY = ((snapped.h + snapped.m / 60) - calStartTime.value) / totalHours.value;
         const snappedTop = hdr + relY * (wr.height - hdr);
         dragGhost.value.top = snappedTop;
-        dragGhost.value.left = e.clientX - wr.left - offsetX;
+        dragGhost.value.left = p.x - wr.left - offsetX;
         const colArea = wr.width - 60;
-        const dayIdx = viewMode.value === 'weekly' ? Math.min(6, Math.max(0, Math.floor(((e.clientX - wr.left - 60) / colArea) * 7))) : 0;
+        const dayIdx = viewMode.value === 'weekly' ? Math.min(6, Math.max(0, Math.floor(((p.x - wr.left - 60) / colArea) * 7))) : 0;
         const day = visibleDays.value[dayIdx];
         dragGhost.value.dayLabel = day?.label || '';
         dragGhost.value.time = `${String(snapped.h).padStart(2, '0')}:${String(snapped.m).padStart(2, '0')}`;
@@ -255,15 +262,18 @@ const startDrag = (apt, event) => {
     const onUp = async (e) => {
         document.removeEventListener('mousemove', onMove);
         document.removeEventListener('mouseup', onUp);
+        document.removeEventListener('touchmove', onMove);
+        document.removeEventListener('touchend', onUp);
         // If didn't move past threshold, treat as click → open edit modal
         if (!hasMoved) { openEdit(apt); return; }
         if (!dragGhost.value) return;
-        const cardTop = e.clientY - offsetY;
+        const p = getEventPos(e);
+        const cardTop = p.y - offsetY;
         const snapped = cardTopToTime(cardTop);
         const ghost = dragGhost.value;
         if (!snapped) { dragGhost.value = null; return; }
         const colArea = (wrapper?.getBoundingClientRect().width || 600) - 60;
-        const dayIdx = viewMode.value === 'weekly' ? Math.min(6, Math.max(0, Math.floor(((e.clientX - (wrapper?.getBoundingClientRect().left || 0) - 60) / colArea) * 7))) : 0;
+        const dayIdx = viewMode.value === 'weekly' ? Math.min(6, Math.max(0, Math.floor(((p.x - (wrapper?.getBoundingClientRect().left || 0) - 60) / colArea) * 7))) : 0;
         const day = visibleDays.value[dayIdx];
         const newStartTime = `${day?.date || ghost.startDate} ${String(snapped.h).padStart(2, '0')}:${String(snapped.m).padStart(2, '0')}:00`;
         const oldStartTime = ghost.apt.start_time;
@@ -282,6 +292,8 @@ const startDrag = (apt, event) => {
 
     document.addEventListener('mousemove', onMove);
     document.addEventListener('mouseup', onUp);
+    document.addEventListener('touchmove', onMove, { passive: false });
+    document.addEventListener('touchend', onUp);
 };
 
 // Resize — simple reactive refs for smooth real-time feedback
@@ -289,7 +301,8 @@ const startResize = (apt, event) => {
     event.preventDefault(); event.stopPropagation();
     resizeAptId.value = apt.id;
     resizeHolder.value = apt.duration_min || 60;
-    const startY = event.clientY;
+    const pos = getEventPos(event);
+    const startY = pos.y;
     const startDur = apt.duration_min || 60;
     const wrapper = calendarWrapperRef.value; const gridEl = calendarGridRef.value;
     if (!wrapper || !gridEl) return;
@@ -300,13 +313,16 @@ const startResize = (apt, event) => {
 
     const onMove = (e) => {
         if (!resizeAptId.value) return;
-        const deltaY = e.clientY - startY;
+        const p = getEventPos(e);
+        const deltaY = p.y - startY;
         resizeHolder.value = Math.max(15, Math.round(startDur + (deltaY / gh) * totalHours.value * 60));
     };
 
     const onUp = async (e) => {
         document.removeEventListener('mousemove', onMove);
         document.removeEventListener('mouseup', onUp);
+        document.removeEventListener('touchmove', onMove);
+        document.removeEventListener('touchend', onUp);
         if (!resizeAptId.value) return;
         const finalDur = resizeHolder.value;
         const id = resizeAptId.value;
@@ -320,6 +336,8 @@ const startResize = (apt, event) => {
     };
     document.addEventListener('mousemove', onMove);
     document.addEventListener('mouseup', onUp);
+    document.addEventListener('touchmove', onMove, { passive: false });
+    document.addEventListener('touchend', onUp);
 };
 
 const onSvcBlur = () => { setTimeout(() => { svcDropdown.value = false; }, 200); };

@@ -12,8 +12,7 @@
                 :data-index="idx"
                 @dragover.prevent="onDragOver($event, idx)"
                 @dragleave="onDragLeave"
-                @drop.prevent="onDrop($event, idx)"
-                @touchmove="onTouchMove($event, idx)">
+                @drop.prevent="onDrop($event, idx)">
                 <div v-if="!module.children || module.children.length === 0"
                     class="nav-link"
                     :class="{ active: currentView === module.route, 'dragging': dragIndex === idx || touchDragIdx === idx }"
@@ -21,7 +20,6 @@
                     @dragstart="onDragStart(idx)"
                     @dragend="onDragEnd"
                     @touchstart="onTouchStart(idx, $event)"
-                    @touchend="onTouchEnd"
                     @click="$emit('navigate', module.route)"
                 >
                     <span v-if="module.icon" class="me-2"><i :class="module.icon"></i></span>
@@ -248,11 +246,11 @@ const onDrop = async (e, idx) => {
     const targetIdx = toIdx > fromIdx ? toIdx - 1 : toIdx;
     modules.splice(targetIdx, 0, item);
     const orderData = modules.map((m, i) => ({ route: m.route, order: i }));
+    const ordered = orderData.map(o => authStore.modules.find(m => m.route === o.route)).filter(Boolean);
+    const others = authStore.modules.filter(m => !ordered.includes(m));
+    authStore.modules = [...others.filter(m => m.route === 'menu'), ...ordered, ...others.filter(m => m.route !== 'menu' && !ordered.includes(m))];
     try {
         await api.post('/user/modules/reorder', { modules: orderData });
-        const ordered = orderData.map(o => authStore.modules.find(m => m.route === o.route)).filter(Boolean);
-        const others = authStore.modules.filter(m => !ordered.includes(m));
-        authStore.modules = [...others.filter(m => m.route === 'menu'), ...ordered, ...others.filter(m => m.route !== 'menu' && !ordered.includes(m))];
     } catch (e) { /* silent */ }
 };
 const onDragEnd = () => { dragIndex.value = null; dragOverIndex.value = null; };
@@ -263,26 +261,25 @@ const touchStartY = ref(0);
 const touchMoved = ref(false);
 const TOUCH_DRAG_THRESHOLD = 10;
 
-const onTouchStart = (idx, event) => {
-    if (!dragEnabled.value) return;
-    touchDragIdx.value = idx;
-    touchStartY.value = event.touches[0].clientY;
-    touchMoved.value = false;
-    dragIndex.value = idx;
-};
-
-const onTouchMove = (event, idx) => {
+const onTouchMoveDoc = (event) => {
     if (!dragEnabled.value || touchDragIdx.value === null) return;
     const dy = Math.abs(event.touches[0].clientY - touchStartY.value);
     if (dy < TOUCH_DRAG_THRESHOLD) return;
     touchMoved.value = true;
     event.preventDefault();
-    const rect = event.currentTarget.getBoundingClientRect();
+    const el = document.elementFromPoint(event.touches[0].clientX, event.touches[0].clientY);
+    const wrapper = el?.closest('.sidebar-item-wrapper');
+    if (!wrapper) return;
+    const idx = parseInt(wrapper.dataset.index);
+    if (isNaN(idx)) return;
+    const rect = wrapper.getBoundingClientRect();
     const midY = rect.top + rect.height / 2;
     dragOverIndex.value = event.touches[0].clientY < midY ? idx : idx + 1;
 };
 
-const onTouchEnd = async () => {
+const onTouchEndDoc = async () => {
+    document.removeEventListener('touchmove', onTouchMoveDoc, { passive: false });
+    document.removeEventListener('touchend', onTouchEndDoc);
     if (touchDragIdx.value === null) return;
     if (!touchMoved.value) {
         touchDragIdx.value = null;
@@ -291,6 +288,16 @@ const onTouchEnd = async () => {
     dragIndex.value = touchDragIdx.value;
     touchDragIdx.value = null;
     await onDrop(null, dragOverIndex.value);
+};
+
+const onTouchStart = (idx, event) => {
+    if (!dragEnabled.value) return;
+    touchDragIdx.value = idx;
+    touchStartY.value = event.touches[0].clientY;
+    touchMoved.value = false;
+    dragIndex.value = idx;
+    document.addEventListener('touchmove', onTouchMoveDoc, { passive: false });
+    document.addEventListener('touchend', onTouchEndDoc);
 };
 
 onMounted(() => {

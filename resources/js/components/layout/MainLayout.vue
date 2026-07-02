@@ -165,11 +165,6 @@ onUnmounted(() => {
     }
     .topbar-wrapper {
         padding-left: 0;
-        height: 100dvh;
-        padding-top: calc(56px + 44px);
-    }
-    .main-content {
-        overflow-y: auto;
     }
 }
 

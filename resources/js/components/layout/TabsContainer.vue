@@ -380,8 +380,8 @@ defineExpose({ openTab, selectTab });
 }
 
 @media (max-width: 991px) {
-    .tab-pane {
-        margin-top: calc(56px + 44px);
+    .tabs-content {
+        padding-top: calc(56px + 44px);
     }
 }
 </style>

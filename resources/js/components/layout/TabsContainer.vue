@@ -90,6 +90,7 @@ onMounted(() => {
     window.addEventListener('close-pos-qr-module', () => {
         closeTab('pos-qr');
     });
+    forceScrollToTop();
 });
 
 const componentMap = {
@@ -205,9 +206,16 @@ const initDefaultDashboard = () => {
 
 setTimeout(initDefaultDashboard, 200);
 
+const forceScrollToTop = (retries = 6) => {
+    const pane = document.querySelector('.tab-pane');
+    if (pane) pane.scrollTop = 0;
+    if (retries > 0) setTimeout(() => forceScrollToTop(retries - 1), 150);
+};
+
 const selectTab = (tabId) => {
     activeTabId.value = tabId;
     window.dispatchEvent(new CustomEvent('view-changed', { detail: tabId }));
+    forceScrollToTop();
 };
 
 const openTab = (module) => {

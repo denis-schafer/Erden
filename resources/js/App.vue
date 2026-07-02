@@ -84,6 +84,10 @@ const handleCompanySelected = () => {
     });
 
     onMounted(() => {
+        if ('scrollRestoration' in history) {
+            history.scrollRestoration = 'manual';
+        }
+
         if (isPortalRoute.value || isOAuthRoute.value) return;
 
         const token = localStorage.getItem('token');

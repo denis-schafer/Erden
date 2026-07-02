@@ -294,7 +294,7 @@ defineExpose({ openTab, selectTab });
         z-index: 997;
     }
     .tabs-content {
-        padding-top: 44px;
+        padding-top: 0;
     }
 }
 

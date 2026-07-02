@@ -103,6 +103,16 @@ const handleLogout = async () => {
     -ms-user-select: none;
 }
 
+@media (max-width: 991px) {
+    .topbar {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        z-index: 998;
+    }
+}
+
 .hamburger-btn {
     display: inline-block;
     background: none;

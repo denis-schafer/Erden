@@ -285,6 +285,16 @@ defineExpose({ openTab, selectTab });
     min-height: 44px;
 }
 
+@media (max-width: 991px) {
+    .tabs-header {
+        position: fixed;
+        top: 56px;
+        left: 0;
+        right: 0;
+        z-index: 997;
+    }
+}
+
 .tabs-list {
     display: flex;
     flex-wrap: wrap;
@@ -359,11 +369,19 @@ defineExpose({ openTab, selectTab });
     padding: 0;
     display: flex;
     flex-direction: column;
-    overflow-y: auto;
+    overflow: hidden;
 }
 
 .tab-pane {
     flex: 1;
     min-height: 0;
+    height: 100%;
+    overflow-y: auto;
+}
+
+@media (max-width: 991px) {
+    .tab-pane {
+        margin-top: calc(56px + 44px);
+    }
 }
 </style>

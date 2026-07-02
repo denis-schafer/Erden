@@ -152,8 +152,10 @@ onUnmounted(() => {
     transform: translateX(-100%);
 }
 
-.main-layout.sidebar-hidden .topbar-wrapper {
-    padding-left: 0;
+@media (min-width: 992px) {
+    .main-layout.sidebar-hidden .topbar-wrapper {
+        padding-left: 0;
+    }
 }
 
 @media (max-width: 991px) {
@@ -164,8 +166,9 @@ onUnmounted(() => {
         transform: translateX(0);
     }
     .topbar-wrapper {
-        padding-left: 0;
+        padding-left: 0 !important;
         height: 100dvh;
+        transition: none;
     }
     .main-content {
         overflow-y: auto;

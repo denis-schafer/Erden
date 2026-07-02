@@ -192,5 +192,6 @@ onUnmounted(() => {
     height: 0;
     display: flex;
     flex-direction: column;
+    overflow: hidden;
 }
 </style>

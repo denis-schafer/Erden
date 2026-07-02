@@ -275,9 +275,6 @@ defineExpose({ openTab, selectTab });
     padding: 0 0.5rem;
     flex-shrink: 0;
     min-height: 44px;
-    position: sticky;
-    top: 56px;
-    z-index: 1001;
 }
 
 .tabs-list {
@@ -354,7 +351,7 @@ defineExpose({ openTab, selectTab });
     padding: 0;
     display: flex;
     flex-direction: column;
-    overflow-y: auto;
+    overflow: hidden;
 }
 
 .tab-pane {

@@ -94,7 +94,7 @@ const handleLogout = async () => {
     align-items: center;
     position: sticky;
     top: 0;
-    z-index: 100;
+    z-index: 1001;
     background: white;
     border-bottom: 1px solid #dee2e6;
     user-select: none;

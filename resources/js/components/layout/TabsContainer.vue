@@ -207,8 +207,8 @@ const initDefaultDashboard = () => {
 setTimeout(initDefaultDashboard, 200);
 
 const forceScrollToTop = (retries = 6) => {
-    const pane = document.querySelector('.tab-pane');
-    if (pane) pane.scrollTop = 0;
+    window.scrollTo(0, 0);
+    document.querySelectorAll('.tab-pane, .tabs-content, .main-content').forEach(el => { if (el) el.scrollTop = 0; });
     if (retries > 0) setTimeout(() => forceScrollToTop(retries - 1), 150);
 };
 
@@ -375,12 +375,11 @@ defineExpose({ openTab, selectTab });
 .tab-pane {
     flex: 1;
     min-height: 0;
-    height: 100%;
     overflow-y: auto;
 }
 
 @media (max-width: 991px) {
-    .tabs-content {
+    .tab-pane {
         padding-top: calc(56px + 44px);
     }
 }

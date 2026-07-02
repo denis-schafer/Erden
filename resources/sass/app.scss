@@ -32,8 +32,9 @@ body {
     background-color: white;
 }
 
-html, body {
+html, body, #app {
     overscroll-behavior: none;
+    overflow-anchor: none;
 }
 .form-control, .form-select, .form-check-input, input, select, textarea, button {
     font-size: 16px;

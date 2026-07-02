@@ -48,7 +48,17 @@ const needsCompanySelection = computed(() => {
     return authStore.token && authStore.user && !authStore.company;
 });
 
+const resetScroll = () => {
+    window.scrollTo(0, 0);
+    document.documentElement.scrollTop = 0;
+    document.body.scrollTop = 0;
+    document.querySelectorAll('.tab-pane, .tabs-content, .main-content, .topbar-wrapper, .main-layout, #app').forEach(el => {
+        if (el) el.scrollTop = 0;
+    });
+};
+
 const handleLoginSuccess = () => {
+    resetScroll();
     showCompanySelector.value = false;
 };
 

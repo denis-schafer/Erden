@@ -270,7 +270,6 @@ defineExpose({ openTab, selectTab });
     flex-direction: column;
     height: 100%;
     width: 100%;
-    overflow: hidden;
     user-select: none;
     -webkit-user-select: none;
     -moz-user-select: none;
@@ -283,6 +282,9 @@ defineExpose({ openTab, selectTab });
     padding: 0 0.5rem;
     flex-shrink: 0;
     min-height: 44px;
+    position: sticky;
+    top: 56px;
+    z-index: 999;
 }
 
 .tabs-list {

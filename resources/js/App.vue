@@ -22,7 +22,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, provide } from 'vue';
+import { ref, computed, onMounted, provide, watch } from 'vue';
 import { useAuthStore } from './stores/auth';
 import api from './services/api';
 import Login from './components/modules/Login.vue';
@@ -81,6 +81,13 @@ const handleCompanySelected = () => {
 
     const isOAuthRoute = computed(() => {
         return window.location.pathname === '/oauth';
+    });
+
+    watch(isAuthenticated, (val) => {
+        if (val) {
+            window.scrollTo(0, 0);
+            document.querySelectorAll('.tab-pane, .tabs-content, .main-content').forEach(el => { if (el) el.scrollTop = 0; });
+        }
     });
 
     onMounted(() => {

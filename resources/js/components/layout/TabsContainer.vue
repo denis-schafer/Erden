@@ -215,7 +215,8 @@ const forceScrollToTop = (retries = 6) => {
 const selectTab = (tabId) => {
     activeTabId.value = tabId;
     window.dispatchEvent(new CustomEvent('view-changed', { detail: tabId }));
-    forceScrollToTop();
+    setTimeout(forceScrollToTop, 0);
+    setTimeout(forceScrollToTop, 50);
 };
 
 const openTab = (module) => {
@@ -381,6 +382,7 @@ defineExpose({ openTab, selectTab });
 @media (max-width: 991px) {
     .tab-pane {
         padding-top: calc(56px + 44px);
+        overflow-anchor: none;
     }
 }
 </style>

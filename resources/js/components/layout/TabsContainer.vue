@@ -382,6 +382,7 @@ defineExpose({ openTab, selectTab });
 @media (max-width: 991px) {
     .tab-pane {
         padding-top: calc(56px + 44px);
+        padding-bottom: calc(56px + 44px);
         overflow-anchor: none;
     }
 }

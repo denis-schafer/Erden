@@ -25,6 +25,7 @@
             <DataTable :data="displayMovements" :columns="columns" :per-page="15">
                 <template #rowActions="{ row }">
                     <button class="btn btn-sm btn-outline-info" @click="openDetail(row)"><i class="bi bi-eye"></i></button>
+                    <button v-if="isAdmin" class="btn btn-sm btn-outline-danger ms-1" @click="confirmDelete(row)"><i class="bi bi-trash"></i></button>
                 </template>
             </DataTable>
         </div>
@@ -73,15 +74,32 @@
             <div class="modal-footer"><button class="btn btn-secondary btn-sm" @click="showDetail = false">Cerrar</button></div>
         </div></div></div>
         <div v-if="showDetail" class="modal-backdrop fade show"></div>
+
+        <!-- Delete Confirm Modal -->
+        <div v-if="showDeleteConfirm" class="modal d-block"><div class="modal-dialog modal-sm"><div class="modal-content">
+            <div class="modal-header"><h5 class="modal-title">Eliminar</h5><button class="btn-close" @click="showDeleteConfirm = false"></button></div>
+            <div class="modal-body">
+                <p>¿Estás seguro de eliminar este movimiento?</p>
+                <p class="small text-muted">{{ deleteTarget?.type_display }} - {{ deleteTarget?.concept }} - ${{ formatNumber(deleteTarget?.amount) }}</p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary btn-sm" @click="showDeleteConfirm = false">Cancelar</button>
+                <button type="button" class="btn btn-danger btn-sm" @click="deleteMovement" :disabled="deleting">{{ deleting ? 'Eliminando...' : 'Eliminar' }}</button>
+            </div></div></div></div>
+        <div v-if="showDeleteConfirm" class="modal-backdrop fade show"></div>
     </div>
 </template>
 
 <script setup>
 import { ref, reactive, computed, onMounted, onUnmounted } from 'vue';
+import { useAuthStore } from '../../../stores/auth';
 import api from '../../../services/api';
 import DataTable from '../../../components/common/DataTable.vue';
 import { useCache } from '../../../composables/useCache';
 import { toast } from '../../../utils/toast';
+
+const authStore = useAuthStore();
+const isAdmin = computed(() => authStore.user?.role_id === 1);
 
 const { refresh } = useCache();
 const loading = ref(true);
@@ -95,6 +113,9 @@ const expenseForm = reactive({ concept: '', amount: 0, payment_method: 'cash', n
 const showDetail = ref(false);
 const detailMov = ref(null);
 const detailLoading = ref(false);
+const showDeleteConfirm = ref(false);
+const deleteTarget = ref(null);
+const deleting = ref(false);
 
 const columns = [
     { key: 'created_at', label: 'Fecha' },
@@ -154,6 +175,24 @@ const openDetail = async (movement) => {
     try { const res = await api.get('/hairsalon/finances/' + movement.id); detailMov.value = res.data; }
     catch (e) { toast.error('Error al cargar detalle'); }
     finally { detailLoading.value = false; }
+};
+
+const confirmDelete = (movement) => {
+    deleteTarget.value = movement;
+    showDeleteConfirm.value = true;
+};
+
+const deleteMovement = async () => {
+    if (!deleteTarget.value) return;
+    deleting.value = true;
+    try {
+        await api.delete('/hairsalon/finances/' + deleteTarget.value.id);
+        toast.success('Movimiento eliminado');
+        showDeleteConfirm.value = false;
+        deleteTarget.value = null;
+        await refreshData();
+    } catch (e) { toast.error(e.response?.data?.message || 'Error al eliminar'); }
+    finally { deleting.value = false; }
 };
 
 const handleJobCreated = () => { refreshData(); };

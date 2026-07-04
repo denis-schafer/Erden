@@ -103,12 +103,16 @@
             </div>
         </div>
 
-        <div v-if="showQuickClient" class="modal d-block"><div class="modal-dialog modal-sm"><div class="modal-content">
+        <div v-if="showQuickClient" class="modal d-block"><div class="modal-dialog"><div class="modal-content">
             <div class="modal-header"><h5 class="modal-title">Nuevo Cliente</h5><button class="btn-close" @click="showQuickClient = false"></button></div>
             <form @submit.prevent="addQuickClient"><div class="modal-body">
-                <div class="mb-2"><input v-model="quickClientName" class="form-control" placeholder="Nombre" required></div>
-                <div class="mb-2"><input v-model="quickClientPhone" class="form-control" placeholder="Teléfono"></div>
+                <div class="mb-2"><label class="form-label">Nombre</label><input v-model="quickClientName" class="form-control form-control-sm" required></div>
+                <div class="mb-2"><label class="form-label">Teléfono</label><input v-model="quickClientPhone" class="form-control form-control-sm"></div>
+                <div class="mb-2"><label class="form-label">Email</label><input v-model="quickClientEmail" class="form-control form-control-sm" type="email"></div>
+                <div class="mb-2"><label class="form-label">Dirección</label><input v-model="quickClientAddress" class="form-control form-control-sm"></div>
+                <div class="mb-2"><label class="form-label">Notas</label><textarea v-model="quickClientNotes" class="form-control form-control-sm" rows="2"></textarea></div>
             </div><div class="modal-footer">
+                <button type="button" class="btn btn-secondary btn-sm" @click="showQuickClient = false">Cancelar</button>
                 <button type="submit" class="btn btn-primary btn-sm">Agregar</button>
             </div></form>
         </div></div></div>
@@ -159,6 +163,9 @@ const todayJobs = ref([]);
 const showQuickClient = ref(false);
 const quickClientName = ref('');
 const quickClientPhone = ref('');
+const quickClientEmail = ref('');
+const quickClientAddress = ref('');
+const quickClientNotes = ref('');
 
 // Computed
 const filteredProducts = computed(() => {
@@ -232,12 +239,21 @@ const quickAddClient = () => {
 
 const addQuickClient = async () => {
     try {
-        const res = await api.post('/hairsalon/clients', { name: quickClientName.value, phone: quickClientPhone.value });
+        const res = await api.post('/hairsalon/clients', {
+            name: quickClientName.value,
+            phone: quickClientPhone.value,
+            email: quickClientEmail.value,
+            address: quickClientAddress.value,
+            notes: quickClientNotes.value,
+        });
         allClients.value.push(res.data.client);
         selectClient(res.data.client);
         showQuickClient.value = false;
         quickClientName.value = '';
         quickClientPhone.value = '';
+        quickClientEmail.value = '';
+        quickClientAddress.value = '';
+        quickClientNotes.value = '';
         toast.success('Cliente creado');
     } catch (e) { toast.error(e.response?.data?.message || 'Error'); }
 };

@@ -109,8 +109,7 @@ const filterOperator = ref(null);
 const calendarWrapperRef = ref(null);
 const calendarGridRef = ref(null);
 const headerHeight = ref(44);
-const weekOffset = ref(0);
-const currentDate = ref(new Date().toISOString().split('T')[0]);
+const anchorDate = ref(new Date().toISOString().split('T')[0]);
 const clientDropdown = ref(false);
 const clientHover = ref(null);
 const clientInputRef = ref(null);
@@ -130,9 +129,12 @@ const form = reactive({
 });
 
 const weekStart = computed(() => {
-    const d = new Date(); d.setDate(d.getDate() + weekOffset.value * 7);
-    const day = d.getDay(); const diff = d.getDate() - day + (day === 0 ? -6 : 1);
-    d.setDate(diff); d.setHours(0, 0, 0, 0); return d;
+    const d = new Date(anchorDate.value + 'T12:00:00');
+    if (viewMode.value === 'weekly') {
+        const day = d.getDay(); const diff = d.getDate() - day + (day === 0 ? -6 : 1);
+        d.setDate(diff);
+    }
+    d.setHours(0, 0, 0, 0); return d;
 });
 const totalHours = computed(() => Math.max(1, calEndTime.value - calStartTime.value));
 const dayLabels = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'];
@@ -142,7 +144,7 @@ const visibleDays = computed(() => {
     const days = []; const start = new Date(weekStart.value);
     const today = new Date().toISOString().split('T')[0];
     const count = viewMode.value === 'weekly' ? 7 : 1; const colW = 100 / count;
-    for (let i = 0; i < count; i++) { const d = new Date(start); d.setDate(start.getDate() + i); const ds = d.toISOString().split('T')[0]; days.push({ date: ds, label: dayLabels[i], dateDisplay: d.getDate().toString(), isToday: ds === today, columnLeft: i * colW, columnWidth: colW }); }
+    for (let i = 0; i < count; i++) { const d = new Date(start); d.setDate(start.getDate() + i); const ds = d.toISOString().split('T')[0]; const label = dayLabels[d.getDay() === 0 ? 6 : d.getDay() - 1] || ''; days.push({ date: ds, label, dateDisplay: d.getDate().toString(), isToday: ds === today, columnLeft: i * colW, columnWidth: colW }); }
     return days;
 });
 const hours = computed(() => { const h = []; for (let i = calStartTime.value; i < calEndTime.value; i++) h.push(i); return h; });
@@ -192,9 +194,19 @@ const dayAppointments = (date) => {
     });
 };
 
-const prevWeek = () => { weekOffset.value--; loadAppointments(); };
-const nextWeek = () => { weekOffset.value++; loadAppointments(); };
-const today = () => { weekOffset.value = 0; loadAppointments(); };
+const prevWeek = () => {
+    const d = new Date(anchorDate.value + 'T12:00:00');
+    d.setDate(d.getDate() - (viewMode.value === 'weekly' ? 7 : 1));
+    anchorDate.value = d.toISOString().split('T')[0];
+    loadAppointments();
+};
+const nextWeek = () => {
+    const d = new Date(anchorDate.value + 'T12:00:00');
+    d.setDate(d.getDate() + (viewMode.value === 'weekly' ? 7 : 1));
+    anchorDate.value = d.toISOString().split('T')[0];
+    loadAppointments();
+};
+const today = () => { anchorDate.value = new Date().toISOString().split('T')[0]; loadAppointments(); };
 
 const updateLocalAppointment = (id, updates) => {
     const idx = appointments.value.findIndex(a => a.id === id);

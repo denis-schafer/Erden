@@ -544,3 +544,21 @@ Archivos modificados:
 - app/Http/Controllers/Pos/PosOrderController.php
 - resources/js/components/modules/pos/PosQR.vue
 - versiones.txt
+
+---
+
+[Modulo Peluqueria]
+Fecha: 2026-07-02
+Estado: Completado
+
+Cambios realizados:
+- Paquete HairSalon completo con Dashboard, Clientes, Servicios, Caja, Finanzas, Productos, Stock, Config, Estadisticas, Turnos y Usuarios
+- Roles admin y operator con permisos diferenciados
+- Calendario de turnos con drag & drop, resize, ghost visual
+- Theme configurable (colores, logo, fondo, drag-drop) para POS, Quota y HairSalon
+- Sidebar reordenable por usuario con drag & drop (mouse + touch)
+- WebSocket broadcast para cambios de config y turnos
+- Barras superiores fijas en mobile con padding compensatorio
+- Login sin scroll heredado (100dvh + overflow-anchor: none)
+- Instalacion via CLI y panel admin
+- Filtro de usuario Administrador en selectores

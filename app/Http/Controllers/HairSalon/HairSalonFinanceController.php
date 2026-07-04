@@ -142,4 +142,21 @@ class HairSalonFinanceController extends Controller
             'movement' => DB::table('hairsalon_cash_movements')->find($id),
         ]);
     }
+
+    public function destroy($id)
+    {
+        $user = session('user');
+        if (!$user || ($user['role_id'] ?? null) != 1) {
+            return response()->json(['message' => 'No autorizado'], 403);
+        }
+
+        $movement = DB::table('hairsalon_cash_movements')->find($id);
+        if (!$movement) {
+            return response()->json(['message' => 'Movimiento no encontrado'], 404);
+        }
+
+        DB::table('hairsalon_cash_movements')->where('id', $id)->delete();
+
+        return response()->json(['success' => true, 'message' => 'Movimiento eliminado']);
+    }
 }

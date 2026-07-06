@@ -2,15 +2,26 @@
     <div class="hairsalon-clients p-3">
         <div class="d-flex justify-content-between align-items-center mb-3">
             <h4 class="mb-0">Clientes</h4>
-            <button class="btn btn-primary btn-sm" @click="openForm()"><i class="bi bi-plus"></i> Nuevo</button>
+            <div class="d-flex align-items-center gap-2">
+                <div class="form-check form-switch mb-0">
+                    <input class="form-check-input" type="checkbox" id="showDeleted" v-model="showDeleted" @change="refreshClients">
+                    <label class="form-check-label small" for="showDeleted">Ver eliminados</label>
+                </div>
+                <button class="btn btn-primary btn-sm" @click="openForm()"><i class="bi bi-plus"></i> Nuevo</button>
+            </div>
         </div>
         <div v-if="loading" class="text-center py-5"><div class="spinner-border"></div></div>
         <div v-else>
             <DataTable :data="clients" :columns="columns" :per-page="15">
                 <template #rowActions="{ row }">
-                    <button class="btn btn-sm btn-outline-info me-1" @click="openHistory(row)" title="Historial"><i class="bi bi-clock-history"></i></button>
-                    <button class="btn btn-sm btn-outline-primary me-1" @click="openForm(row)"><i class="bi bi-pencil"></i></button>
-                    <button class="btn btn-sm btn-outline-danger" @click="confirmDelete(row)"><i class="bi bi-trash"></i></button>
+                    <template v-if="row.deleted_at">
+                        <button class="btn btn-sm btn-outline-success" @click="restoreClient(row)"><i class="bi bi-arrow-counterclockwise"></i> Recuperar</button>
+                    </template>
+                    <template v-else>
+                        <button class="btn btn-sm btn-outline-info me-1" @click="openHistory(row)" title="Historial"><i class="bi bi-clock-history"></i></button>
+                        <button class="btn btn-sm btn-outline-primary me-1" @click="openForm(row)"><i class="bi bi-pencil"></i></button>
+                        <button class="btn btn-sm btn-outline-danger" @click="confirmDelete(row)"><i class="bi bi-trash"></i></button>
+                    </template>
                 </template>
             </DataTable>
         </div>
@@ -92,6 +103,7 @@ import { toast } from '../../../utils/toast';
 
 const { fetch, refresh } = useCache();
 const confirmDialog = inject('confirmDialog', null);
+const showDeleted = ref(false);
 const loading = ref(true);
 const clients = ref([]);
 const showModal = ref(false);
@@ -116,14 +128,18 @@ const columns = [
 const loadClients = async () => {
     loading.value = true;
     try {
-        const res = await api.get('/hairsalon/clients', { params: { per_page: 500 } });
+        const params = { per_page: 500 };
+        if (showDeleted.value) params.include_deleted = 1;
+        const res = await api.get('/hairsalon/clients', { params });
         clients.value = res.data.data || [];
     } finally { loading.value = false; }
 };
 
 const refreshClients = async () => {
     try {
-        const res = await api.get('/hairsalon/clients', { params: { per_page: 500 } });
+        const params = { per_page: 500 };
+        if (showDeleted.value) params.include_deleted = 1;
+        const res = await api.get('/hairsalon/clients', { params });
         clients.value = res.data.data || [];
     } finally { /* silent */ }
 };
@@ -158,17 +174,25 @@ const confirmDelete = async (client) => {
     if (confirmDialog && confirmDialog.value) {
         const confirmed = await confirmDialog.value.open({
             title: 'Eliminar Cliente',
-            message: `¿Está seguro de eliminar a "${client.name}"?`,
+            message: `¿Está seguro de eliminar a "${client.name}"? Los trabajos asociados no se verán afectados.`,
             confirmText: 'Eliminar',
             confirmClass: 'btn-danger'
         });
         if (!confirmed) return;
     } else {
-        if (!confirm('¿Está seguro de eliminar este cliente?')) return;
+        if (!confirm('¿Está seguro de eliminar este cliente? Los trabajos asociados no se verán afectados.')) return;
     }
     try {
         await api.delete('/hairsalon/clients/' + client.id);
         toast.success('Cliente eliminado');
+        refreshClients();
+    } catch (e) { toast.error(e.response?.data?.message || 'Error'); }
+};
+
+const restoreClient = async (client) => {
+    try {
+        await api.patch('/hairsalon/clients/' + client.id + '/restore');
+        toast.success('Cliente recuperado');
         refreshClients();
     } catch (e) { toast.error(e.response?.data?.message || 'Error'); }
 };

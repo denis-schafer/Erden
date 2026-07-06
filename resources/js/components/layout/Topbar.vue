@@ -26,6 +26,11 @@
                                 <i class="bi bi-person me-2"></i>Perfil
                             </button>
                         </li>
+                        <li>
+                            <button class="dropdown-item" @click="$emit('open-changelog')">
+                                <i class="bi bi-megaphone me-2"></i>Novedades
+                            </button>
+                        </li>
                         <li><hr class="dropdown-divider"></li>
                         <li>
                             <button class="dropdown-item text-danger" @click="handleLogout">
@@ -48,7 +53,7 @@ const props = defineProps({
     sidebarCollapsed: Boolean
 });
 
-const emit = defineEmits(['toggle-sidebar', 'open-profile']);
+const emit = defineEmits(['toggle-sidebar', 'open-profile', 'open-changelog']);
 
 const authStore = useAuthStore();
 

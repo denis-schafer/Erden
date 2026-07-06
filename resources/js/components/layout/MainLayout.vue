@@ -16,6 +16,7 @@
                 :has-menu-module="hasMenuModule"
                 @toggle-sidebar="toggleSidebar"
                 @open-profile="showProfileModal = true"
+                @open-changelog="openChangelogManually"
             />
             <main class="main-content">
                 <TabsContainer ref="tabsContainer" />
@@ -24,6 +25,12 @@
         <ProfileModal 
             v-if="showProfileModal" 
             @close="showProfileModal = false"
+        />
+        <ChangelogModal
+            v-if="showChangelogModal"
+            :module="changelogModule"
+            :autoshow="changelogAutoshow"
+            @close="showChangelogModal = false"
         />
         <SessionModal @logout="handleLogout" />
     </div>
@@ -37,6 +44,7 @@ import Sidebar from './Sidebar.vue';
 import Topbar from './Topbar.vue';
 import TabsContainer from './TabsContainer.vue';
 import ProfileModal from './ProfileModal.vue';
+import ChangelogModal from '../common/ChangelogModal.vue';
 import SessionModal from '../SessionModal.vue';
 
 const authStore = useAuthStore();
@@ -55,6 +63,9 @@ const isOverlayVisible = ref(false);
 const isSidebarCollapsed = ref(false);
 const isMobile = ref(false);
 const showProfileModal = ref(false);
+const showChangelogModal = ref(false);
+const changelogModule = ref('');
+const changelogAutoshow = ref(false);
 
 // Computed: when sidebar should be hidden (for content padding)
 const shouldHideSidebar = computed(() => {
@@ -120,7 +131,18 @@ onMounted(() => {
             window.location.href = '/';
         }, 2000);
     });
+
+    window.addEventListener('check-changelog', (e) => {
+        changelogModule.value = e.detail?.module || '';
+        changelogAutoshow.value = true;
+        showChangelogModal.value = true;
+    });
 });
+
+const openChangelogManually = () => {
+    changelogAutoshow.value = false;
+    showChangelogModal.value = true;
+};
 
 onUnmounted(() => {
     window.removeEventListener('resize', checkMobile);

@@ -13,7 +13,9 @@ class HairSalonFinanceController extends Controller
     {
         $query = DB::table('hairsalon_cash_movements as m')
             ->join('users as u', 'm.operator_id', '=', 'u.id')
-            ->select('m.*', 'u.name as operator_name');
+            ->leftJoin('hairsalon_jobs as j', 'm.job_id', '=', 'j.id')
+            ->leftJoin('hairsalon_clients as c', 'j.client_id', '=', 'c.id')
+            ->select('m.*', 'u.name as operator_name', 'c.name as client_name');
 
         if ($request->get('type')) {
             $query->where('m.type', $request->get('type'));

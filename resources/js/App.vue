@@ -60,6 +60,7 @@ const resetScroll = () => {
 const handleLoginSuccess = () => {
     resetScroll();
     showCompanySelector.value = false;
+    triggerChangelog();
 };
 
 const handleShowCompanySelector = (companyList) => {
@@ -69,6 +70,19 @@ const handleShowCompanySelector = (companyList) => {
 
 const handleCompanySelected = () => {
     showCompanySelector.value = false;
+    triggerChangelog();
+};
+
+const triggerChangelog = () => {
+    const modules = authStore.modules.map(m => m.route);
+    const detected = [];
+    if (modules.some(r => r.startsWith('quota-'))) detected.push('quota');
+    if (modules.some(r => r.startsWith('hairsalon-'))) detected.push('hairsalon');
+    if (modules.some(r => r.startsWith('pos-'))) detected.push('pos');
+    const moduleIds = detected.length ? detected.join(',') : '';
+    setTimeout(() => {
+        window.dispatchEvent(new CustomEvent('check-changelog', { detail: { module: moduleIds } }));
+    }, 600);
 };
 
     const handleLogout = () => {

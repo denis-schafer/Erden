@@ -13,6 +13,10 @@ class HairSalonClientController extends Controller
     {
         $query = DB::table('hairsalon_clients');
 
+        if (!$request->get('include_deleted')) {
+            $query->whereNull('deleted_at');
+        }
+
         if ($search = $request->get('search')) {
             $query->where(function ($q) use ($search) {
                 $q->where('name', 'like', "%{$search}%")
@@ -89,15 +93,24 @@ class HairSalonClientController extends Controller
             return response()->json(['message' => 'Cliente no encontrado'], 404);
         }
 
-        $jobsCount = DB::table('hairsalon_jobs')->where('client_id', $id)->count();
-        if ($jobsCount > 0) {
-            return response()->json(['message' => 'No se puede eliminar un cliente con trabajos registrados'], 400);
+        DB::table('hairsalon_clients')->where('id', $id)->update(['deleted_at' => now()]);
+        broadcast(new HairSalonClientUpdated((object)['id' => $id, 'deleted_at' => now()], 'deleted'));
+
+        return response()->json(['success' => true, 'message' => 'Cliente desactivado']);
+    }
+
+    public function restore($id)
+    {
+        $client = DB::table('hairsalon_clients')->where('id', $id)->whereNotNull('deleted_at')->first();
+        if (!$client) {
+            return response()->json(['message' => 'Cliente no encontrado o no está eliminado'], 404);
         }
 
-        DB::table('hairsalon_clients')->where('id', $id)->delete();
-        broadcast(new HairSalonClientUpdated(['id' => $id], 'deleted'));
+        DB::table('hairsalon_clients')->where('id', $id)->update(['deleted_at' => null, 'updated_at' => now()]);
+        $client = DB::table('hairsalon_clients')->find($id);
+        broadcast(new HairSalonClientUpdated($client, 'restored'));
 
-        return response()->json(['success' => true, 'message' => 'Cliente eliminado']);
+        return response()->json(['success' => true, 'message' => 'Cliente recuperado', 'client' => $client]);
     }
 
     public function jobs($id)

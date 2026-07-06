@@ -121,6 +121,7 @@ const columns = [
     { key: 'created_at', label: 'Fecha' },
     { key: 'type_display', label: 'Tipo' },
     { key: 'concept', label: 'Concepto' },
+    { key: 'client_name', label: 'Cliente' },
     { key: 'method_display', label: 'Método' },
     { key: 'amount', label: 'Monto' },
     { key: 'operator_name', label: 'Operador' },

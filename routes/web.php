@@ -252,6 +252,8 @@ Route::prefix('pos')->middleware('printAgentAuth')->group(function () {
 Route::get('/configs', [App\Http\Controllers\ConfigController::class, 'index']);
 Route::put('/configs/{id}', [App\Http\Controllers\ConfigController::class, 'update']);
 Route::get('/configs/target/{target}', [App\Http\Controllers\ConfigController::class, 'getByTarget']);
+Route::get('/changelog', [App\Http\Controllers\ChangelogController::class, 'index']);
+Route::patch('/changelog/dismiss', [App\Http\Controllers\ChangelogController::class, 'dismiss']);
 
 // ==================== Quota Admin Routes ====================
 Route::middleware(['web', 'setDatabase'])->prefix('quota')->group(function () {
@@ -361,6 +363,7 @@ Route::middleware(['web', 'setDatabase'])->prefix('hairsalon')->group(function (
     Route::post('/clients', [\App\Http\Controllers\HairSalon\HairSalonClientController::class, 'store'])->middleware('permission:hairsalon-clients_create');
     Route::put('/clients/{id}', [\App\Http\Controllers\HairSalon\HairSalonClientController::class, 'update'])->middleware('permission:hairsalon-clients_update');
     Route::delete('/clients/{id}', [\App\Http\Controllers\HairSalon\HairSalonClientController::class, 'destroy'])->middleware('permission:hairsalon-clients_delete');
+    Route::patch('/clients/{id}/restore', [\App\Http\Controllers\HairSalon\HairSalonClientController::class, 'restore'])->middleware('permission:hairsalon-clients_delete');
     Route::get('/clients/{id}/jobs', [\App\Http\Controllers\HairSalon\HairSalonClientController::class, 'jobs'])->middleware('permission:hairsalon-clients_read');
 
     Route::get('/services', [\App\Http\Controllers\HairSalon\HairSalonServiceController::class, 'index'])->middleware('permission:hairsalon-services_read');

@@ -111,6 +111,7 @@ class MigrationAll extends Command
             'database/migrations/2026_05_18_122141_create_print_jobs_table_on_parent.php',
             'database/migrations/2026_05_22_000002_add_webhook_code_to_companies_table.php',
             'database/migrations/2026_05_22_000003_create_webhooks_jobs_table.php',
+            'database/migrations/2026_07_04_000001_create_changelog_entries_table.php',
         ];
 
         foreach ($parentMigrations as $path) {

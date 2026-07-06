@@ -253,7 +253,6 @@ Route::get('/configs', [App\Http\Controllers\ConfigController::class, 'index']);
 Route::put('/configs/{id}', [App\Http\Controllers\ConfigController::class, 'update']);
 Route::get('/configs/target/{target}', [App\Http\Controllers\ConfigController::class, 'getByTarget']);
 Route::get('/changelog', [App\Http\Controllers\ChangelogController::class, 'index']);
-Route::patch('/changelog/dismiss', [App\Http\Controllers\ChangelogController::class, 'dismiss']);
 
 // ==================== Quota Admin Routes ====================
 Route::middleware(['web', 'setDatabase'])->prefix('quota')->group(function () {

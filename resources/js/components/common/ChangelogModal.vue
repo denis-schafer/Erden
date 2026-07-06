@@ -18,7 +18,7 @@
                                 <h6 class="card-title mb-0 fw-bold">{{ entry.title }}</h6>
                                 <small class="text-muted ms-2 text-nowrap">{{ formatDate(entry.created_at) }}</small>
                             </div>
-                            <p class="card-text small" style="white-space:pre-wrap">{{ entry.content }}</p>
+                            <div v-html="entry.content" class="card-text small" style="white-space:pre-wrap"></div>
                         </div>
                     </div>
                 </div>
@@ -61,21 +61,25 @@ const loadEntries = async () => {
     } finally { loading.value = false; }
 };
 
+const STORAGE_KEY = 'changelog_last_seen_';
+
 const shouldAutoShow = () => {
     if (!props.autoshow) return false;
-    return entries.value.some(e => e.is_published == 1 || e.is_published === true);
+    const published = entries.value.filter(e => e.is_published == 1 || e.is_published === true);
+    if (!published.length) return false;
+    const key = STORAGE_KEY + (props.module || 'all');
+    const lastSeen = parseInt(localStorage.getItem(key) || '0');
+    return published.some(e => e.id > lastSeen);
 };
 
-const dismissEntries = async () => {
-    try {
-        const params = {};
-        if (props.module) params.module = props.module;
-        await api.patch('/changelog/dismiss', params);
-    } catch { /* silent */ }
+const markSeen = () => {
+    const key = STORAGE_KEY + (props.module || 'all');
+    const maxId = entries.value.length ? Math.max(...entries.value.map(e => e.id)) : 0;
+    if (maxId > 0) localStorage.setItem(key, maxId.toString());
 };
 
 const close = () => {
-    if (props.autoshow) dismissEntries();
+    if (props.autoshow) markSeen();
     visible.value = false;
     emit('close');
 };
@@ -87,6 +91,9 @@ onMounted(() => {
         } else {
             visible.value = true;
         }
+    }).catch(() => {
+        entries.value = [];
+        visible.value = true;
     });
 });
 

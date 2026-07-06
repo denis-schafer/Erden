@@ -153,7 +153,7 @@ const serviceLineOptions = {
 
 const serviceLineData = computed(() => {
     if (!serviceIntervalData.value.products || !serviceIntervalData.value.products.length) return { labels: [], datasets: [] };
-    const intervals = (serviceIntervalData.value.intervals || []).map(i => { const d = new Date(i+':00'); return d.toLocaleTimeString('es-AR', { hour:'2-digit', minute:'2-digit' }); });
+    const intervals = (serviceIntervalData.value.intervals || []).map(i => { const d = new Date(i); return d.toLocaleTimeString('es-AR', { hour:'2-digit', minute:'2-digit' }); });
     const sorted = [...serviceIntervalData.value.products].filter(p => selectedSvcs.value.includes(p.name)).sort((a,b) => b.data.reduce((s,v)=>s+v,0) - a.data.reduce((s,v)=>s+v,0));
     return { labels: intervals, datasets: sorted.map((p,i) => ({ label: p.name, data: p.data, borderColor: productQtyColors[i%productQtyColors.length], backgroundColor: productQtyColors[i%productQtyColors.length]+'33', pointBackgroundColor: productQtyColors[i%productQtyColors.length], pointRadius: 3, tension: 0.3, fill: false })) };
 });
@@ -200,7 +200,7 @@ const exportData = async () => {
     try {
         const res = await api.get('/hairsalon/statistics/export', { params: { start_date: startDate.value, end_date: endDate.value }, responseType: 'blob' });
         const url = URL.createObjectURL(res.data);
-        const a = document.createElement('a'); a.href = url; a.download = `estadisticas_${startDate.value}_${endDate.value}.csv`; a.click();
+        const a = document.createElement('a'); a.href = url; a.download = `estadisticas_peluqueria_${startDate.value}_${endDate.value}.xlsx`; a.click();
         URL.revokeObjectURL(url);
         toast.success('Archivo exportado');
     } catch (e) { toast.error('Error al exportar'); }

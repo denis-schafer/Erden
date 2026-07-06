@@ -207,6 +207,9 @@ const visibleModules = computed(() => {
         if (userHasMercadoQr !== true && userHasMercadoQr !== 1 && userHasMercadoQr !== '1') {
             modules = modules.filter(m => m.route !== 'pos-qr');
         }
+        if (authStore.user?.username !== 'admin' || authStore.user?.role_id !== 1) {
+            modules = modules.filter(m => m.route !== 'hairsalon-log');
+        }
     }
     const hasFullPosAccess = authStore.permissions.includes('pos-users_read') || authStore.permissions.includes('pos-config_read');
     const hasFullHairSalonAccess = authStore.permissions.includes('hairsalon-config_read') || authStore.permissions.includes('hairsalon-users_read');

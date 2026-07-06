@@ -5,6 +5,8 @@ namespace App\Http\Controllers\HairSalon;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use PhpOffice\PhpSpreadsheet\Spreadsheet;
+use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
 
 class HairSalonStatisticsController extends Controller
 {
@@ -146,6 +148,84 @@ class HairSalonStatisticsController extends Controller
             ->orderBy('j.created_at', 'desc')
             ->get();
 
-        return response()->json($jobs);
+        $totalIncome = $jobs->sum('total');
+        $totalExpenses = DB::table('hairsalon_cash_movements')
+            ->where('type', 'expense')
+            ->whereDate('created_at', '>=', $startDate)
+            ->whereDate('created_at', '<=', $endDate)
+            ->sum('amount');
+
+        $spreadsheet = new Spreadsheet();
+
+        // Sheet 1: Trabajos
+        $sheet1 = $spreadsheet->getActiveSheet();
+        $sheet1->setTitle('Trabajos');
+        $sheet1->setCellValue('A1', 'Fecha');
+        $sheet1->setCellValue('B1', 'Cliente');
+        $sheet1->setCellValue('C1', 'Operador');
+        $sheet1->setCellValue('D1', 'Total');
+        $sheet1->setCellValue('E1', 'Método');
+        $sheet1->setCellValue('F1', 'Estado');
+        $sheet1->getStyle('A1:F1')->getFont()->setBold(true);
+
+        $row = 2;
+        foreach ($jobs as $job) {
+            $method = ['cash' => 'Efectivo', 'transfer' => 'Transferencia', 'mercadopago' => 'MercadoPago', 'other' => 'Otro'][$job->payment_method] ?? $job->payment_method;
+            $status = ['completed' => 'Completado', 'pending' => 'Pendiente', 'cancelled' => 'Cancelado', 'in_progress' => 'En Proceso'][$job->status] ?? $job->status;
+            $sheet1->setCellValue('A' . $row, $job->created_at);
+            $sheet1->setCellValue('B' . $row, $job->client_name);
+            $sheet1->setCellValue('C' . $row, $job->operator_name);
+            $sheet1->setCellValue('D' . $row, $job->total);
+            $sheet1->setCellValue('E' . $row, $method);
+            $sheet1->setCellValue('F' . $row, $status);
+            $row++;
+        }
+        $sheet1->getColumnDimension('A')->setAutoSize(true);
+        $sheet1->getColumnDimension('B')->setAutoSize(true);
+        $sheet1->getColumnDimension('C')->setAutoSize(true);
+        $sheet1->getColumnDimension('D')->setAutoSize(true);
+        $sheet1->getColumnDimension('E')->setAutoSize(true);
+        $sheet1->getColumnDimension('F')->setAutoSize(true);
+
+        // Sheet 2: Resumen
+        $sheet2 = $spreadsheet->createSheet();
+        $sheet2->setTitle('Resumen');
+        $sheet2->setCellValue('A1', 'Resumen');
+        $sheet2->getStyle('A1')->getFont()->setBold(true)->setSize(14);
+        $summaryRows = [
+            ['Total de Trabajos', $jobs->count()],
+            ['Ingresos Totales', number_format($totalIncome, 2, '.', '')],
+            ['Gastos Totales', number_format($totalExpenses, 2, '.', '')],
+            ['Balance', number_format($totalIncome - $totalExpenses, 2, '.', '')],
+            ['Fecha Inicio', $startDate],
+            ['Fecha Fin', $endDate],
+        ];
+        foreach ($summaryRows as $i => $rowData) {
+            $sheet2->setCellValue('A' . ($i + 2), $rowData[0]);
+            $sheet2->setCellValue('B' . ($i + 2), $rowData[1]);
+        }
+        $sheet2->getColumnDimension('A')->setAutoSize(true);
+
+        // Generate and output
+        $writer = new Xlsx($spreadsheet);
+        $filename = 'estadisticas_peluqueria_' . $startDate . '_' . $endDate . '.xlsx';
+
+        $tempFile = tempnam(sys_get_temp_dir(), 'hairsalon_stats_');
+        $writer->save($tempFile);
+        $content = file_get_contents($tempFile);
+        unlink($tempFile);
+
+        if (empty($content)) {
+            return response()->json(['error' => 'No se pudo generar el archivo Excel'], 500);
+        }
+
+        while (ob_get_level()) {
+            ob_end_clean();
+        }
+        header('Content-Type: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+        header('Content-Disposition: attachment; filename="' . $filename . '"');
+        header('Content-Length: ' . strlen($content));
+        echo $content;
+        exit;
     }
 }

@@ -124,9 +124,17 @@ class HairSalonClientController extends Controller
             ->join('users as u', 'j.operator_id', '=', 'u.id')
             ->leftJoin('hairsalon_job_services as js', 'j.id', '=', 'js.job_id')
             ->leftJoin('hairsalon_services as s', 'js.service_id', '=', 's.id')
-            ->select('j.*', 'u.name as operator_name', DB::raw('GROUP_CONCAT(s.name SEPARATOR ", ") as service_names'))
+            ->select(
+                'j.id', 'j.client_id', 'j.operator_id', 'j.total',
+                'j.payment_method', 'j.status', 'j.notes',
+                'j.discount', 'j.created_at', 'j.updated_at',
+                'u.name as operator_name',
+                DB::raw('GROUP_CONCAT(s.name SEPARATOR ", ") as service_names')
+            )
             ->where('j.client_id', $id)
-            ->groupBy('j.id')
+            ->groupBy('j.id', 'j.client_id', 'j.operator_id', 'j.total',
+                'j.payment_method', 'j.status', 'j.notes',
+                'j.discount', 'j.created_at', 'j.updated_at', 'u.name')
             ->orderBy('j.created_at', 'desc')
             ->paginate(50);
 

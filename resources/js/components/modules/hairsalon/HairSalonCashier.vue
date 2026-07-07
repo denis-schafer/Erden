@@ -77,9 +77,12 @@
                             <div v-if="showDropdown && filteredProducts.length" class="position-absolute w-100 border rounded bg-white shadow-sm" style="max-height:180px;overflow-y:auto;z-index:1050">
                                 <div v-for="p in filteredProducts" :key="p.id" class="px-2 py-1 small" @mousedown.prevent="selectProduct(p)" style="cursor:pointer;border-bottom:1px solid #f0f0f0" @mouseover="hoverIdx = p.id" :class="hoverIdx === p.id ? 'bg-primary text-white' : ''">
                                     {{ p.name }} <small class="text-muted">(stock: {{ p.quantity }})</small>
-                                </div>
                             </div>
                         </div>
+                        <div v-if="clientDropdown && !filteredClients.length && loadingInitial" class="position-absolute w-100 border rounded bg-white shadow-sm small text-muted px-2 py-2" style="z-index:1050">
+                            Cargando...
+                        </div>
+                    </div>
                     </div>
 
                     <div class="mb-2"><label class="form-label">Método de Pago</label>
@@ -113,7 +116,10 @@
                 <div class="mb-2"><label class="form-label">Notas</label><textarea v-model="quickClientNotes" class="form-control form-control-sm" rows="2"></textarea></div>
             </div><div class="modal-footer">
                 <button type="button" class="btn btn-secondary btn-sm" @click="showQuickClient = false">Cancelar</button>
-                <button type="submit" class="btn btn-primary btn-sm">Agregar</button>
+                <button type="submit" class="btn btn-primary btn-sm" :disabled="quickSaving">
+                    <span v-if="quickSaving" class="spinner-border spinner-border-sm me-1"></span>
+                    {{ quickSaving ? 'Aguarde' : 'Agregar' }}
+                </button>
             </div></form>
         </div></div></div>
         <div v-if="showQuickClient" class="modal-backdrop fade show"></div>
@@ -166,6 +172,8 @@ const quickClientPhone = ref('');
 const quickClientEmail = ref('');
 const quickClientAddress = ref('');
 const quickClientNotes = ref('');
+const quickSaving = ref(false);
+const loadingInitial = ref(true);
 
 // Computed
 const filteredProducts = computed(() => {
@@ -238,6 +246,7 @@ const quickAddClient = () => {
 };
 
 const addQuickClient = async () => {
+    quickSaving.value = true;
     try {
         const res = await api.post('/hairsalon/clients', {
             name: quickClientName.value,
@@ -256,6 +265,7 @@ const addQuickClient = async () => {
         quickClientNotes.value = '';
         toast.success('Cliente creado');
     } catch (e) { toast.error(e.response?.data?.message || 'Error'); }
+    finally { quickSaving.value = false; }
 };
 
 // Service dropdown
@@ -344,7 +354,7 @@ const rebuildDeductibles = () => {
                     product_id: p.id,
                     product_name: p.name,
                     stock: p.quantity,
-                    quantity: existing ? existing.quantity : 0,
+                    quantity: existing ? existing.quantity : 1,
                 });
             }
         }
@@ -369,6 +379,7 @@ const loadInitial = async () => {
             new Date(j.created_at).toDateString() === new Date().toDateString()
         );
     } catch (e) { /* silent */ }
+    finally { loadingInitial.value = false; }
 };
 
 const charge = async () => {

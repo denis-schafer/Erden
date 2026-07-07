@@ -7,10 +7,19 @@
                     <option :value="null">Todos los operadores</option>
                     <option v-for="o in operators" :key="o.id" :value="o.id">{{ o.name }}</option>
                 </select>
-                <button class="btn btn-sm btn-outline-secondary" @click="prevWeek">&laquo;</button>
+                <button class="btn btn-sm btn-outline-secondary" :disabled="loading" @click="prevWeek">
+                    <span v-if="loading" class="spinner-border spinner-border-sm"></span>
+                    <span v-else>&laquo;</span>
+                </button>
                 <strong>{{ weekLabel }}</strong>
-                <button class="btn btn-sm btn-outline-secondary" @click="nextWeek">&raquo;</button>
-                <button class="btn btn-sm btn-outline-primary ms-1" @click="today">Hoy</button>
+                <button class="btn btn-sm btn-outline-secondary" :disabled="loading" @click="nextWeek">
+                    <span v-if="loading" class="spinner-border spinner-border-sm"></span>
+                    <span v-else>&raquo;</span>
+                </button>
+                <button class="btn btn-sm btn-outline-primary ms-1" :disabled="loading" @click="today">
+                    <span v-if="loading" class="spinner-border spinner-border-sm me-1"></span>
+                    {{ loading ? 'Aguarde' : 'Hoy' }}
+                </button>
             </div>
         </div>
         <div v-if="loading" class="text-center py-5"><div class="spinner-border"></div></div>
@@ -80,7 +89,10 @@
                 <div class="mb-2"><label class="form-label">Notas</label><textarea v-model="form.notes" class="form-control form-control-sm" rows="2"></textarea></div>
             </div><div class="modal-footer">
                 <button type="button" class="btn btn-secondary btn-sm" @click="showModal=false">Cancelar</button>
-                <button type="button" class="btn btn-danger btn-sm" @click="cancelAppointment" v-if="editing">Cancelar Turno</button>
+                <button type="button" class="btn btn-danger btn-sm" :disabled="cancelling" @click="cancelAppointment" v-if="editing">
+                    <span v-if="cancelling" class="spinner-border spinner-border-sm me-1"></span>
+                    {{ cancelling ? 'Cancelando...' : 'Cancelar Turno' }}
+                </button>
                 <button type="submit" class="btn btn-primary btn-sm">{{ saving?'Guardando...':'Guardar' }}</button>
             </div></form>
         </div></div></div>
@@ -101,6 +113,7 @@ const allClients = ref([]);
 const showModal = ref(false);
 const editing = ref(null);
 const saving = ref(false);
+const cancelling = ref(false);
 const viewMode = ref('weekly');
 const calStartTime = ref(8);
 const calEndTime = ref(20);
@@ -404,8 +417,10 @@ const save = async () => {
 const cancelAppointment = async () => {
     if (!editing.value) return;
     skipNextReload.value = true;
+    cancelling.value = true;
     try { await api.patch('/hairsalon/appointments/' + editing.value.id + '/status', { status: 'cancelled' }); toast.success('Turno cancelado'); updateLocalAppointment(editing.value.id, { status: 'cancelled' }); showModal.value = false; }
     catch (e) { toast.error('Error al cancelar'); }
+    finally { cancelling.value = false; }
 };
 
 const loadAppointments = async () => {

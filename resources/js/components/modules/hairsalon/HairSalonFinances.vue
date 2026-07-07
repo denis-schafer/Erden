@@ -18,13 +18,19 @@
                 <div v-for="m in summary.by_method" :key="m.payment_method" class="d-flex justify-content-between small mt-1"><span>{{ methodLabel(m.payment_method) }}</span><span>${{ formatNumber(m.total) }}</span></div></div></div></div>
             <div class="col-md-8"><div class="d-flex gap-2 mb-2">
                 <input class="form-control form-control-sm" type="date" v-model="startDate"><input class="form-control form-control-sm" type="date" v-model="endDate">
-                <button class="btn btn-outline-primary btn-sm" @click="refreshData">Filtrar</button></div></div>
+                <button class="btn btn-outline-primary btn-sm" :disabled="loading" @click="refreshData">
+                    <span v-if="loading" class="spinner-border spinner-border-sm me-1"></span>
+                    {{ loading ? 'Aguarde' : 'Filtrar' }}
+                </button></div></div>
         </div>
         <div v-if="loading" class="text-center py-5"><div class="spinner-border"></div></div>
         <div v-else>
             <DataTable :data="displayMovements" :columns="columns" :per-page="15">
                 <template #rowActions="{ row }">
-                    <button class="btn btn-sm btn-outline-info" @click="openDetail(row)"><i class="bi bi-eye"></i></button>
+                    <button class="btn btn-sm btn-outline-info" :disabled="btnLoading['detail-'+row.id]" @click="openDetail(row)">
+                        <i v-if="!btnLoading['detail-'+row.id]" class="bi bi-eye"></i>
+                        <span v-else class="spinner-border spinner-border-sm"></span>
+                    </button>
                     <button v-if="isAdmin" class="btn btn-sm btn-outline-danger ms-1" @click="confirmDelete(row)"><i class="bi bi-trash"></i></button>
                 </template>
             </DataTable>
@@ -113,6 +119,7 @@ const expenseForm = reactive({ concept: '', amount: 0, payment_method: 'cash', n
 const showDetail = ref(false);
 const detailMov = ref(null);
 const detailLoading = ref(false);
+const btnLoading = ref({});
 const showDeleteConfirm = ref(false);
 const deleteTarget = ref(null);
 const deleting = ref(false);
@@ -173,9 +180,10 @@ const saveExpense = async () => {
 
 const openDetail = async (movement) => {
     showDetail.value = true; detailLoading.value = true; detailMov.value = null;
+    btnLoading.value['detail-' + movement.id] = true;
     try { const res = await api.get('/hairsalon/finances/' + movement.id); detailMov.value = res.data; }
     catch (e) { toast.error('Error al cargar detalle'); }
-    finally { detailLoading.value = false; }
+    finally { detailLoading.value = false; btnLoading.value['detail-' + movement.id] = false; }
 };
 
 const confirmDelete = (movement) => {

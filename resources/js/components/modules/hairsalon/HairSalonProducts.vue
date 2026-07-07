@@ -13,7 +13,10 @@
                     <button class="btn btn-sm btn-outline-success me-1" @click="adjustStock(row, 'in')" title="Agregar stock"><i class="bi bi-plus-circle"></i></button>
                     <button class="btn btn-sm btn-outline-warning me-1" @click="adjustStock(row, 'out')" title="Quitar stock"><i class="bi bi-dash-circle"></i></button>
                     <button class="btn btn-sm btn-outline-primary me-1" @click="openForm(row)"><i class="bi bi-pencil"></i></button>
-                    <button class="btn btn-sm btn-outline-danger" @click="confirmDeleteProduct(row)"><i class="bi bi-trash"></i></button>
+                    <button class="btn btn-sm btn-outline-danger" :disabled="btnLoading['delete-'+row.id]" @click="confirmDeleteProduct(row)">
+                        <i v-if="!btnLoading['delete-'+row.id]" class="bi bi-trash"></i>
+                        <span v-else class="spinner-border spinner-border-sm"></span>
+                    </button>
                 </template>
             </DataTable>
         </div>
@@ -73,6 +76,7 @@ const confirmDialog = inject('confirmDialog', null);
 const loading = ref(true);
 const allProducts = ref([]);
 const lowStock = ref(false);
+const btnLoading = ref({});
 const showModal = ref(false);
 const editing = ref(null);
 const saving = ref(false);
@@ -167,8 +171,10 @@ const confirmDeleteProduct = async (product) => {
         const confirmed = await confirmDialog.value.open({ title: 'Eliminar Producto', message: `¿Está seguro de eliminar "${product.name}"?`, confirmText: 'Eliminar', confirmClass: 'btn-danger' });
         if (!confirmed) return;
     } else { if (!confirm('¿Está seguro de eliminar este producto?')) return; }
+    btnLoading.value['delete-' + product.id] = true;
     try { await api.delete('/hairsalon/products/' + product.id); toast.success('Producto eliminado'); loadProducts(); }
     catch (e) { toast.error(e.response?.data?.message || 'Error'); }
+    btnLoading.value['delete-' + product.id] = false;
 };
 
 const adjustStock = (product, type) => { stockProduct.value = product; stockType.value = type; stockQuantity.value = 0; stockReason.value = ''; showStockModal.value = true; };

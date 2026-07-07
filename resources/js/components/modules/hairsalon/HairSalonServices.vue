@@ -11,7 +11,10 @@
             <span v-for="cat in categories" :key="cat.id" class="badge bg-secondary me-1">
                 {{ cat.name }}
                 <button class="btn btn-sm p-0 ms-1 text-white" @click="editCategory(cat)"><i class="bi bi-pencil"></i></button>
-                <button class="btn btn-sm p-0 ms-1 text-white" @click="confirmDeleteCategory(cat)"><i class="bi bi-trash"></i></button>
+                <button class="btn btn-sm p-0 ms-1 text-white" :disabled="btnLoading['cat-'+cat.id]" @click="confirmDeleteCategory(cat)">
+                    <i v-if="!btnLoading['cat-'+cat.id]" class="bi bi-trash"></i>
+                    <span v-else class="spinner-border spinner-border-sm"></span>
+                </button>
             </span>
         </div>
 
@@ -19,8 +22,14 @@
         <div v-else>
             <DataTable :data="services" :columns="columns" :per-page="15">
                 <template #rowActions="{ row }">
-                    <button class="btn btn-sm btn-outline-primary me-1" @click="openServiceForm(row)"><i class="bi bi-pencil"></i></button>
-                    <button class="btn btn-sm btn-outline-danger" @click="confirmDeleteService(row)"><i class="bi bi-trash"></i></button>
+                    <button class="btn btn-sm btn-outline-primary me-1" :disabled="btnLoading['edit-'+row.id]" @click="openServiceForm(row)">
+                        <i v-if="!btnLoading['edit-'+row.id]" class="bi bi-pencil"></i>
+                        <span v-else class="spinner-border spinner-border-sm"></span>
+                    </button>
+                    <button class="btn btn-sm btn-outline-danger" :disabled="btnLoading['delete-'+row.id]" @click="confirmDeleteService(row)">
+                        <i v-if="!btnLoading['delete-'+row.id]" class="bi bi-trash"></i>
+                        <span v-else class="spinner-border spinner-border-sm"></span>
+                    </button>
                 </template>
             </DataTable>
         </div>
@@ -90,6 +99,7 @@ const serviceForm = reactive({ name: '', description: '', price: 0, duration_min
 const showCategoryModal = ref(false);
 const editingCategory = ref(null);
 const savingCategory = ref(false);
+const btnLoading = ref({});
 const categoryForm = reactive({ name: '' });
 
 const prodSearchSvc = ref('');
@@ -149,6 +159,7 @@ const refreshData = async () => {
 const formatNumber = (n) => Number(n || 0).toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
 const openServiceForm = async (svc) => {
+    if (svc) btnLoading.value['edit-' + svc.id] = true;
     const data = await refresh(cacheKey, () => api.get('/hairsalon/services').then(r => r.data));
     categories.value = data.categories || []; products.value = data.products || [];
     editingService.value = svc || null;
@@ -160,6 +171,7 @@ const openServiceForm = async (svc) => {
     const prod = products.value.find(p => p.id === svc?.product_id);
     selectedProdSvcName.value = prod?.name || null; prodSearchSvc.value = prod?.name || '';
     showServiceModal.value = true;
+    if (svc) btnLoading.value['edit-' + svc.id] = false;
 };
 
 const saveService = async () => {
@@ -177,8 +189,10 @@ const confirmDeleteService = async (svc) => {
         const confirmed = await confirmDialog.value.open({ title: 'Eliminar Servicio', message: `¿Está seguro de eliminar el servicio "${svc.name}"?`, confirmText: 'Eliminar', confirmClass: 'btn-danger' });
         if (!confirmed) return;
     } else { if (!confirm('¿Está seguro de eliminar este servicio?')) return; }
+    btnLoading.value['delete-' + svc.id] = true;
     try { await api.delete('/hairsalon/services/' + svc.id); toast.success('Servicio eliminado'); await refreshData(); }
     catch (e) { toast.error(e.response?.data?.message || 'Error'); }
+    btnLoading.value['delete-' + svc.id] = false;
 };
 
 const editCategory = (cat) => { editingCategory.value = cat; categoryForm.name = cat.name; showCategoryModal.value = true; };
@@ -198,8 +212,10 @@ const confirmDeleteCategory = async (cat) => {
         const confirmed = await confirmDialog.value.open({ title: 'Eliminar Categoría', message: `¿Está seguro de eliminar la categoría "${cat.name}"?`, confirmText: 'Eliminar', confirmClass: 'btn-danger' });
         if (!confirmed) return;
     } else { if (!confirm('¿Está seguro de eliminar esta categoría?')) return; }
+    btnLoading.value['cat-' + cat.id] = true;
     try { await api.delete('/hairsalon/services/categories/' + cat.id); toast.success('Categoría eliminada'); await refreshData(); }
     catch (e) { toast.error(e.response?.data?.message || 'Error'); }
+    btnLoading.value['cat-' + cat.id] = false;
 };
 
 const handleChanged = () => { refreshData(); };

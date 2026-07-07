@@ -15,12 +15,22 @@
             <DataTable :data="clients" :columns="columns" :per-page="15">
                 <template #rowActions="{ row }">
                     <template v-if="row.deleted_at">
-                        <button class="btn btn-sm btn-outline-success" @click="restoreClient(row)"><i class="bi bi-arrow-counterclockwise"></i> Recuperar</button>
+                        <button class="btn btn-sm btn-outline-success" :disabled="btnLoading['restore-'+row.id]" @click="restoreClient(row)">
+                            <span v-if="btnLoading['restore-'+row.id]" class="spinner-border spinner-border-sm me-1"></span>
+                            <i v-else class="bi bi-arrow-counterclockwise"></i>
+                            {{ btnLoading['restore-'+row.id] ? 'Aguarde' : 'Recuperar' }}
+                        </button>
                     </template>
                     <template v-else>
-                        <button class="btn btn-sm btn-outline-info me-1" @click="openHistory(row)" title="Historial"><i class="bi bi-clock-history"></i></button>
+                        <button class="btn btn-sm btn-outline-info me-1" :disabled="btnLoading['history-'+row.id]" @click="openHistory(row)" title="Historial">
+                            <i v-if="!btnLoading['history-'+row.id]" class="bi bi-clock-history"></i>
+                            <span v-else class="spinner-border spinner-border-sm"></span>
+                        </button>
                         <button class="btn btn-sm btn-outline-primary me-1" @click="openForm(row)"><i class="bi bi-pencil"></i></button>
-                        <button class="btn btn-sm btn-outline-danger" @click="confirmDelete(row)"><i class="bi bi-trash"></i></button>
+                        <button class="btn btn-sm btn-outline-danger" :disabled="btnLoading['delete-'+row.id]" @click="confirmDelete(row)">
+                            <i v-if="!btnLoading['delete-'+row.id]" class="bi bi-trash"></i>
+                            <span v-else class="spinner-border spinner-border-sm"></span>
+                        </button>
                     </template>
                 </template>
             </DataTable>
@@ -56,7 +66,10 @@
                             <td class="text-end">${{ formatNumber(j.total) }}</td>
                             <td>{{ methodLabel(j.payment_method) }}</td>
                             <td>{{ j.operator_name }}</td>
-                            <td><button class="btn btn-sm btn-outline-info" @click="openJobDetail(j.id)"><i class="bi bi-eye"></i></button></td>
+                            <td><button class="btn btn-sm btn-outline-info" :disabled="btnLoading['detail-'+j.id]" @click="openJobDetail(j.id)">
+                                <i v-if="!btnLoading['detail-'+j.id]" class="bi bi-eye"></i>
+                                <span v-else class="spinner-border spinner-border-sm"></span>
+                            </button></td>
                         </tr></tbody>
                     </table>
                 </div>
@@ -104,6 +117,7 @@ import { toast } from '../../../utils/toast';
 const { fetch, refresh } = useCache();
 const confirmDialog = inject('confirmDialog', null);
 const showDeleted = ref(false);
+const btnLoading = ref({});
 const loading = ref(true);
 const clients = ref([]);
 const showModal = ref(false);
@@ -182,41 +196,47 @@ const confirmDelete = async (client) => {
     } else {
         if (!confirm('¿Está seguro de eliminar este cliente? Los trabajos asociados no se verán afectados.')) return;
     }
+    btnLoading.value['delete-' + client.id] = true;
     try {
         await api.delete('/hairsalon/clients/' + client.id);
         toast.success('Cliente eliminado');
         refreshClients();
     } catch (e) { toast.error(e.response?.data?.message || 'Error'); }
+    btnLoading.value['delete-' + client.id] = false;
 };
 
 const restoreClient = async (client) => {
+    btnLoading.value['restore-' + client.id] = true;
     try {
         await api.patch('/hairsalon/clients/' + client.id + '/restore');
         toast.success('Cliente recuperado');
         refreshClients();
     } catch (e) { toast.error(e.response?.data?.message || 'Error'); }
+    btnLoading.value['restore-' + client.id] = false;
 };
 
 const openHistory = async (client) => {
     historyClient.value = client;
     showHistory.value = true;
     historyLoading.value = true;
+    btnLoading.value['history-' + client.id] = true;
     try {
         const res = await api.get('/hairsalon/clients/' + client.id + '/jobs');
         historyJobs.value = res.data;
     } catch (e) { toast.error('Error al cargar historial'); }
-    finally { historyLoading.value = false; }
+    finally { historyLoading.value = false; btnLoading.value['history-' + client.id] = false; }
 };
 
 const openJobDetail = async (jobId) => {
     showJobDetail.value = true;
     jobDetailLoading.value = true;
     jobDetail.value = null;
+    btnLoading.value['detail-' + jobId] = true;
     try {
         const res = await api.get('/hairsalon/cashier/' + jobId);
         jobDetail.value = res.data;
     } catch (e) { toast.error('Error al cargar detalle'); }
-    finally { jobDetailLoading.value = false; }
+    finally { jobDetailLoading.value = false; btnLoading.value['detail-' + jobId] = false; }
 };
 
 const formatDate = (d) => {

@@ -9,10 +9,14 @@
             <DataTable :data="users" :columns="columns" :per-page="15">
                 <template #rowActions="{ row }">
                     <button class="btn btn-sm btn-outline-primary me-1" @click="openForm(row)"><i class="bi bi-pencil"></i></button>
-                    <button class="btn btn-sm" :class="row.enable ? 'btn-outline-warning' : 'btn-outline-success'" @click="toggleStatus(row)">
-                        <i :class="row.enable ? 'bi bi-pause-circle' : 'bi bi-play-circle'"></i>
+                    <button class="btn btn-sm" :class="row.enable ? 'btn-outline-warning' : 'btn-outline-success'" :disabled="btnLoading['toggle-'+row.id]" @click="toggleStatus(row)">
+                        <i v-if="!btnLoading['toggle-'+row.id]" :class="row.enable ? 'bi bi-pause-circle' : 'bi bi-play-circle'"></i>
+                        <span v-else class="spinner-border spinner-border-sm"></span>
                     </button>
-                    <button class="btn btn-sm btn-outline-danger ms-1" @click="confirmDeleteUser(row)" v-if="row.username !== 'admin'"><i class="bi bi-trash"></i></button>
+                    <button class="btn btn-sm btn-outline-danger ms-1" :disabled="btnLoading['delete-'+row.id]" @click="confirmDeleteUser(row)" v-if="row.username !== 'admin'">
+                        <i v-if="!btnLoading['delete-'+row.id]" class="bi bi-trash"></i>
+                        <span v-else class="spinner-border spinner-border-sm"></span>
+                    </button>
                 </template>
             </DataTable>
         </div>
@@ -46,6 +50,7 @@ const roles = ref([]);
 const showModal = ref(false);
 const editing = ref(null);
 const saving = ref(false);
+const btnLoading = ref({});
 const form = reactive({ name: '', username: '', password: '', role_id: '' });
 
 const columns = [
@@ -94,11 +99,13 @@ const saveUser = async () => {
 };
 
 const toggleStatus = async (user) => {
+    btnLoading.value['toggle-' + user.id] = true;
     try {
         await api.post('/hairsalon/users/' + user.id + '/toggle-status');
         toast.success('Estado cambiado');
         loadUsers();
     } catch (e) { toast.error(e.response?.data?.message || 'Error'); }
+    btnLoading.value['toggle-' + user.id] = false;
 };
 
 const confirmDeleteUser = async (user) => {
@@ -113,11 +120,13 @@ const confirmDeleteUser = async (user) => {
     } else {
         if (!confirm('¿Está seguro de eliminar este usuario?')) return;
     }
+    btnLoading.value['delete-' + user.id] = true;
     try {
         await api.delete('/hairsalon/users/' + user.id);
         toast.success('Usuario eliminado');
         loadUsers();
     } catch (e) { toast.error(e.response?.data?.message || 'Error'); }
+    btnLoading.value['delete-' + user.id] = false;
 };
 
 onMounted(() => { loadUsers(); });

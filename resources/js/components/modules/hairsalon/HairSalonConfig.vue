@@ -13,7 +13,10 @@
                         <div class="d-flex align-items-center gap-2">
                             <input type="file" class="form-control form-control-sm" accept="image/*" @change="uploadImage($event, setting.name)" :id="'file-' + setting.name">
                             <a v-if="setting.value" :href="setting.value" target="_blank" class="btn btn-sm btn-outline-primary">Ver</a>
-                            <button v-if="setting.value" class="btn btn-sm btn-outline-danger" @click="deleteImage(setting)"><i class="bi bi-trash"></i></button>
+                            <button v-if="setting.value" class="btn btn-sm btn-outline-danger" :disabled="btnLoading['img-'+setting.id]" @click="deleteImage(setting)">
+                                <i v-if="!btnLoading['img-'+setting.id]" class="bi bi-trash"></i>
+                                <span v-else class="spinner-border spinner-border-sm"></span>
+                            </button>
                         </div>
                     </div>
                     <div v-else-if="setting.type === 'boolean'">
@@ -54,6 +57,7 @@ import { toast } from '../../../utils/toast';
 
 const { fetch, refresh } = useCache();
 const loading = ref(true);
+const btnLoading = ref({});
 const settings = ref([]);
 const operators = ref([]);
 let updateTimeout = null;
@@ -114,12 +118,14 @@ const uploadImage = async (event, type) => {
 };
 
 const deleteImage = async (setting) => {
+    btnLoading.value['img-' + setting.id] = true;
     try {
         await api.put('/hairsalon/config/' + setting.id, { value: '' });
         await refresh('hairsalon-configs', () => api.get('/hairsalon/config').then(r => r.data));
         settings.value = await fetch('hairsalon-configs', () => api.get('/hairsalon/config').then(r => r.data));
         toast.success('Imagen eliminada');
     } catch (e) { toast.error('Error al eliminar imagen'); }
+    btnLoading.value['img-' + setting.id] = false;
 };
 
 const handleUserChanged = () => {

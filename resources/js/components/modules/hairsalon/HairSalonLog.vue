@@ -5,7 +5,10 @@
             <div class="col-auto"><input class="form-control form-control-sm" type="date" v-model="startDate"></div>
             <div class="col-auto"><input class="form-control form-control-sm" type="date" v-model="endDate"></div>
             <div class="col-auto"><select class="form-select form-select-sm" v-model="filterAction"><option value="">Todas las acciones</option><option v-for="a in actions" :key="a" :value="a">{{ a }}</option></select></div>
-            <div class="col-auto"><button class="btn btn-outline-primary btn-sm" @click="loadLogs">Filtrar</button></div>
+            <div class="col-auto"><button class="btn btn-outline-primary btn-sm" :disabled="loading" @click="loadLogs">
+                <span v-if="loading" class="spinner-border spinner-border-sm me-1"></span>
+                {{ loading ? 'Aguarde' : 'Filtrar' }}
+            </button></div>
         </div>
         <div v-if="loading" class="text-center py-5"><div class="spinner-border"></div></div>
         <div v-else>

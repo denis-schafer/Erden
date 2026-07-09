@@ -46,6 +46,7 @@
 <script setup>
 import { ref, markRaw, onMounted } from 'vue';
 import { useAuthStore } from '../../stores/auth';
+import { useTabs } from '../../composables/useTabs';
 import Dashboard from '../modules/Dashboard.vue';
 import UsersIndex from '../modules/users/Index.vue';
 import RolesIndex from '../modules/roles/Index.vue';
@@ -83,8 +84,21 @@ import HairSalonStatistics from '../modules/hairsalon/HairSalonStatistics.vue';
 import HairSalonLog from '../modules/hairsalon/HairSalonLog.vue';
 import HairSalonConfig from '../modules/hairsalon/HairSalonConfig.vue';
 import HairSalonAppointments from '../modules/hairsalon/HairSalonAppointments.vue';
+import AcademyDashboard from '../modules/academy/AcademyDashboard.vue';
+import AcademyCourses from '../modules/academy/AcademyCourses.vue';
+import AcademyModules from '../modules/academy/AcademyModules.vue';
+import AcademyLessons from '../modules/academy/AcademyLessons.vue';
+import AcademyStudents from '../modules/academy/AcademyStudents.vue';
+import AcademyEnrollments from '../modules/academy/AcademyEnrollments.vue';
+import AcademyExams from '../modules/academy/AcademyExams.vue';
+import AcademyQuestions from '../modules/academy/AcademyQuestions.vue';
+import AcademyGrading from '../modules/academy/AcademyGrading.vue';
+import AcademyConfig from '../modules/academy/AcademyConfig.vue';
+import AcademyImport from '../modules/academy/AcademyImport.vue';
+import AcademyDocumentation from '../modules/academy/AcademyDocumentation.vue';
 
 const authStore = useAuthStore();
+const { setTabData, clearTabData } = useTabs();
 
 onMounted(() => {
     window.addEventListener('close-pos-qr-module', () => {
@@ -131,7 +145,19 @@ const componentMap = {
     'hairsalon-statistics': markRaw(HairSalonStatistics),
     'hairsalon-log': markRaw(HairSalonLog),
     'hairsalon-config': markRaw(HairSalonConfig),
-    'hairsalon-appointments': markRaw(HairSalonAppointments)
+    'hairsalon-appointments': markRaw(HairSalonAppointments),
+    'academy-dashboard': markRaw(AcademyDashboard),
+    'academy-courses': markRaw(AcademyCourses),
+    'academy-modules': markRaw(AcademyModules),
+    'academy-lessons': markRaw(AcademyLessons),
+    'academy-students': markRaw(AcademyStudents),
+    'academy-enrollments': markRaw(AcademyEnrollments),
+    'academy-exams': markRaw(AcademyExams),
+    'academy-questions': markRaw(AcademyQuestions),
+    'academy-grading': markRaw(AcademyGrading),
+    'academy-config': markRaw(AcademyConfig),
+    'academy-import': markRaw(AcademyImport),
+    'academy-documentation': markRaw(AcademyDocumentation)
 };
 
 const tabs = ref([
@@ -191,6 +217,17 @@ const initDefaultDashboard = () => {
             selectTab('hairsalon-dashboard');
             return;
         }
+        const academyDashModule = authStore.modules.find(m => m.route === 'academy-dashboard');
+        if (academyDashModule) {
+            tabs.value[0] = {
+                id: 'academy-dashboard',
+                title: 'Dashboard',
+                component: markRaw(AcademyDashboard),
+                fixed: true
+            };
+            selectTab('academy-dashboard');
+            return;
+        }
         const defaultDashboard = authStore.modules.find(m => m.route === 'dashboard');
         if (defaultDashboard) {
             tabs.value[0] = {
@@ -221,6 +258,10 @@ const selectTab = (tabId) => {
 
 const openTab = (module) => {
     const existingTab = tabs.value.find(t => t.id === module.route);
+    
+    if (module.data) {
+        setTabData(module.data);
+    }
     
     if (existingTab) {
         selectTab(module.route);

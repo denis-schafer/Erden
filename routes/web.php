@@ -421,8 +421,93 @@ Route::middleware(['web', 'setDatabase'])->prefix('hairsalon')->group(function (
     Route::delete('/users/{id}', [\App\Http\Controllers\HairSalon\HairSalonUserController::class, 'destroy'])->middleware('permission:hairsalon-users_delete');
 });
 
+// ==================== Academy Admin Routes ====================
+Route::middleware(['web', 'setDatabase'])->prefix('academy')->group(function () {
+    Route::get('/dashboard', [\App\Http\Controllers\Academy\AcademyDashboardController::class, 'index'])->middleware('permission:academy-dashboard_read');
+
+    Route::get('/courses', [\App\Http\Controllers\Academy\AcademyCourseController::class, 'index'])->middleware('permission:academy-courses_read');
+    Route::post('/courses', [\App\Http\Controllers\Academy\AcademyCourseController::class, 'store'])->middleware('permission:academy-courses_create');
+    Route::get('/courses/{id}', [\App\Http\Controllers\Academy\AcademyCourseController::class, 'show'])->middleware('permission:academy-courses_read');
+    Route::put('/courses/{id}', [\App\Http\Controllers\Academy\AcademyCourseController::class, 'update'])->middleware('permission:academy-courses_update');
+    Route::delete('/courses/{id}', [\App\Http\Controllers\Academy\AcademyCourseController::class, 'destroy'])->middleware('permission:academy-courses_delete');
+
+    Route::get('/modules/{courseId}', [\App\Http\Controllers\Academy\AcademyModuleController::class, 'index'])->middleware('permission:academy-modules_read');
+    Route::post('/modules', [\App\Http\Controllers\Academy\AcademyModuleController::class, 'store'])->middleware('permission:academy-modules_create');
+    Route::get('/modules/detail/{id}', [\App\Http\Controllers\Academy\AcademyModuleController::class, 'show'])->middleware('permission:academy-modules_read');
+    Route::put('/modules/{id}', [\App\Http\Controllers\Academy\AcademyModuleController::class, 'update'])->middleware('permission:academy-modules_update');
+    Route::delete('/modules/{id}', [\App\Http\Controllers\Academy\AcademyModuleController::class, 'destroy'])->middleware('permission:academy-modules_delete');
+    Route::post('/modules/reorder', [\App\Http\Controllers\Academy\AcademyModuleController::class, 'reorder'])->middleware('permission:academy-modules_update');
+
+    Route::get('/lessons/{moduleId}', [\App\Http\Controllers\Academy\AcademyLessonController::class, 'index'])->middleware('permission:academy-lessons_read');
+    Route::post('/lessons', [\App\Http\Controllers\Academy\AcademyLessonController::class, 'store'])->middleware('permission:academy-lessons_create');
+    Route::get('/lessons/detail/{id}', [\App\Http\Controllers\Academy\AcademyLessonController::class, 'show'])->middleware('permission:academy-lessons_read');
+    Route::put('/lessons/{id}', [\App\Http\Controllers\Academy\AcademyLessonController::class, 'update'])->middleware('permission:academy-lessons_update');
+    Route::delete('/lessons/{id}', [\App\Http\Controllers\Academy\AcademyLessonController::class, 'destroy'])->middleware('permission:academy-lessons_delete');
+    Route::post('/lessons/reorder', [\App\Http\Controllers\Academy\AcademyLessonController::class, 'reorder'])->middleware('permission:academy-lessons_update');
+
+    Route::get('/students', [\App\Http\Controllers\Academy\AcademyStudentController::class, 'index'])->middleware('permission:academy-students_read');
+    Route::post('/students', [\App\Http\Controllers\Academy\AcademyStudentController::class, 'store'])->middleware('permission:academy-students_create');
+    Route::get('/students/{id}', [\App\Http\Controllers\Academy\AcademyStudentController::class, 'show'])->middleware('permission:academy-students_read');
+    Route::put('/students/{id}', [\App\Http\Controllers\Academy\AcademyStudentController::class, 'update'])->middleware('permission:academy-students_update');
+    Route::delete('/students/{id}', [\App\Http\Controllers\Academy\AcademyStudentController::class, 'destroy'])->middleware('permission:academy-students_delete');
+    Route::post('/students/{id}/reset-password', [\App\Http\Controllers\Academy\AcademyStudentController::class, 'resetPassword'])->middleware('permission:academy-students_update');
+
+    Route::get('/enrollments', [\App\Http\Controllers\Academy\AcademyEnrollmentController::class, 'index'])->middleware('permission:academy-enrollments_read');
+    Route::post('/enrollments', [\App\Http\Controllers\Academy\AcademyEnrollmentController::class, 'store'])->middleware('permission:academy-enrollments_create');
+    Route::delete('/enrollments/{id}', [\App\Http\Controllers\Academy\AcademyEnrollmentController::class, 'destroy'])->middleware('permission:academy-enrollments_delete');
+    Route::get('/enrollments/available-students/{courseId}', [\App\Http\Controllers\Academy\AcademyEnrollmentController::class, 'availableStudents'])->middleware('permission:academy-enrollments_read');
+
+    Route::get('/exams', [\App\Http\Controllers\Academy\AcademyExamController::class, 'index'])->middleware('permission:academy-exams_read');
+    Route::post('/exams', [\App\Http\Controllers\Academy\AcademyExamController::class, 'store'])->middleware('permission:academy-exams_create');
+    Route::get('/exams/{id}', [\App\Http\Controllers\Academy\AcademyExamController::class, 'show'])->middleware('permission:academy-exams_read');
+    Route::put('/exams/{id}', [\App\Http\Controllers\Academy\AcademyExamController::class, 'update'])->middleware('permission:academy-exams_update');
+    Route::delete('/exams/{id}', [\App\Http\Controllers\Academy\AcademyExamController::class, 'destroy'])->middleware('permission:academy-exams_delete');
+
+    Route::get('/questions/{examId}', [\App\Http\Controllers\Academy\AcademyQuestionController::class, 'index'])->middleware('permission:academy-exams_read');
+    Route::post('/questions', [\App\Http\Controllers\Academy\AcademyQuestionController::class, 'store'])->middleware('permission:academy-exams_create');
+    Route::get('/questions/detail/{id}', [\App\Http\Controllers\Academy\AcademyQuestionController::class, 'show'])->middleware('permission:academy-exams_read');
+    Route::put('/questions/{id}', [\App\Http\Controllers\Academy\AcademyQuestionController::class, 'update'])->middleware('permission:academy-exams_update');
+    Route::delete('/questions/{id}', [\App\Http\Controllers\Academy\AcademyQuestionController::class, 'destroy'])->middleware('permission:academy-exams_delete');
+
+    Route::get('/grading', [\App\Http\Controllers\Academy\AcademyGradingController::class, 'index'])->middleware('permission:academy-grading_read');
+    Route::get('/grading/{attemptId}', [\App\Http\Controllers\Academy\AcademyGradingController::class, 'show'])->middleware('permission:academy-grading_read');
+    Route::post('/grading/{attemptId}/release', [\App\Http\Controllers\Academy\AcademyGradingController::class, 'release'])->middleware('permission:academy-grading_grade');
+
+    Route::get('/config', [\App\Http\Controllers\Academy\AcademyConfigController::class, 'index'])->middleware('permission:academy-config_read');
+    Route::put('/config/{id}', [\App\Http\Controllers\Academy\AcademyConfigController::class, 'update'])->middleware('permission:academy-config_update');
+    Route::post('/config/upload', [\App\Http\Controllers\Academy\AcademyConfigController::class, 'upload'])->middleware('permission:academy-config_update');
+    Route::post('/config/{id}/delete-image', [\App\Http\Controllers\Academy\AcademyConfigController::class, 'deleteImage'])->middleware('permission:academy-config_update');
+
+    Route::post('/import', [\App\Http\Controllers\Academy\AcademyImportController::class, 'import'])->middleware('permission:academy-import_execute');
+    Route::get('/import/template', [\App\Http\Controllers\Academy\AcademyImportController::class, 'downloadTemplate'])->middleware('permission:academy-import_execute');
+
+    Route::get('/documentation', [\App\Http\Controllers\Academy\AcademyDocumentationController::class, 'index'])->middleware('permission:academy-documentation_read');
+});
+
+// ==================== Academy Portal Routes ====================
+Route::get('/curso/lookup-company', [\App\Http\Controllers\Academy\Portal\AcademyPortalController::class, 'lookupCompany']);
+Route::get('/curso/portal-config', [\App\Http\Controllers\Academy\Portal\AcademyPortalController::class, 'portalConfig']);
+Route::get('/curso/available-courses', [\App\Http\Controllers\Academy\Portal\AcademyPortalController::class, 'listCourses']);
+
+Route::middleware(['web', 'setDatabase'])->prefix('curso')->group(function () {
+    Route::post('/login', [\App\Http\Controllers\Academy\Portal\AcademyAuthController::class, 'login']);
+    Route::get('/user/current', [\App\Http\Controllers\Academy\Portal\AcademyAuthController::class, 'currentUser']);
+    Route::post('/change-password', [\App\Http\Controllers\Academy\Portal\AcademyAuthController::class, 'changePassword']);
+    Route::post('/logout', [\App\Http\Controllers\Academy\Portal\AcademyAuthController::class, 'logout']);
+    Route::get('/courses', [\App\Http\Controllers\Academy\Portal\AcademyStudentCourseController::class, 'index']);
+    Route::get('/modules/{courseId}', [\App\Http\Controllers\Academy\Portal\AcademyStudentCourseController::class, 'modules']);
+    Route::get('/lessons/{id}', [\App\Http\Controllers\Academy\Portal\AcademyStudentLessonController::class, 'show']);
+    Route::post('/lessons/{id}/complete', [\App\Http\Controllers\Academy\Portal\AcademyStudentLessonController::class, 'complete']);
+    Route::get('/exams/{id}', [\App\Http\Controllers\Academy\Portal\AcademyStudentExamController::class, 'show']);
+    Route::post('/exams/{id}/submit', [\App\Http\Controllers\Academy\Portal\AcademyStudentExamController::class, 'submit']);
+    Route::get('/exam-results/{attemptId}', [\App\Http\Controllers\Academy\Portal\AcademyStudentExamController::class, 'results']);
+});
+
 // Portal SPA catch-all (must be after lookup-company)
 Route::get('/asociados/{name?}/{dni?}', [SpaController::class, 'index']);
+
+// Academy Portal SPA catch-all
+Route::get('/curso/{name?}/{dni?}', [SpaController::class, 'index']);
 
 // OAuth SPA catch-all
 Route::get('/oauth', [SpaController::class, 'index']);

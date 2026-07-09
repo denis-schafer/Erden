@@ -158,6 +158,36 @@ class CompanyModuleController extends Controller
             $this->uninstallHairSalonPackage($company);
         }
 
+        // Academy package detection
+        $academyModuleIds = Module::where('package', 'academy')->pluck('id')->toArray();
+
+        $currentAcademyAssigned = DB::connection('mysql_parent')
+            ->table('company_modules as cm')
+            ->join('modules as m', 'cm.module_id', '=', 'm.id')
+            ->where('cm.company_id', $companyId)
+            ->where('m.package', 'academy')
+            ->pluck('cm.module_id')
+            ->toArray();
+
+        $newAcademyAssigned = array_intersect($moduleIds, $academyModuleIds);
+
+        $academyWasAssigned = !empty($currentAcademyAssigned);
+        $academyIsAssigned = !empty($newAcademyAssigned);
+
+        Log::info('[CompanyModuleController] update: academyModuleIds=' . json_encode($academyModuleIds) . ', currentAcademyAssigned=' . json_encode($currentAcademyAssigned) . ', newAcademyAssigned=' . json_encode($newAcademyAssigned) . ', academyWasAssigned=' . ($academyWasAssigned ? 'yes' : 'no') . ', academyIsAssigned=' . ($academyIsAssigned ? 'yes' : 'no'));
+
+        if ($academyIsAssigned && !$academyWasAssigned) {
+            Log::info('[CompanyModuleController] update: Installing Academy package (first time)');
+            $this->installAcademyPackage($company);
+        } elseif ($academyIsAssigned && $academyWasAssigned) {
+            Log::info('[CompanyModuleController] update: Reinstalling Academy package');
+            $this->uninstallAcademyPackage($company);
+            $this->installAcademyPackage($company);
+        } elseif ($academyWasAssigned && !$academyIsAssigned) {
+            Log::info('[CompanyModuleController] update: Uninstalling Academy package');
+            $this->uninstallAcademyPackage($company);
+        }
+
         return response()->json(['message' => 'Módulos actualizados correctamente']);
     }
 
@@ -649,5 +679,134 @@ class CompanyModuleController extends Controller
         }
 
         Log::info('[CompanyModuleController] runHairSalonSeeders: FIN');
+    }
+
+    protected function installAcademyPackage(Company $company): void
+    {
+        Log::info('[CompanyModuleController] installAcademyPackage: INICIO para empresa: ' . $company->name . ' (DB: ' . $company->db . ')');
+
+        $companyDb = $company->db;
+
+        $this->createDatabaseIfNotExists($companyDb);
+
+        config(['database.connections.mysql.database' => $companyDb]);
+        DB::purge('mysql');
+        DB::reconnect('mysql');
+
+        Log::info('[CompanyModuleController] installAcademyPackage: BD configurada a: ' . $companyDb);
+
+        \Artisan::call('migrate', ['--path' => 'database/migrations/2026_06_27_000001_create_user_module_orders_table.php']);
+        $this->runAcademyMigrations();
+        $this->runAcademySeeders($company);
+
+        Log::info('[CompanyModuleController] installAcademyPackage: FIN para empresa: ' . $company->name);
+    }
+
+    protected function uninstallAcademyPackage(Company $company): void
+    {
+        Log::info('[CompanyModuleController] uninstallAcademyPackage: INICIO para empresa: ' . $company->name . ' (DB: ' . $company->db . ')');
+
+        $companyDb = $company->db;
+
+        $this->connectToChildDatabase($companyDb);
+
+        $academyTables = [
+            'academy_exam_answers',
+            'academy_exam_attempts',
+            'academy_question_options',
+            'academy_questions',
+            'academy_exams',
+            'academy_course_student_lesson',
+            'academy_course_student',
+            'academy_lessons',
+            'academy_modules',
+            'academy_students',
+            'academy_courses',
+            'academy_configs',
+        ];
+
+        try {
+            DB::statement('SET FOREIGN_KEY_CHECKS=0');
+
+            foreach ($academyTables as $table) {
+                try {
+                    Schema::dropIfExists($table);
+                } catch (\Exception $e) {
+                    Log::warning('[CompanyModuleController] uninstallAcademyPackage: Error dropping ' . $table . ': ' . $e->getMessage());
+                }
+            }
+
+            // Clean up academy module entries from modules table
+            DB::table('modules')->where('package', 'academy')->delete();
+
+            DB::statement('SET FOREIGN_KEY_CHECKS=1');
+
+            $this->deleteMigrationRecords('app/Packages/Academy/Migrations');
+
+            Log::info('[CompanyModuleController] uninstallAcademyPackage: Tablas academy_* eliminadas');
+        } catch (\Exception $e) {
+            try { DB::statement('SET FOREIGN_KEY_CHECKS=1'); } catch (\Exception $e2) {}
+            Log::error('[CompanyModuleController] uninstallAcademyPackage: Error: ' . $e->getMessage());
+        }
+
+        Log::info('[CompanyModuleController] uninstallAcademyPackage: FIN para empresa: ' . $company->name);
+    }
+
+    protected function runAcademyMigrations(): void
+    {
+        Log::info('[CompanyModuleController] runAcademyMigrations: INICIO');
+
+        $migrationsPath = 'app/Packages/Academy/Migrations';
+        $fullPath = base_path($migrationsPath);
+
+        if (!is_dir($fullPath)) {
+            Log::warning('[CompanyModuleController] runAcademyMigrations: Directorio no encontrado: ' . $fullPath);
+            return;
+        }
+
+        $files = glob($fullPath . '/*.php');
+        sort($files);
+
+        Log::info('[CompanyModuleController] runAcademyMigrations: Archivos encontrados: ' . count($files));
+
+        foreach ($files as $file) {
+            $migrationName = basename($file);
+            Log::info('[CompanyModuleController] runAcademyMigrations: Ejecutando: ' . $migrationName);
+            try {
+                $exitCode = Artisan::call('migrate', [
+                    '--force' => true,
+                    '--path' => $migrationsPath . '/' . basename($file),
+                    '--database' => 'mysql'
+                ]);
+                Log::info('[CompanyModuleController] runAcademyMigrations: Migration ' . $migrationName . ' completada con código: ' . $exitCode);
+            } catch (\Exception $e) {
+                Log::error('[CompanyModuleController] runAcademyMigrations: Migration ' . $migrationName . ' error: ' . $e->getMessage());
+            }
+        }
+
+        Log::info('[CompanyModuleController] runAcademyMigrations: FIN');
+    }
+
+    protected function runAcademySeeders(Company $company): void
+    {
+        Log::info('[CompanyModuleController] runAcademySeeders: INICIO');
+
+        config(['database.connections.mysql.database' => $company->db]);
+        DB::purge('mysql');
+        DB::reconnect('mysql');
+        Log::info('[CompanyModuleController] runAcademySeeders: Reconnected to DB: ' . $company->db);
+
+        try {
+            $exitCode = Artisan::call('db:seed', [
+                '--class' => 'App\\Packages\\Academy\\Seeders\\AcademySeeder',
+                '--force' => true,
+                '--database' => 'mysql'
+            ]);
+            Log::info('[CompanyModuleController] runAcademySeeders: Academy Seeder executed with code: ' . $exitCode);
+        } catch (\Exception $e) {
+            Log::error('[CompanyModuleController] runAcademySeeders: Academy Seeder error: ' . $e->getMessage());
+        }
+
+        Log::info('[CompanyModuleController] runAcademySeeders: FIN');
     }
 }

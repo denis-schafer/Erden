@@ -1,8 +1,9 @@
 <template>
-    <div id="app" :class="{ 'portal-mode': isPortalRoute }">
+    <div id="app" :class="{ 'portal-mode': isPortalRoute, 'academy-mode': isAcademyRoute }">
         <ConfirmationDialog ref="confirmDialog" />
         <Toast />
         <QuotaOAuth v-if="isOAuthRoute" />
+        <AcademyPortalLayout v-else-if="isAcademyRoute" :course-slug="academyCourseSlug" :dni="academyDni" />
         <QuotaPortalLayout v-else-if="isPortalRoute" :company-name="portalCompanyName" :dni="portalDni" />
         <template v-else>
             <Login 
@@ -30,6 +31,7 @@ import CompanySelector from './components/modules/CompanySelector.vue';
 import MainLayout from './components/layout/MainLayout.vue';
 import QuotaPortalLayout from './components/layout/QuotaPortalLayout.vue';
 import QuotaOAuth from './components/modules/quota-admin/QuotaOAuth.vue';
+import AcademyPortalLayout from './components/modules/academy/portal/AcademyPortalLayout.vue';
 import ConfirmationDialog from './components/layout/ConfirmationDialog.vue';
 import Toast from './components/layout/Toast.vue';
 
@@ -79,6 +81,7 @@ const triggerChangelog = () => {
     if (modules.some(r => r.startsWith('quota-'))) detected.push('quota');
     if (modules.some(r => r.startsWith('hairsalon-'))) detected.push('hairsalon');
     if (modules.some(r => r.startsWith('pos-'))) detected.push('pos');
+    if (modules.some(r => r.startsWith('academy-'))) detected.push('academy');
     const moduleIds = detected.length ? detected.join(',') : '';
     setTimeout(() => {
         window.dispatchEvent(new CustomEvent('check-changelog', { detail: { module: moduleIds } }));
@@ -93,13 +96,23 @@ const triggerChangelog = () => {
         return window.location.pathname === '/asociados' || window.location.pathname.startsWith('/asociados/');
     });
 
-    const portalCompanyName = computed(() => {
-        const parts = window.location.pathname.split('/').filter(Boolean);
+    const isAcademyRoute = computed(() => {
+        return window.location.pathname === '/curso' || window.location.pathname.startsWith('/curso/');
+    });
+
+    const getPathParts = () => window.location.pathname.split('/').filter(Boolean);
+
+    const portalCompanyName = computed(() => getPathParts()[1] || '');
+
+    const portalDni = computed(() => getPathParts()[2] || '');
+
+    const academyCourseSlug = computed(() => {
+        const parts = getPathParts();
         return parts[1] || '';
     });
 
-    const portalDni = computed(() => {
-        const parts = window.location.pathname.split('/').filter(Boolean);
+    const academyDni = computed(() => {
+        const parts = getPathParts();
         return parts[2] || '';
     });
 
@@ -120,7 +133,7 @@ const triggerChangelog = () => {
         }
         window.scrollTo(0, 0);
 
-        if (isPortalRoute.value || isOAuthRoute.value) return;
+        if (isPortalRoute.value || isAcademyRoute.value || isOAuthRoute.value) return;
 
         const token = localStorage.getItem('token');
         const user = localStorage.getItem('user');

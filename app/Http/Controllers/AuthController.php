@@ -484,10 +484,18 @@ private function getPermissions($globalUser)
 
     private function getAllModules()
     {
-        // Exclude POS modules for global admin - POS is only for child DBs
-        $modules = Module::whereNotIn('route', ['pos', 'pos-admin', 'pos-caja', 'pos-products', 'pos-orders', 'pos-users', 'pos-config'])
-            ->orderBy('order')
-            ->get();
+        // Exclude package modules for global admin - only show core modules
+        $modules = Module::whereNotIn('route', [
+            'pos', 'pos-admin', 'pos-caja', 'pos-products', 'pos-orders', 'pos-users', 'pos-config',
+            'pos-qr', 'pos-statistics', 'pos-log', 'pos-documentation', 'pos-dashboard',
+            'quota', 'quota-dashboard', 'quota-partners', 'quota-plans', 'quota-items', 'quota-payments',
+            'quota-daily', 'quota-config', 'quota-statistics', 'quota-users',
+            'hairsalon', 'hairsalon-dashboard', 'hairsalon-clients', 'hairsalon-services', 'hairsalon-cashier',
+            'hairsalon-finances', 'hairsalon-products', 'hairsalon-users', 'hairsalon-statistics',
+            'hairsalon-log', 'hairsalon-config', 'hairsalon-appointments',
+            'academy', 'academy-dashboard', 'academy-courses', 'academy-students', 'academy-enrollments',
+            'academy-exams', 'academy-grading', 'academy-import', 'academy-documentation', 'academy-config',
+        ])->orderBy('order')->get();
         
         return $modules->map(function($item) {
             return [

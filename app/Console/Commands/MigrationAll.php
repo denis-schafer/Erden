@@ -169,6 +169,7 @@ class MigrationAll extends Command
             ['name' => 'POS', 'route' => 'pos', 'icon' => 'bi-cart3', 'is_special' => 1, 'parent_id' => null, 'order' => 50, 'package' => 'pos'],
             ['name' => 'Administración de Cuotas', 'route' => 'quota', 'icon' => 'bi-calendar3', 'is_special' => 1, 'parent_id' => null, 'order' => 60, 'package' => 'quota_admin'],
             ['name' => 'Peluquería', 'route' => 'hairsalon', 'icon' => 'bi-scissors', 'is_special' => 1, 'parent_id' => null, 'order' => 55, 'package' => 'hairsalon'],
+            ['name' => 'Academy', 'route' => 'academy', 'icon' => 'bi-book', 'is_special' => 1, 'parent_id' => null, 'order' => 57, 'package' => 'academy'],
         ];
 
         $this->info('Starting module insertion loop...');
@@ -666,6 +667,9 @@ class MigrationAll extends Command
 
         // Check if HairSalon module is assigned and run HairSalon seeders
         $this->runHairSalonSeeders();
+
+        // Check if Academy module is assigned and run Academy seeders
+        $this->runAcademySeeders();
 
         $this->info('Seeders completed.');
     }
@@ -1189,6 +1193,78 @@ class MigrationAll extends Command
             }
         } catch (\Exception $e) {
             $this->warn('Could not sync webhook_code from child config: ' . $e->getMessage());
+        }
+    }
+
+    protected function runAcademySeeders(): void
+    {
+        $companyDb = config('database.connections.mysql.database');
+
+        config(['database.connections.mysql.database' => 'erden']);
+        DB::purge('mysql');
+        DB::reconnect('mysql');
+
+        $company = DB::table('companies')
+            ->where('db', $companyDb)
+            ->first();
+
+        if (!$company) {
+            $this->warn("Company with DB '{$companyDb}' not found in parent. Skipping Academy seeders.");
+            config(['database.connections.mysql.database' => $companyDb]);
+            DB::purge('mysql');
+            DB::reconnect('mysql');
+            return;
+        }
+
+        $hasAcademy = DB::table('company_modules')
+            ->join('modules', 'company_modules.module_id', '=', 'modules.id')
+            ->where('company_modules.company_id', $company->id)
+            ->where('modules.package', 'academy')
+            ->exists();
+
+        config(['database.connections.mysql.database' => $companyDb]);
+        DB::purge('mysql');
+        DB::reconnect('mysql');
+
+        if (!$hasAcademy) {
+            $this->info('Academy module not assigned to this company. Skipping.');
+            return;
+        }
+
+        $this->info('Academy module detected. Running Academy seeders...');
+
+        $this->runAcademyMigrations();
+
+        $this->call('db:seed', ['--class' => 'App\Packages\Academy\Seeders\AcademySeeder', '--force' => true]);
+
+        $this->info('Academy seeders completed.');
+    }
+
+    protected function runAcademyMigrations(): void
+    {
+        $migrationsPath = 'app/Packages/Academy/Migrations';
+        $fullPath = base_path($migrationsPath);
+
+        if (!is_dir($fullPath)) {
+            $this->warn("Academy migrations path not found: {$fullPath}");
+            return;
+        }
+
+        $files = glob($fullPath . '/*.php');
+        sort($files);
+
+        foreach ($files as $file) {
+            $migrationName = basename($file, '.php');
+            try {
+                $this->call('migrate', ['--force' => true, '--path' => $migrationsPath . '/' . basename($file)]);
+                $this->info("Migration {$migrationName} ejecutada.");
+            } catch (\Exception $e) {
+                if (strpos($e->getMessage(), 'already exists') !== false) {
+                    $this->info("Migration {$migrationName} ya aplicada.");
+                } else {
+                    $this->warn("Error en migration {$migrationName}: " . $e->getMessage());
+                }
+            }
         }
     }
 

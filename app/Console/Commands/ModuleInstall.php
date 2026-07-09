@@ -64,6 +64,23 @@ class ModuleInstall extends Command
             'migrations_path' => 'app/Packages/HairSalon/Migrations',
             'seeder_class' => 'App\Packages\HairSalon\Seeders\HairSalonSeeder',
         ],
+        'academy' => [
+            'name' => 'Academy (Cursos)',
+            'modules' => [
+                ['name' => 'Menu', 'route' => 'menu', 'icon' => 'bi-list', 'is_special' => 1, 'order' => 0, 'package' => null],
+                ['name' => 'Dashboard', 'route' => 'academy-dashboard', 'icon' => 'bi-speedometer2', 'is_special' => 1, 'order' => 0, 'package' => 'academy'],
+                ['name' => 'Cursos', 'route' => 'academy-courses', 'icon' => 'bi-book', 'is_special' => 0, 'order' => 1, 'package' => 'academy'],
+                ['name' => 'Alumnos', 'route' => 'academy-students', 'icon' => 'bi-people', 'is_special' => 0, 'order' => 2, 'package' => 'academy'],
+                ['name' => 'Inscripciones', 'route' => 'academy-enrollments', 'icon' => 'bi-pencil-square', 'is_special' => 0, 'order' => 3, 'package' => 'academy'],
+                ['name' => 'Exámenes', 'route' => 'academy-exams', 'icon' => 'bi-question-circle', 'is_special' => 0, 'order' => 4, 'package' => 'academy'],
+                ['name' => 'Calificaciones', 'route' => 'academy-grading', 'icon' => 'bi-check2-square', 'is_special' => 0, 'order' => 5, 'package' => 'academy'],
+                ['name' => 'Importar Curso', 'route' => 'academy-import', 'icon' => 'bi-upload', 'is_special' => 0, 'order' => 6, 'package' => 'academy'],
+                ['name' => 'Documentación', 'route' => 'academy-documentation', 'icon' => 'bi-file-text', 'is_special' => 0, 'order' => 7, 'package' => 'academy'],
+                ['name' => 'Configuración', 'route' => 'academy-config', 'icon' => 'bi-sliders', 'is_special' => 0, 'order' => 8, 'package' => 'academy'],
+            ],
+            'migrations_path' => 'app/Packages/Academy/Migrations',
+            'seeder_class' => 'App\Packages\Academy\Seeders\AcademySeeder',
+        ],
     ];
 
     public function handle(): int
@@ -202,6 +219,13 @@ class ModuleInstall extends Command
             '2026_06_24_000010_create_hairsalon_stock_movements_table' => ['hairsalon_stock_movements'],
             // 000011 is ALTER TABLE, not CREATE - excluded intentionally
             '2026_06_24_000014_create_hairsalon_appointments_table' => ['hairsalon_appointments'],
+            '2026_07_08_000001_create_academy_courses_table' => ['academy_courses'],
+            '2026_07_08_000003_create_academy_modules_table' => ['academy_modules'],
+            '2026_07_08_000004_create_academy_lessons_table' => ['academy_lessons'],
+            '2026_07_08_000002_create_academy_students_table' => ['academy_students'],
+            '2026_07_08_000005_create_academy_course_student_table' => ['academy_course_student'],
+            '2026_07_08_000007_create_academy_exams_table' => ['academy_exams'],
+            '2026_07_08_000010_create_academy_exam_attempts_table' => ['academy_exam_attempts'],
         ];
         
         if (!isset($tablesMap[$migrationName])) {

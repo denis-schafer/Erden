@@ -22,6 +22,8 @@
     <?php $__currentLoopData = $manifest['resources/js/app.js']['css'] ?? []; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $css): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); ?>
         <link rel="stylesheet" href="<?php echo e($assetBase); ?><?php echo e($css); ?>">
     <?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); ?>
+    <link href="https://cdn.quilljs.com/1.3.7/quill.snow.css" rel="stylesheet">
+    <script src="https://cdn.quilljs.com/1.3.7/quill.min.js"></script>
     <script type="module" src="<?php echo e($assetBase); ?><?php echo e($jsFile); ?>"></script>
 </head>
 <body>

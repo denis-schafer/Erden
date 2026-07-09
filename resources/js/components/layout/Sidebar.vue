@@ -131,6 +131,7 @@ const getModuleFromView = (view) => {
     if (view.startsWith('hairsalon')) return 'hairsalon';
     if (view.startsWith('quota')) return 'quota';
     if (view.startsWith('pos')) return 'pos';
+    if (view.startsWith('academy')) return 'academy';
     return null;
 };
 
@@ -138,6 +139,7 @@ const endpointForModule = (mod) => {
     if (mod === 'hairsalon') return '/hairsalon/config';
     if (mod === 'quota') return '/quota/config';
     if (mod === 'pos') return '/pos/configs';
+    if (mod === 'academy') return '/academy/config';
     return null;
 };
 
@@ -213,10 +215,12 @@ const visibleModules = computed(() => {
     }
     const hasFullPosAccess = authStore.permissions.includes('pos-users_read') || authStore.permissions.includes('pos-config_read');
     const hasFullHairSalonAccess = authStore.permissions.includes('hairsalon-config_read') || authStore.permissions.includes('hairsalon-users_read');
-    if (authStore.isGlobalAdmin || hasFullPosAccess || hasFullHairSalonAccess) return modules;
+    const hasFullAcademyAccess = authStore.permissions.includes('academy-courses_read') || authStore.permissions.includes('academy-students_read');
+    if (authStore.isGlobalAdmin || hasFullPosAccess || hasFullHairSalonAccess || hasFullAcademyAccess) return modules;
     return modules.filter(m => {
         if (m.route.startsWith('pos-')) return authStore.permissions.includes(`${m.route}_read`);
         if (m.route.startsWith('hairsalon-')) return authStore.permissions.includes(`${m.route}_read`);
+        if (m.route.startsWith('academy-')) return authStore.permissions.includes(`${m.route}_read`);
         return authStore.permissions.includes(`${m.route}_read`);
     });
 });
@@ -320,6 +324,7 @@ onMounted(() => {
     window.addEventListener('hairsalon-config-updated', () => { loadTheme(); });
     window.addEventListener('quota-config-updated', () => { loadTheme(); });
     window.addEventListener('pos-config-updated', () => { loadTheme(); });
+    window.addEventListener('academy-config-updated', () => { loadTheme(); });
     window.addEventListener('modules-reordered', (event) => {
         const { userId, orders } = event.detail;
         if (userId !== authStore.user?.id) return;

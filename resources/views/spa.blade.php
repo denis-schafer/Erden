@@ -22,6 +22,8 @@
     @foreach($manifest['resources/js/app.js']['css'] ?? [] as $css)
         <link rel="stylesheet" href="{{ $assetBase }}{{ $css }}">
     @endforeach
+    <link href="https://cdn.quilljs.com/1.3.7/quill.snow.css" rel="stylesheet">
+    <script src="https://cdn.quilljs.com/1.3.7/quill.min.js"></script>
     <script type="module" src="{{ $assetBase }}{{ $jsFile }}"></script>
 </head>
 <body>

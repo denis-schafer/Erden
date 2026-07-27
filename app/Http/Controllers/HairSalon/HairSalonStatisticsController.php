@@ -28,10 +28,11 @@ class HairSalonStatisticsController extends Controller
 
         $avgTicket = $totalJobs > 0 ? $totalIncome / $totalJobs : 0;
 
-        $byPaymentMethod = DB::table('hairsalon_jobs')
+        $byPaymentMethod = DB::table('hairsalon_cash_movements')
+            ->where('type', 'income')
             ->whereDate('created_at', '>=', $startDate)
             ->whereDate('created_at', '<=', $endDate)
-            ->select('payment_method', DB::raw('COUNT(*) as count'), DB::raw('SUM(total) as total'))
+            ->select('payment_method', DB::raw('COUNT(*) as count'), DB::raw('SUM(amount) as total'))
             ->groupBy('payment_method')
             ->get();
 
@@ -46,19 +47,21 @@ class HairSalonStatisticsController extends Controller
             ->limit(10)
             ->get();
 
-        $jobsByDay = DB::table('hairsalon_jobs')
+        $jobsByDay = DB::table('hairsalon_cash_movements')
+            ->where('type', 'income')
             ->whereDate('created_at', '>=', $startDate)
             ->whereDate('created_at', '<=', $endDate)
-            ->select(DB::raw('DATE(created_at) as date'), DB::raw('COUNT(*) as count'), DB::raw('SUM(total) as total'))
+            ->select(DB::raw('DATE(created_at) as date'), DB::raw('COUNT(*) as count'), DB::raw('SUM(amount) as total'))
             ->groupBy(DB::raw('DATE(created_at)'))
             ->orderBy('date')
             ->get();
 
-        $byOperator = DB::table('hairsalon_jobs as j')
-            ->join('users as u', 'j.operator_id', '=', 'u.id')
-            ->whereDate('j.created_at', '>=', $startDate)
-            ->whereDate('j.created_at', '<=', $endDate)
-            ->select('u.name', DB::raw('COUNT(*) as count'), DB::raw('SUM(j.total) as total'))
+        $byOperator = DB::table('hairsalon_cash_movements as m')
+            ->where('m.type', 'income')
+            ->join('users as u', 'm.operator_id', '=', 'u.id')
+            ->whereDate('m.created_at', '>=', $startDate)
+            ->whereDate('m.created_at', '<=', $endDate)
+            ->select('u.name', DB::raw('COUNT(*) as count'), DB::raw('SUM(m.amount) as total'))
             ->groupBy('u.id', 'u.name')
             ->orderBy('total', 'desc')
             ->get();
@@ -79,10 +82,11 @@ class HairSalonStatisticsController extends Controller
         $startDate = $request->get('start_date', now()->startOfMonth()->format('Y-m-d'));
         $endDate = $request->get('end_date', now()->format('Y-m-d'));
 
-        $sales = DB::table('hairsalon_jobs')
+        $sales = DB::table('hairsalon_cash_movements')
+            ->where('type', 'income')
             ->whereDate('created_at', '>=', $startDate)
             ->whereDate('created_at', '<=', $endDate)
-            ->select(DB::raw('created_at as date'), DB::raw('total as amount'))
+            ->select(DB::raw('created_at as date'), DB::raw('amount as amount'))
             ->orderBy('created_at')
             ->get();
 

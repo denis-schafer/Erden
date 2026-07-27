@@ -45,18 +45,20 @@ class HairSalonDashboardController extends Controller
             ->limit(10)
             ->get();
 
-        $jobsByDay = DB::table('hairsalon_jobs')
+        $jobsByDay = DB::table('hairsalon_cash_movements')
+            ->where('type', 'income')
             ->whereDate('created_at', '>=', $startDate)
             ->whereDate('created_at', '<=', $endDate)
-            ->select(DB::raw('DATE(created_at) as date'), DB::raw('COUNT(*) as count'), DB::raw('SUM(total) as total'))
+            ->select(DB::raw('DATE(created_at) as date'), DB::raw('COUNT(*) as count'), DB::raw('SUM(amount) as total'))
             ->groupBy(DB::raw('DATE(created_at)'))
             ->orderBy('date')
             ->get();
 
-        $byMethod = DB::table('hairsalon_jobs')
+        $byMethod = DB::table('hairsalon_cash_movements')
+            ->where('type', 'income')
             ->whereDate('created_at', '>=', $startDate)
             ->whereDate('created_at', '<=', $endDate)
-            ->select('payment_method', DB::raw('COUNT(*) as count'), DB::raw('SUM(total) as total'))
+            ->select('payment_method', DB::raw('COUNT(*) as count'), DB::raw('SUM(amount) as total'))
             ->groupBy('payment_method')
             ->get();
 

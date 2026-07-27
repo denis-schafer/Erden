@@ -11,6 +11,9 @@ class HairSalonFinanceController extends Controller
 {
     public function index(Request $request)
     {
+        $startDate = $request->get('start_date', now()->startOfMonth()->format('Y-m-d'));
+        $endDate = $request->get('end_date', now()->format('Y-m-d'));
+
         $query = DB::table('hairsalon_cash_movements as m')
             ->join('users as u', 'm.operator_id', '=', 'u.id')
             ->leftJoin('hairsalon_jobs as j', 'm.job_id', '=', 'j.id')
@@ -25,13 +28,8 @@ class HairSalonFinanceController extends Controller
             $query->where('m.payment_method', $request->get('payment_method'));
         }
 
-        if ($request->get('start_date')) {
-            $query->whereDate('m.created_at', '>=', $request->get('start_date'));
-        }
-
-        if ($request->get('end_date')) {
-            $query->whereDate('m.created_at', '<=', $request->get('end_date'));
-        }
+        $query->whereDate('m.created_at', '>=', $startDate);
+        $query->whereDate('m.created_at', '<=', $endDate);
 
         $movements = $query->orderBy('m.created_at', 'desc')->paginate($request->get('per_page', 50));
 

@@ -1,8 +1,12 @@
 <template>
     <div class="hairsalon-finances p-3">
-        <div class="d-flex justify-content-between align-items-center mb-3">
+        <div class="d-flex justify-content-between align-items-center mb-4">
             <h4 class="mb-0">Finanzas</h4>
-            <button class="btn btn-danger btn-sm" @click="openExpenseForm"><i class="bi bi-plus"></i> Nuevo Gasto</button>
+            <div class="d-flex gap-2">
+                <input type="date" v-model="startDate" class="form-control form-control-sm" style="width:140px" @change="loadData">
+                <input type="date" v-model="endDate" class="form-control form-control-sm" style="width:140px" @change="loadData">
+                <button class="btn btn-danger btn-sm" @click="openExpenseForm"><i class="bi bi-plus"></i> Nuevo Gasto</button>
+            </div>
         </div>
         <div class="row g-3 mb-3">
             <div class="col"><div class="card border-success"><div class="card-body text-center py-2">
@@ -16,12 +20,6 @@
             <div class="col-md-4"><div class="card"><div class="card-body text-center py-2">
                 <h6 class="mb-0">Por Método de Pago</h6>
                 <div v-for="m in summary.by_method" :key="m.payment_method" class="d-flex justify-content-between small mt-1"><span>{{ methodLabel(m.payment_method) }}</span><span>${{ formatNumber(m.total) }}</span></div></div></div></div>
-            <div class="col-md-8"><div class="d-flex gap-2 mb-2">
-                <input class="form-control form-control-sm" type="date" v-model="startDate"><input class="form-control form-control-sm" type="date" v-model="endDate">
-                <button class="btn btn-outline-primary btn-sm" :disabled="loading" @click="refreshData">
-                    <span v-if="loading" class="spinner-border spinner-border-sm me-1"></span>
-                    {{ loading ? 'Aguarde' : 'Filtrar' }}
-                </button></div></div>
         </div>
         <div v-if="loading" class="text-center py-5"><div class="spinner-border"></div></div>
         <div v-else>
@@ -146,18 +144,6 @@ const loadData = async () => {
     } finally { loading.value = false; }
 };
 
-const refreshData = async () => {
-    loading.value = true;
-    try {
-        const [mov, sum] = await Promise.all([
-            api.get('/hairsalon/finances', { params: { start_date: startDate.value, end_date: endDate.value, per_page: 500 } }).then(r => r.data),
-            api.get('/hairsalon/finances/summary', { params: { start_date: startDate.value, end_date: endDate.value } }).then(r => r.data),
-        ]);
-        movements.value = mov.data || [];
-        summary.value = sum;
-    } finally { loading.value = false; }
-};
-
 const displayMovements = computed(() => {
     return movements.value.map(m => ({
         ...m,
@@ -173,7 +159,7 @@ const openExpenseForm = () => { expenseForm.concept = ''; expenseForm.amount = 0
 
 const saveExpense = async () => {
     savingExpense.value = true;
-    try { await api.post('/hairsalon/finances/expenses', expenseForm); toast.success('Gasto registrado'); showExpenseForm.value = false; await refreshData(); }
+    try { await api.post('/hairsalon/finances/expenses', expenseForm); toast.success('Gasto registrado'); showExpenseForm.value = false; await loadData(); }
     catch (e) { toast.error(e.response?.data?.message || 'Error'); }
     finally { savingExpense.value = false; }
 };
@@ -199,12 +185,12 @@ const deleteMovement = async () => {
         toast.success('Movimiento eliminado');
         showDeleteConfirm.value = false;
         deleteTarget.value = null;
-        await refreshData();
+        await loadData();
     } catch (e) { toast.error(e.response?.data?.message || 'Error al eliminar'); }
     finally { deleting.value = false; }
 };
 
-const handleJobCreated = () => { refreshData(); };
+const handleJobCreated = () => { loadData(); };
 onMounted(() => { loadData(); window.addEventListener('hairsalon-job-created', handleJobCreated); });
 onUnmounted(() => { window.removeEventListener('hairsalon-job-created', handleJobCreated); });
 </script>

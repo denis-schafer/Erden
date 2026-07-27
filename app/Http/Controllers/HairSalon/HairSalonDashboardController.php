@@ -15,20 +15,20 @@ class HairSalonDashboardController extends Controller
 
         $totalClients = DB::table('hairsalon_clients')->count();
 
-        $todayIncome = DB::table('hairsalon_jobs')
+        $todayIncome = DB::table('hairsalon_cash_movements')
+            ->where('type', 'income')
             ->whereDate('created_at', now()->format('Y-m-d'))
-            ->where('status', 'completed')
-            ->sum('total');
+            ->sum('amount');
 
         $todayJobs = DB::table('hairsalon_jobs')
             ->whereDate('created_at', now()->format('Y-m-d'))
             ->count();
 
-        $periodIncome = DB::table('hairsalon_jobs')
+        $periodIncome = DB::table('hairsalon_cash_movements')
+            ->where('type', 'income')
             ->whereDate('created_at', '>=', $startDate)
             ->whereDate('created_at', '<=', $endDate)
-            ->where('status', 'completed')
-            ->sum('total');
+            ->sum('amount');
 
         $periodJobs = DB::table('hairsalon_jobs')
             ->whereDate('created_at', '>=', $startDate)

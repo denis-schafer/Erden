@@ -20,11 +20,11 @@ class HairSalonStatisticsController extends Controller
             ->whereDate('created_at', '<=', $endDate)
             ->count();
 
-        $totalIncome = DB::table('hairsalon_jobs')
+        $totalIncome = DB::table('hairsalon_cash_movements')
+            ->where('type', 'income')
             ->whereDate('created_at', '>=', $startDate)
             ->whereDate('created_at', '<=', $endDate)
-            ->where('status', 'completed')
-            ->sum('total');
+            ->sum('amount');
 
         $avgTicket = $totalJobs > 0 ? $totalIncome / $totalJobs : 0;
 

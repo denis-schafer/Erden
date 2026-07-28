@@ -47,7 +47,7 @@
                 <div class="mb-2"><label class="form-label">Notas</label><textarea v-model="form.notes" class="form-control form-control-sm" rows="2"></textarea></div>
             </div><div class="modal-footer">
                 <button type="button" class="btn btn-secondary btn-sm" @click="showModal = false">Cancelar</button>
-                <button type="submit" class="btn btn-primary btn-sm">{{ saving ? 'Guardando...' : 'Guardar' }}</button>
+                <button type="submit" class="btn btn-primary btn-sm" :disabled="saving">{{ saving ? 'Guardando...' : 'Guardar' }}</button>
             </div></form>
         </div></div></div>
         <div v-if="showModal" class="modal-backdrop fade show"></div>

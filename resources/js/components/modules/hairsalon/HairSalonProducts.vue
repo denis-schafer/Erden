@@ -46,7 +46,7 @@
                 </div>
             </div><div class="modal-footer">
                 <button type="button" class="btn btn-secondary btn-sm" @click="showModal = false">Cancelar</button>
-                <button type="submit" class="btn btn-primary btn-sm">{{ saving ? 'Guardando...' : 'Guardar' }}</button>
+                <button type="submit" class="btn btn-primary btn-sm" :disabled="saving">{{ saving ? 'Guardando...' : 'Guardar' }}</button>
             </div></form>
         </div></div></div>
         <div v-if="showModal" class="modal-backdrop fade show"></div>
@@ -59,7 +59,7 @@
                 <div class="mb-2"><label class="form-label">Motivo</label><input v-model="stockReason" class="form-control form-control-sm" placeholder="Ej: Compra a proveedor"></div>
             </div><div class="modal-footer">
                 <button type="button" class="btn btn-secondary btn-sm" @click="showStockModal = false">Cancelar</button>
-                <button type="submit" class="btn btn-sm" :class="stockType === 'in' ? 'btn-success' : 'btn-warning'">{{ savingStock ? 'Guardando...' : 'Confirmar' }}</button>
+                <button type="submit" class="btn btn-sm" :class="stockType === 'in' ? 'btn-success' : 'btn-warning'" :disabled="savingStock">{{ savingStock ? 'Guardando...' : 'Confirmar' }}</button>
             </div></form>
         </div></div></div>
         <div v-if="showStockModal" class="modal-backdrop fade show"></div>

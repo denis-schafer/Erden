@@ -59,7 +59,7 @@
                 </div>
             </div><div class="modal-footer">
                 <button type="button" class="btn btn-secondary btn-sm" @click="showServiceModal = false">Cancelar</button>
-                <button type="submit" class="btn btn-primary btn-sm">{{ savingService ? 'Guardando...' : 'Guardar' }}</button>
+                <button type="submit" class="btn btn-primary btn-sm" :disabled="savingService">{{ savingService ? 'Guardando...' : 'Guardar' }}</button>
             </div></form>
         </div></div></div>
         <div v-if="showServiceModal" class="modal-backdrop fade show"></div>
@@ -71,7 +71,7 @@
                 <div class="mb-2"><label class="form-label">Nombre</label><input v-model="categoryForm.name" class="form-control form-control-sm" required></div>
             </div><div class="modal-footer">
                 <button type="button" class="btn btn-secondary btn-sm" @click="showCategoryModal = false">Cancelar</button>
-                <button type="submit" class="btn btn-primary btn-sm">{{ savingCategory ? 'Guardando...' : 'Guardar' }}</button>
+                <button type="submit" class="btn btn-primary btn-sm" :disabled="savingCategory">{{ savingCategory ? 'Guardando...' : 'Guardar' }}</button>
             </div></form>
         </div></div></div>
         <div v-if="showCategoryModal" class="modal-backdrop fade show"></div>

@@ -93,7 +93,7 @@
                     <span v-if="cancelling" class="spinner-border spinner-border-sm me-1"></span>
                     {{ cancelling ? 'Cancelando...' : 'Cancelar Turno' }}
                 </button>
-                <button type="submit" class="btn btn-primary btn-sm">{{ saving?'Guardando...':'Guardar' }}</button>
+                <button type="submit" class="btn btn-primary btn-sm" :disabled="saving">{{ saving?'Guardando...':'Guardar' }}</button>
             </div></form>
         </div></div></div>
         <div v-if="showModal" class="modal-backdrop fade show"></div>

@@ -30,7 +30,7 @@
                 <div class="mb-2"><label class="form-label">Rol</label><select v-model="form.role_id" class="form-select form-select-sm"><option v-for="r in roles" :key="r.id" :value="r.id">{{ r.name }}</option></select></div>
             </div><div class="modal-footer">
                 <button type="button" class="btn btn-secondary btn-sm" @click="showModal = false">Cancelar</button>
-                <button type="submit" class="btn btn-primary btn-sm">{{ saving ? 'Guardando...' : 'Guardar' }}</button>
+                <button type="submit" class="btn btn-primary btn-sm" :disabled="saving">{{ saving ? 'Guardando...' : 'Guardar' }}</button>
             </div></form>
         </div></div></div>
         <div v-if="showModal" class="modal-backdrop fade show"></div>

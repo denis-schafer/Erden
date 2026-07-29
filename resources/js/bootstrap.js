@@ -36,6 +36,10 @@ const initWebSockets = async () => {
         });
         
         window.Echo = echo;
+        window.Pusher.logToConsole = false;
+        echo.connector.pusher.connection.bind('error', () => {
+            console.error('Error de conexión WebSocket. Verifique que el servicio de notificaciones esté activo. Contacte a soporte si el problema persiste.');
+        });
         console.log('[Echo] Initialized, host:', wsHost, 'port:', defaultPort);
         
         const usersChannel = window.Echo.channel('users');

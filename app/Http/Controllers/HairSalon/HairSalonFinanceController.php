@@ -103,6 +103,7 @@ class HairSalonFinanceController extends Controller
             'expenses' => $expenses,
             'balance' => $income - $expenses,
             'by_method' => $byMethod,
+            'total_gross_income' => $income,
         ]);
     }
 
@@ -136,6 +137,43 @@ class HairSalonFinanceController extends Controller
         }
 
         $id = DB::table('hairsalon_cash_movements')->insertGetId($expenseData);
+
+        return response()->json([
+            'success' => true,
+            'movement' => DB::table('hairsalon_cash_movements')->find($id),
+        ]);
+    }
+
+    public function storeIncome(Request $request)
+    {
+        $validated = $request->validate([
+            'concept' => 'required|string|max:200',
+            'amount' => 'required|numeric|min:0',
+            'payment_method' => 'required|string|in:cash,transfer,mercadopago,other',
+            'notes' => 'nullable|string',
+        ]);
+
+        $operatorId = session('user.id');
+        $operator = DB::table('users')->find($operatorId);
+
+        $incomeData = [
+            'type' => 'income',
+            'concept' => $validated['concept'],
+            'amount' => $validated['amount'],
+            'payment_method' => $validated['payment_method'],
+            'operator_id' => $operatorId,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ];
+
+        if (Schema::hasColumn('hairsalon_cash_movements', 'detail')) {
+            $incomeData['detail'] = json_encode([
+                'operator_name' => $operator->name ?? 'Operador',
+                'notes' => $validated['notes'] ?? null,
+            ]);
+        }
+
+        $id = DB::table('hairsalon_cash_movements')->insertGetId($incomeData);
 
         return response()->json([
             'success' => true,

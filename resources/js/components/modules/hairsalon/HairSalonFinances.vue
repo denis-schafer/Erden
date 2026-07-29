@@ -5,6 +5,7 @@
             <div class="d-flex gap-2">
                 <input type="date" v-model="startDate" class="form-control form-control-sm" style="width:140px" @change="loadData">
                 <input type="date" v-model="endDate" class="form-control form-control-sm" style="width:140px" @change="loadData">
+                <button class="btn btn-success btn-sm" @click="openIncomeForm"><i class="bi bi-plus"></i> Nuevo Ingreso</button>
                 <button class="btn btn-danger btn-sm" @click="openExpenseForm"><i class="bi bi-plus"></i> Nuevo Gasto</button>
             </div>
         </div>
@@ -18,8 +19,9 @@
         </div>
         <div class="row g-3 mb-3">
             <div class="col-md-4"><div class="card"><div class="card-body text-center py-2">
-                <h6 class="mb-0">Por Método de Pago</h6>
-                <div v-for="m in summary.by_method" :key="m.payment_method" class="d-flex justify-content-between small mt-1"><span>{{ methodLabel(m.payment_method) }}</span><span>${{ formatNumber(m.total) }}</span></div></div></div></div>
+                 <h6 class="mb-0">Por Método de Pago</h6>
+                <div v-for="m in summary.by_method" :key="m.payment_method" class="d-flex justify-content-between small mt-1"><span>{{ methodLabel(m.payment_method) }}</span><span>${{ formatNumber(m.total) }}</span></div>
+                <div class="d-flex justify-content-between small mt-1 border-top pt-1 fw-bold"><span>Ing. Total Bruto</span><span>${{ formatNumber(summary.total_gross_income) }}</span></div></div></div></div>
         </div>
         <div v-if="loading" class="text-center py-5"><div class="spinner-border"></div></div>
         <div v-else>
@@ -48,6 +50,21 @@
                 <button type="submit" class="btn btn-danger btn-sm" :disabled="savingExpense">{{ savingExpense ? 'Guardando...' : 'Guardar' }}</button>
             </div></form></div></div></div>
         <div v-if="showExpenseForm" class="modal-backdrop fade show"></div>
+
+        <!-- Income Modal -->
+        <div v-if="showIncomeForm" class="modal d-block"><div class="modal-dialog"><div class="modal-content">
+            <div class="modal-header"><h5 class="modal-title">Nuevo Ingreso</h5><button class="btn-close" @click="showIncomeForm = false"></button></div>
+            <form @submit.prevent="saveIncome"><div class="modal-body">
+                <div class="mb-2"><label class="form-label">Concepto</label><input v-model="incomeForm.concept" class="form-control form-control-sm" required></div>
+                <div class="mb-2"><label class="form-label">Monto</label><input v-model.number="incomeForm.amount" class="form-control form-control-sm" type="number" step="0.01" min="0" required></div>
+                <div class="mb-2"><label class="form-label">Método de Pago</label>
+                    <select v-model="incomeForm.payment_method" class="form-select form-select-sm"><option value="cash">Efectivo</option><option value="transfer">Transferencia</option><option value="mercadopago">MercadoPago</option><option value="other">Otro</option></select></div>
+                <div class="mb-2"><label class="form-label">Notas</label><textarea v-model="incomeForm.notes" class="form-control form-control-sm" rows="2"></textarea></div>
+            </div><div class="modal-footer">
+                <button type="button" class="btn btn-secondary btn-sm" @click="showIncomeForm = false">Cancelar</button>
+                <button type="submit" class="btn btn-success btn-sm" :disabled="savingIncome">{{ savingIncome ? 'Guardando...' : 'Guardar' }}</button>
+            </div></form></div></div></div>
+        <div v-if="showIncomeForm" class="modal-backdrop fade show"></div>
 
         <!-- Detail Modal -->
         <div v-if="showDetail" class="modal d-block"><div class="modal-dialog modal-lg"><div class="modal-content">
@@ -114,6 +131,9 @@ const endDate = ref(new Date().toISOString().split('T')[0]);
 const showExpenseForm = ref(false);
 const savingExpense = ref(false);
 const expenseForm = reactive({ concept: '', amount: 0, payment_method: 'cash', notes: '' });
+const showIncomeForm = ref(false);
+const savingIncome = ref(false);
+const incomeForm = reactive({ concept: '', amount: 0, payment_method: 'cash', notes: '' });
 const showDetail = ref(false);
 const detailMov = ref(null);
 const detailLoading = ref(false);
@@ -162,6 +182,15 @@ const saveExpense = async () => {
     try { await api.post('/hairsalon/finances/expenses', expenseForm); toast.success('Gasto registrado'); showExpenseForm.value = false; await loadData(); }
     catch (e) { toast.error(e.response?.data?.message || 'Error'); }
     finally { savingExpense.value = false; }
+};
+
+const openIncomeForm = () => { incomeForm.concept = ''; incomeForm.amount = 0; incomeForm.payment_method = 'cash'; incomeForm.notes = ''; showIncomeForm.value = true; };
+
+const saveIncome = async () => {
+    savingIncome.value = true;
+    try { await api.post('/hairsalon/finances/incomes', incomeForm); toast.success('Ingreso registrado'); showIncomeForm.value = false; await loadData(); }
+    catch (e) { toast.error(e.response?.data?.message || 'Error'); }
+    finally { savingIncome.value = false; }
 };
 
 const openDetail = async (movement) => {

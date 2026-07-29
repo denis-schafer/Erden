@@ -382,6 +382,7 @@ Route::middleware(['web', 'setDatabase'])->prefix('hairsalon')->group(function (
     Route::get('/finances/summary', [\App\Http\Controllers\HairSalon\HairSalonFinanceController::class, 'summary'])->middleware('permission:hairsalon-finances_read');
     Route::get('/finances/{id}', [\App\Http\Controllers\HairSalon\HairSalonFinanceController::class, 'show'])->middleware('permission:hairsalon-finances_read');
     Route::post('/finances/expenses', [\App\Http\Controllers\HairSalon\HairSalonFinanceController::class, 'storeExpense'])->middleware('permission:hairsalon-finances_read');
+    Route::post('/finances/incomes', [\App\Http\Controllers\HairSalon\HairSalonFinanceController::class, 'storeIncome'])->middleware('permission:hairsalon-finances_read');
     Route::delete('/finances/{id}', [\App\Http\Controllers\HairSalon\HairSalonFinanceController::class, 'destroy'])->middleware('permission:hairsalon-finances_read');
 
     Route::get('/products', [\App\Http\Controllers\HairSalon\HairSalonProductController::class, 'index'])->middleware('permission:hairsalon-products_read');

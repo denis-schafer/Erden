@@ -99,12 +99,25 @@ class HairSalonFinanceController extends Controller
             ->groupBy('payment_method')
             ->get();
 
+        $dailyTotals = DB::table('hairsalon_cash_movements')
+            ->whereDate('created_at', '>=', $startDate)
+            ->whereDate('created_at', '<=', $endDate)
+            ->select(
+                DB::raw('DATE(created_at) as date'),
+                DB::raw("SUM(CASE WHEN type = 'income' THEN amount ELSE 0 END) as income"),
+                DB::raw("SUM(CASE WHEN type = 'expense' THEN amount ELSE 0 END) as expense")
+            )
+            ->groupBy(DB::raw('DATE(created_at)'))
+            ->orderBy('date')
+            ->get();
+
         return response()->json([
             'income' => $income,
             'expenses' => $expenses,
             'balance' => $income - $expenses,
             'by_method' => $byMethod,
             'total_gross_income' => $income,
+            'daily_totals' => $dailyTotals,
         ]);
     }
 

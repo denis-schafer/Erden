@@ -23,6 +23,36 @@
                 <div v-for="m in summary.by_method" :key="m.payment_method" class="d-flex justify-content-between small mt-1"><span>{{ methodLabel(m.payment_method) }}</span><span>${{ formatNumber(m.total) }}</span></div>
                 <div class="d-flex justify-content-between small mt-1 border-top pt-1 fw-bold"><span>Ing. Total Bruto</span><span>${{ formatNumber(summary.total_gross_income) }}</span></div></div></div></div>
         </div>
+        <div class="row mb-3">
+            <div class="col-12"><div class="card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <div class="d-flex align-items-center gap-2">
+                        <h6 class="mb-0">Ingresos vs Gastos por Día</h6>
+                        <div class="form-check form-switch mb-0">
+                            <input class="form-check-input" type="checkbox" id="showChart" v-model="chartVisible" @change="saveChartSettings">
+                        </div>
+                    </div>
+                    <div v-if="chartVisible" class="d-flex gap-3">
+                        <label class="form-check form-check-inline mb-0 small" style="cursor:pointer">
+                            <input class="form-check-input" type="checkbox" v-model="showIncomeLine" @change="saveChartSettings">
+                            <span style="color:#198754">&#9632; Ingresos</span>
+                        </label>
+                        <label class="form-check form-check-inline mb-0 small" style="cursor:pointer">
+                            <input class="form-check-input" type="checkbox" v-model="showExpenseLine" @change="saveChartSettings">
+                            <span style="color:#dc3545">&#9632; Gastos</span>
+                        </label>
+                        <label class="form-check form-check-inline mb-0 small" style="cursor:pointer">
+                            <input class="form-check-input" type="checkbox" v-model="showBalanceLine" @change="saveChartSettings">
+                            <span style="color:#0d6efd">&#9632; Balance</span>
+                        </label>
+                    </div>
+                </div>
+                <div v-if="chartVisible" class="card-body" style="height:320px">
+                    <Line v-if="dailyChartData.labels.length" :data="dailyChartData" :options="dailyChartOptions" />
+                    <div v-else class="text-center text-muted py-5">Sin datos para el período</div>
+                </div>
+            </div></div>
+        </div>
         <div v-if="loading" class="text-center py-5"><div class="spinner-border"></div></div>
         <div v-else>
             <DataTable :data="displayMovements" :columns="columns" :per-page="15">
@@ -114,10 +144,14 @@
 <script setup>
 import { ref, reactive, computed, onMounted, onUnmounted } from 'vue';
 import { useAuthStore } from '../../../stores/auth';
+import { Line } from 'vue-chartjs';
+import { Chart as ChartJS, CategoryScale, LinearScale, PointElement, LineElement, Title, Tooltip, Legend } from 'chart.js';
 import api from '../../../services/api';
 import DataTable from '../../../components/common/DataTable.vue';
 import { useCache } from '../../../composables/useCache';
 import { toast } from '../../../utils/toast';
+
+ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, Title, Tooltip, Legend);
 
 const authStore = useAuthStore();
 const isAdmin = computed(() => authStore.user?.role_id === 1);
@@ -171,6 +205,50 @@ const displayMovements = computed(() => {
         method_display: methodLabel(m.payment_method),
     }));
 });
+
+const dailyChartData = computed(() => {
+    const data = summary.value.daily_totals || [];
+    const map = {};
+    data.forEach(d => { map[d.date] = d; });
+    
+    const allDates = [];
+    const start = new Date(startDate.value + 'T12:00:00');
+    const end = new Date(endDate.value + 'T12:00:00');
+    for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
+        const ds = d.toISOString().split('T')[0];
+        const entry = map[ds] || { income: 0, expense: 0 };
+        allDates.push({ date: ds, income: entry.income || 0, expense: entry.expense || 0 });
+    }
+    
+    if (!allDates.length) return { labels: [], datasets: [] };
+    return {
+        labels: allDates.map(d => new Date(d.date + 'T12:00:00').toLocaleDateString('es-AR', { day:'2-digit', month:'short' })),
+        datasets: [
+            { label: 'Ingresos', data: allDates.map(d => d.income), borderColor: '#198754', backgroundColor: 'transparent', tension: 0.3, pointRadius: 2, hidden: !showIncomeLine.value },
+            { label: 'Gastos', data: allDates.map(d => d.expense), borderColor: '#dc3545', backgroundColor: 'transparent', tension: 0.3, pointRadius: 2, hidden: !showExpenseLine.value },
+            { label: 'Balance', data: allDates.map(d => d.income - d.expense), borderColor: '#0d6efd', backgroundColor: 'transparent', tension: 0.3, pointRadius: 2, borderDash: [5,5], hidden: !showBalanceLine.value },
+        ],
+    };
+});
+
+const chartVisible = ref(localStorage.getItem('finances_chart_visible') !== '0');
+const showIncomeLine = ref(localStorage.getItem('finances_chart_income') !== '0');
+const showExpenseLine = ref(localStorage.getItem('finances_chart_expense') !== '0');
+const showBalanceLine = ref(localStorage.getItem('finances_chart_balance') !== '0');
+
+const saveChartSettings = () => {
+    localStorage.setItem('finances_chart_visible', chartVisible.value ? '1' : '0');
+    localStorage.setItem('finances_chart_income', showIncomeLine.value ? '1' : '0');
+    localStorage.setItem('finances_chart_expense', showExpenseLine.value ? '1' : '0');
+    localStorage.setItem('finances_chart_balance', showBalanceLine.value ? '1' : '0');
+};
+
+const dailyChartOptions = {
+    responsive: true,
+    maintainAspectRatio: false,
+    plugins: { legend: { display: false } },
+    scales: { y: { ticks: { callback: v => '$' + Number(v || 0).toLocaleString('es-AR') } } },
+};
 
 const methodLabel = (m) => ({ cash: 'Efectivo', transfer: 'Transferencia', mercadopago: 'MercadoPago', other: 'Otro' }[m] || m);
 const formatNumber = (n) => Number(n || 0).toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });

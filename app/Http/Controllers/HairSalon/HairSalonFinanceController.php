@@ -92,6 +92,7 @@ class HairSalonFinanceController extends Controller
             ->sum('amount');
 
         $byMethod = DB::table('hairsalon_cash_movements')
+            ->where('type', 'income')
             ->whereDate('created_at', '>=', $startDate)
             ->whereDate('created_at', '<=', $endDate)
             ->select('payment_method', DB::raw('SUM(amount) as total'), DB::raw('COUNT(*) as count'))

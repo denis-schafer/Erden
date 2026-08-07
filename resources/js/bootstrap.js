@@ -38,7 +38,13 @@ const initWebSockets = async () => {
         window.Echo = echo;
         window.Pusher.logToConsole = false;
         echo.connector.pusher.connection.bind('error', () => {
-            console.error('Error de conexión WebSocket. Verifique que el servicio de notificaciones esté activo. Contacte a soporte si el problema persiste.');
+            console.error('Error de conexión WebSocket. Reintentando...');
+            setTimeout(() => { echo.connector.pusher.connect(); }, 5000);
+        });
+        echo.connector.pusher.connection.bind('disconnected', () => {
+            if (echo.connector.pusher.connection.state !== 'connecting') {
+                setTimeout(() => { echo.connector.pusher.connect(); }, 3000);
+            }
         });
         console.log('[Echo] Initialized, host:', wsHost, 'port:', defaultPort);
         
